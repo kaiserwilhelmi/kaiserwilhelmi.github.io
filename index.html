@@ -1,0 +1,174 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Dawson Wilhelmi · Procurement & Supply Chain Analytics</title>
+<meta name="description" content="Portfolio of procurement and supply chain analytics projects by Dawson Wilhelmi: supplier scorecards, market cost tracking, forecasting and data analysis.">
+<style>
+/*
+VOICE: confident, practical, a buyer who can code
+IDEA: a purchasing report binder: tabs, figures, clear recommendations
+PICTURE: each project card carries a live miniature of its own dashboard
+COLOUR and TYPE: shared tokens with the dashboards; system sans, blue accent, status colors only where they mean status
+LAYOUT: intro band, project grid, how-I-work row, skills
+*/
+:root { color-scheme: light dark;
+  --bg: light-dark(#f6f5f2, #121211); --surface: light-dark(#fcfcfb, #1a1a19); --border: light-dark(#e3e1db, #33332f);
+  --grid: light-dark(#ebe9e4, #2a2a27); --text: light-dark(#0b0b0b, #f0efec); --text-2: light-dark(#52514e, #c3c2b7);
+  --text-3: light-dark(#7a7974, #94938b); --accent: light-dark(#2a78d6, #3987e5);
+  --good: #0ca30c; --warn: #fab219; --crit: #d03b3b; --neutral: #8a8984; }
+:root[data-theme=light] { color-scheme: light; } :root[data-theme=dark] { color-scheme: dark; }
+* { box-sizing: border-box; min-width: 0; }
+body { margin: 0; background: var(--bg); color: var(--text); font: 16px/1.55 -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif; overflow-x: clip; }
+.wrap { max-width: 1120px; margin: 0 auto; padding: 0 max(4vw, 16px); }
+a { color: var(--accent); }
+nav { display: flex; justify-content: space-between; align-items: center; padding: 20px 0; gap: 16px; flex-wrap: wrap; }
+nav .me { font-weight: 700; text-decoration: none; color: var(--text); }
+nav .links { display: flex; gap: 20px; font-size: 15px; }
+nav .links a { color: var(--text-2); text-decoration: none; }
+nav .links a:hover { color: var(--accent); }
+.hero { padding: clamp(32px, 7vw, 88px) 0 clamp(28px, 5vw, 56px); display: grid; grid-template-columns: minmax(0, 1.3fr) minmax(0, 1fr); gap: 40px; align-items: center; }
+@media (max-width: 820px) { .hero { grid-template-columns: 1fr; } }
+.kicker { color: var(--accent); font-weight: 600; font-size: 15px; margin: 0 0 10px; }
+h1 { font-size: clamp(32px, 5vw, 52px); line-height: 1.05; letter-spacing: -0.025em; margin: 0 0 16px; text-wrap: balance; }
+.lede { font-size: 18px; color: var(--text-2); max-width: 36em; margin: 0 0 22px; }
+.btns { display: flex; gap: 12px; flex-wrap: wrap; }
+.btn { display: inline-flex; align-items: center; min-height: 44px; padding: 0 18px; border-radius: 10px; font-weight: 600; text-decoration: none; border: 1px solid var(--border); color: var(--text); background: var(--surface); }
+.btn.primary { background: var(--accent); border-color: var(--accent); color: #fff; }
+.facts { background: var(--surface); border: 1px solid var(--border); border-radius: 14px; padding: 20px 22px; }
+.facts div { display: grid; grid-template-columns: 7.5em minmax(0, 1fr); gap: 12px; padding: 10px 0; border-top: 1px solid var(--grid); font-size: 15px; }
+.facts div:first-child { border-top: 0; padding-top: 0; }
+.facts div:last-child { padding-bottom: 0; }
+.facts dt { color: var(--text-3); margin: 0; } .facts dd { margin: 0; font-weight: 500; }
+h2 { font-size: 26px; letter-spacing: -0.015em; margin: 0 0 6px; }
+.sec { padding: clamp(28px, 5vw, 56px) 0; border-top: 1px solid var(--border); }
+.sec > p.intro { color: var(--text-2); margin: 0 0 24px; max-width: 42em; }
+.projects { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 440px), 1fr)); gap: 20px; }
+.proj { background: var(--surface); border: 1px solid var(--border); border-radius: 16px; overflow: hidden; display: flex; flex-direction: column; text-decoration: none; color: inherit; transition: border-color .15s, transform .15s; }
+.proj:hover { border-color: var(--accent); transform: translateY(-2px); }
+@media (prefers-reduced-motion: reduce) { .proj { transition: none; } .proj:hover { transform: none; } }
+.thumb { background: var(--bg); border-bottom: 1px solid var(--border); padding: 18px 20px; height: 190px; }
+.thumb svg { width: 100%; height: 100%; display: block; }
+.pbody { padding: 18px 20px 20px; display: flex; flex-direction: column; gap: 10px; flex: 1; }
+.pbody h3 { margin: 0; font-size: 20px; letter-spacing: -0.01em; }
+.pbody p { margin: 0; color: var(--text-2); font-size: 15px; }
+.q { font-size: 14px; color: var(--text); border-left: 3px solid var(--accent); padding-left: 10px; }
+.tags { display: flex; flex-wrap: wrap; gap: 6px; margin-top: auto; padding-top: 6px; }
+.tags span { font-size: 12px; color: var(--text-2); border: 1px solid var(--border); border-radius: 999px; padding: 2px 9px; }
+.open { font-weight: 600; color: var(--accent); font-size: 15px; }
+.steps { display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 16px; }
+.step { background: var(--surface); border: 1px solid var(--border); border-radius: 14px; padding: 18px; }
+.step b { display: block; margin-bottom: 4px; }
+.step p { margin: 0; color: var(--text-2); font-size: 15px; }
+.skills { display: grid; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); gap: 24px; }
+.skills h3 { font-size: 15px; margin: 0 0 8px; color: var(--text-2); }
+.skills ul { margin: 0; padding-left: 18px; }
+.skills li { margin: 4px 0; }
+footer { padding: 28px 0 48px; border-top: 1px solid var(--border); color: var(--text-3); font-size: 14px; display: flex; justify-content: space-between; gap: 12px; flex-wrap: wrap; }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <nav>
+    <a class="me" href="/">Dawson Wilhelmi</a>
+    <div class="links"><a href="#projects">Projects</a><a href="#approach">Approach</a><a href="#skills">Skills</a></div>
+  </nav>
+
+  <header class="hero">
+    <div>
+      <p class="kicker">Procurement &amp; supply chain analytics</p>
+      <h1>I turn purchasing data into buying decisions.</h1>
+      <p class="lede">Controller and supply chain student building working tools for procurement: supplier scorecards, live market cost tracking, and the analysis behind when to buy, rebid or renegotiate.</p>
+      <div class="btns"><a class="btn primary" href="#projects">See projects</a><a class="btn" href="#approach">How I work</a></div>
+    </div>
+    <dl class="facts">
+      <div><dt>Now</dt><dd>Controller, Raymond Allyn Business Supplies</dd></div>
+      <div><dt>Also</dt><dd>Operations &amp; compliance for a small carrier business (FMCSA, USDOT, sales tax, payroll)</dd></div>
+      <div><dt>Education</dt><dd>Supply chain degree, California State University · graduating Dec 2026</dd></div>
+      <div><dt>Focus</dt><dd>Supplier performance, spend analysis, cost forecasting</dd></div>
+      <div><dt>Location</dt><dd>San Diego County, CA</dd></div>
+    </dl>
+  </header>
+
+  <section class="sec" id="projects">
+    <h2>Projects</h2>
+    <p class="intro">Each project starts with a business question, uses real or clearly labeled sample data, and ends with a working tool and a recommendation.</p>
+    <div class="projects">
+
+      <a class="proj" href="/supplier-scorecard/">
+        <div class="thumb" aria-hidden="true">
+          <svg viewBox="0 0 400 150" preserveAspectRatio="none">
+            <g font-size="11" fill="var(--text-2)" font-family="inherit">
+              <text x="0" y="16">Harbor Line</text><text x="0" y="46">Brightmark</text><text x="0" y="76">Clearwater</text><text x="0" y="106">Mesa Office</text><text x="0" y="136">Summit Tech</text>
+            </g>
+            <g>
+              <rect x="90" y="7" width="270" height="12" rx="4" fill="var(--grid)"/><rect x="90" y="7" width="252" height="12" rx="4" fill="var(--accent)"/>
+              <rect x="90" y="37" width="270" height="12" rx="4" fill="var(--grid)"/><rect x="90" y="37" width="243" height="12" rx="4" fill="var(--accent)"/>
+              <rect x="90" y="67" width="270" height="12" rx="4" fill="var(--grid)"/><rect x="90" y="67" width="163" height="12" rx="4" fill="var(--accent)"/>
+              <rect x="90" y="97" width="270" height="12" rx="4" fill="var(--grid)"/><rect x="90" y="97" width="140" height="12" rx="4" fill="var(--accent)"/>
+              <rect x="90" y="127" width="270" height="12" rx="4" fill="var(--grid)"/><rect x="90" y="127" width="205" height="12" rx="4" fill="var(--accent)"/>
+              <circle cx="380" cy="13" r="6" fill="var(--good)"/><circle cx="380" cy="43" r="6" fill="var(--good)"/><circle cx="380" cy="73" r="6" fill="var(--warn)"/><circle cx="380" cy="103" r="6" fill="var(--crit)"/><circle cx="380" cy="133" r="6" fill="var(--neutral)"/>
+            </g>
+          </svg>
+        </div>
+        <div class="pbody">
+          <h3>Supplier Scorecard</h3>
+          <p class="q">Which suppliers deserve more of our spend, and which need a corrective plan?</p>
+          <p>Weighted scorecard across 12 suppliers and ~2,000 purchase orders: on-time delivery, fill rate, defects, invoice accuracy and price compliance. Flags high-spend, low-performing suppliers and tracks trends; upload your own data to score real vendors.</p>
+          <div class="tags"><span>Python</span><span>KPI design</span><span>Weighted scoring</span><span>Spend analysis</span><span>JavaScript dashboard</span></div>
+          <span class="open">Open dashboard →</span>
+        </div>
+      </a>
+
+      <a class="proj" href="/market-watch/">
+        <div class="thumb" aria-hidden="true">
+          <svg viewBox="0 0 400 150" preserveAspectRatio="none">
+            <g stroke="var(--grid)"><line x1="0" x2="400" y1="30" y2="30"/><line x1="0" x2="400" y1="75" y2="75"/><line x1="0" x2="400" y1="120" y2="120"/></g>
+            <path d="M0,120 L30,116 L60,104 L90,108 L120,111 L150,113 L180,112 L210,116 L240,111 L270,114 L300,62 L320,50 L340,78 L360,74 L380,46 L400,18" fill="none" stroke="var(--accent)" stroke-width="2.5" stroke-linejoin="round"/>
+            <path d="M0,120 L30,116 L60,104 L90,108 L120,111 L150,113 L180,112 L210,116 L240,111 L270,114 L300,62 L320,50 L340,78 L360,74 L380,46 L400,18 L400,150 L0,150Z" fill="var(--accent)" opacity=".1"/>
+            <g font-size="12" font-weight="600" font-family="inherit">
+              <rect x="6" y="6" width="96" height="22" rx="11" fill="var(--surface)" stroke="var(--border)"/><circle cx="20" cy="17" r="5" fill="var(--crit)"/><text x="31" y="21" fill="var(--text)">3 Alerts</text>
+              <rect x="110" y="6" width="128" height="22" rx="11" fill="var(--surface)" stroke="var(--border)"/><circle cx="124" cy="17" r="5" fill="var(--good)"/><text x="135" y="21" fill="var(--text)">2 Opportunities</text>
+            </g>
+          </svg>
+        </div>
+        <div class="pbody">
+          <h3>Procurement Market Watch</h3>
+          <p class="q">When should we lock in pricing, and when should we push suppliers for decreases?</p>
+          <p>Self-updating dashboard tracking paper, packaging, resin, steel, trucking, diesel and currency costs from government data. Refreshes every morning and turns each move into an Alert, Watch or Opportunity with a recommended buyer action.</p>
+          <div class="tags"><span>Python</span><span>FRED / BLS / EIA data</span><span>GitHub Actions automation</span><span>Cost forecasting</span></div>
+          <span class="open">Open dashboard →</span>
+        </div>
+      </a>
+
+    </div>
+  </section>
+
+  <section class="sec" id="approach">
+    <h2>How I work</h2>
+    <p class="intro">I build these with AI as a working partner: it speeds up the code and data work so the time goes into the business question and checking the answer.</p>
+    <div class="steps">
+      <div class="step"><b>Start with the decision</b><p>What would a buyer or controller do differently with the answer?</p></div>
+      <div class="step"><b>Get the data right</b><p>Real sources where possible, clearly labeled sample data where not.</p></div>
+      <div class="step"><b>Verify independently</b><p>Numbers are checked against the source data and a separate Python calculation.</p></div>
+      <div class="step"><b>Ship something usable</b><p>A working tool with a recommendation, not just a chart.</p></div>
+    </div>
+  </section>
+
+  <section class="sec" id="skills">
+    <h2>Skills</h2>
+    <div class="skills" style="margin-top:18px">
+      <div><h3>Procurement &amp; finance</h3><ul><li>Vendor management &amp; supplier evaluation</li><li>Spend tracking &amp; analysis</li><li>SAP Ariba supplier invoicing</li><li>QuickBooks, payroll, sales tax (CDTFA)</li><li>ACH fraud monitoring</li></ul></div>
+      <div><h3>Analytics</h3><ul><li>Python (pandas-style data work)</li><li>KPI &amp; scorecard design</li><li>Market &amp; cost index tracking</li><li>Dashboards (HTML / JavaScript)</li><li>Excel</li></ul></div>
+      <div><h3>Operations &amp; compliance</h3><ul><li>FMCSA / USDOT / MCS-150 filings</li><li>Carrier operations</li><li>Process documentation</li><li>Automation with GitHub Actions</li></ul></div>
+    </div>
+  </section>
+
+  <footer>
+    <span>© 2026 Dawson Wilhelmi</span>
+    <span>Built with Python, JavaScript and AI assistance · Hosted on GitHub Pages</span>
+  </footer>
+</div>
+</body>
+</html>
