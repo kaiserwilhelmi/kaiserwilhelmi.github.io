@@ -1,0 +1,732 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Loot Ledger</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Alegreya+SC:wght@500;700&family=Alegreya+Sans:wght@400;500;700&display=swap">
+<style>
+/* Layout: one column ledger. Sticky tab bar, a "today" strip, then the active book (Sell, Prices, Trophies, Wishlist, Settings). Dark only, like a depot at night. */
+:root{
+  color-scheme:dark;
+  --bg:#121419;          /* depot stone */
+  --panel:#1b1e25;
+  --panel2:#232733;
+  --line:#2f3442;
+  --fg:#e8e4da;          /* parchment text */
+  --muted:#9b978c;
+  --gold:#e0b04a;        /* gold coin */
+  --gold-dim:#6b5424;
+  --good:#5fbf77;
+  --warn:#e39b4a;
+  --bad:#e0685e;
+  --t0:#8a8f99; --t1:#6fcf8a; --t2:#5aa6f0; --t3:#b48cf2; --t4:#f2c14e; /* value tiers */
+  --display:"Alegreya SC", Georgia, "Times New Roman", serif;
+  --body:"Alegreya Sans", system-ui, -apple-system, "Segoe UI", sans-serif;
+  --r:10px;
+}
+*{box-sizing:border-box}
+[hidden]{display:none!important}
+html,body{background:var(--bg);color:var(--fg)}
+body{font-family:var(--body);font-size:16px;line-height:1.45;padding-left:max(16px,env(safe-area-inset-left,0px));padding-right:max(16px,env(safe-area-inset-right,0px));padding-block:0 48px}
+body::before{content:"";position:fixed;inset:0 0 auto;height:env(safe-area-inset-top,0px);z-index:10;background:var(--bg)}
+.wrap{max-width:1000px;margin:0 auto}
+h1,h2,h3{font-family:var(--display);font-weight:700;text-wrap:balance;margin:0}
+h1{font-size:1.7rem;letter-spacing:.02em}
+h1 .coin{display:inline-block;width:.8em;height:.8em;border-radius:50%;background:radial-gradient(circle at 35% 35%,#ffe9a3,var(--gold) 55%,#8a6217);vertical-align:.02em;margin-right:.3em;box-shadow:0 0 0 1px #00000060}
+h2{font-size:1.3rem}
+h3{font-size:1.05rem}
+a{color:var(--gold)}
+.muted{color:var(--muted)}
+.small{font-size:.85rem}
+.num{font-variant-numeric:tabular-nums;white-space:nowrap}
+header.top{position:sticky;top:env(safe-area-inset-top,0px);z-index:5;background:var(--bg);padding-top:14px;border-bottom:1px solid var(--line)}
+.brand{display:flex;align-items:baseline;justify-content:space-between;gap:12px;flex-wrap:wrap}
+.brand .who{font-size:.9rem;color:var(--muted)}
+nav.tabs{display:flex;gap:2px;overflow-x:auto;margin-top:10px;scrollbar-width:none}
+nav.tabs a{flex:0 0 auto;padding:9px 14px;text-decoration:none;color:var(--muted);font-family:var(--display);font-size:1.02rem;border-bottom:2px solid transparent}
+nav.tabs a[aria-current="page"]{color:var(--fg);border-color:var(--gold)}
+nav.tabs a:focus-visible,button:focus-visible,input:focus-visible,select:focus-visible,textarea:focus-visible{outline:2px solid var(--gold);outline-offset:2px}
+.today{display:flex;flex-wrap:wrap;gap:8px 18px;padding:12px 0;font-size:.92rem;color:var(--muted)}
+.today b{color:var(--fg);font-weight:500}
+section.book{display:flex;flex-direction:column;gap:18px;padding-top:6px}
+.panel{background:var(--panel);border:1px solid var(--line);border-radius:var(--r);padding:16px}
+.row{display:flex;gap:10px;flex-wrap:wrap;align-items:end}
+.row>*{min-width:0}
+label{display:flex;flex-direction:column;gap:4px;font-size:.82rem;color:var(--muted);letter-spacing:.02em}
+input,select,textarea{font:inherit;color:var(--fg);background:var(--bg);border:1px solid var(--line);border-radius:8px;padding:9px 10px;min-width:0;width:100%}
+textarea{min-height:130px;resize:vertical;font-size:.9rem;font-family:ui-monospace,Menlo,Consolas,monospace}
+button{font:inherit;cursor:pointer;border-radius:8px;border:1px solid var(--line);background:var(--panel2);color:var(--fg);padding:9px 14px}
+button.primary{background:var(--gold);color:#1a1405;border-color:var(--gold);font-weight:700}
+button.ghost{background:none;border-color:transparent;color:var(--muted);padding:6px 8px}
+button.link{background:none;border:none;color:var(--gold);padding:0;text-decoration:underline;text-underline-offset:2px}
+.grow{flex:1 1 220px}
+.w-s{flex:0 1 130px}
+.tiles{display:grid;grid-template-columns:repeat(auto-fit,minmax(140px,1fr));gap:10px}
+.tile{background:var(--panel);border:1px solid var(--line);border-radius:var(--r);padding:12px 14px}
+.tile .k{font-size:.8rem;color:var(--muted);letter-spacing:.04em;text-transform:uppercase}
+.tile .v{font-size:1.5rem;font-weight:700;font-variant-numeric:tabular-nums}
+.tile.hl{border-color:var(--gold-dim)}
+.tile.hl .v{color:var(--gold)}
+.scroll{overflow-x:auto;-webkit-overflow-scrolling:touch}
+table{border-collapse:collapse;width:100%;font-size:.93rem}
+th{font-weight:500;color:var(--muted);text-align:left;font-size:.78rem;letter-spacing:.05em;text-transform:uppercase;padding:6px 8px;border-bottom:1px solid var(--line);white-space:nowrap}
+td{padding:8px;border-bottom:1px solid var(--line);vertical-align:top}
+td.r,th.r{text-align:right}
+tr:last-child td{border-bottom:none}
+.item{display:flex;align-items:center;gap:8px;min-width:170px}
+.sprite{width:32px;height:32px;flex:0 0 32px;image-rendering:pixelated;border-radius:6px;background:var(--bg);border:1px solid var(--line);display:grid;place-items:center;overflow:hidden}
+.sprite img{max-width:32px;max-height:32px}
+.sprite.big{width:48px;height:48px;flex-basis:48px}
+.sprite.big img{max-width:44px;max-height:44px}
+.tier0{--tc:var(--t0)}.tier1{--tc:var(--t1)}.tier2{--tc:var(--t2)}.tier3{--tc:var(--t3)}.tier4{--tc:var(--t4)}
+.sprite[class*="tier"]{border-color:var(--tc);box-shadow:inset 0 0 8px color-mix(in srgb,var(--tc) 35%,transparent)}
+.val{color:var(--tc,var(--fg));font-weight:700}
+.pill{display:inline-block;padding:2px 8px;border-radius:999px;font-size:.76rem;font-weight:700;letter-spacing:.03em;white-space:nowrap;border:1px solid currentColor}
+.pill.npc{color:var(--t1)}
+.pill.mkt{color:var(--t2)}
+.pill.list{color:var(--t3)}
+.pill.check{color:var(--warn)}
+.pill.keep{color:var(--muted)}
+.pill.ex{color:var(--warn);font-size:.7rem}
+.where{font-size:.82rem;color:var(--muted)}
+.quest{color:var(--warn);font-size:.78rem}
+button.link.quest{color:var(--warn);text-decoration-style:dotted;font-size:.78rem}
+.notice{border-left:3px solid var(--warn);padding:8px 12px;background:var(--panel);border-radius:0 8px 8px 0;font-size:.9rem}
+.route{display:grid;grid-template-columns:repeat(auto-fill,minmax(230px,1fr));gap:10px}
+.route .stop{background:var(--panel2);border-radius:8px;padding:10px 12px}
+.route .stop .hd{display:flex;justify-content:space-between;gap:8px}
+.cards{display:grid;grid-template-columns:repeat(auto-fill,minmax(260px,1fr));gap:12px}
+.card{background:var(--panel);border:1px solid var(--line);border-radius:var(--r);padding:14px;display:flex;flex-direction:column;gap:8px;min-width:0}
+.card .hd{display:flex;gap:10px;align-items:center}
+.card .hd .t{min-width:0;flex:1}
+.card .hd .t b{display:block;overflow-wrap:anywhere}
+.kv{display:grid;grid-template-columns:auto 1fr;gap:2px 12px;font-size:.88rem}
+.kv span:nth-child(odd){color:var(--muted)}
+.trophy{position:relative}
+.trophy .big{font-size:1.35rem}
+.spark{width:100%;height:46px;display:block}
+.chart{width:100%;height:auto;display:block}
+.alert{color:var(--good);font-weight:700;font-size:.85rem}
+.empty{color:var(--muted);text-align:center;padding:22px 8px}
+.toast{position:fixed;left:50%;bottom:calc(18px + env(safe-area-inset-bottom,0px));transform:translateX(-50%);background:var(--panel2);border:1px solid var(--gold-dim);padding:10px 16px;border-radius:999px;z-index:20;font-size:.92rem}
+.legend{display:flex;gap:14px;flex-wrap:wrap;font-size:.82rem;color:var(--muted)}
+.legend i{display:inline-block;width:12px;height:3px;border-radius:2px;margin-right:5px;vertical-align:middle}
+details summary{cursor:pointer;color:var(--muted)}
+.search{font-size:1.1rem;padding:12px 14px}
+.hits{display:flex;flex-direction:column;gap:2px;margin-top:8px}
+.hit{display:flex;align-items:center;gap:10px;width:100%;text-align:left;background:none;border:1px solid transparent;border-radius:8px;padding:6px 8px}
+.hit:hover,.hit:focus-visible{background:var(--panel2);border-color:var(--line)}
+.hit .meta{margin-left:auto;font-size:.85rem;color:var(--muted);text-align:right}
+.tag{font-size:.72rem;color:var(--muted);border:1px solid var(--line);border-radius:4px;padding:0 5px;letter-spacing:.04em;text-transform:uppercase}
+.grid2{display:grid;grid-template-columns:repeat(auto-fit,minmax(280px,1fr));gap:14px}
+.grid2>*{min-width:0}
+.qcard .qtop{display:flex;justify-content:space-between;gap:10px;align-items:start}
+.qcard .lg{font-size:.92rem;color:var(--muted);margin:0}
+.seg{display:inline-flex;border:1px solid var(--line);border-radius:8px;overflow:hidden}
+.seg button{border:none;border-radius:0;padding:6px 10px;font-size:.85rem;background:none;color:var(--muted)}
+.seg button[aria-pressed="true"]{background:var(--panel2);color:var(--fg)}
+.seg button[aria-pressed="true"].done{color:var(--good)}
+.seg button[aria-pressed="true"].doing{color:var(--gold)}
+.steps{list-style:none;margin:0;padding:0;display:flex;flex-direction:column;gap:4px}
+.steps li{display:flex;gap:8px;align-items:center;font-size:.92rem}
+.steps li input{width:auto}
+.steps li.ok span{text-decoration:line-through;color:var(--muted)}
+.chips{display:flex;flex-wrap:wrap;gap:6px}
+.chip{font-size:.82rem;background:var(--panel2);border-radius:999px;padding:2px 9px}
+.check{display:flex;flex-direction:row;align-items:center;gap:6px;font-size:.9rem;color:var(--fg)}
+.check input{width:auto}
+.minimap{display:block;aspect-ratio:1;background:var(--bg);width:270px;max-width:100%;height:auto;image-rendering:pixelated;border-radius:8px;border:1px solid var(--line)}
+.foot{margin-top:28px;font-size:.8rem;color:var(--muted);line-height:1.5}
+@media (max-width:560px){h1{font-size:1.45rem}.tile .v{font-size:1.25rem}td,th{padding:7px 6px}}
+@media (prefers-reduced-motion:reduce){*{transition:none!important}}
+</style>
+</head>
+<body>
+
+
+<div class="wrap">
+<nav class="home" style="padding-top:14px"><a href="/" style="font-weight:700;font-size:15px;color:var(--fg);text-decoration:none">Dawson Wilhelmi</a></nav>
+<header class="top">
+  <div class="brand"><h1><span class="coin" aria-hidden="true"></span>Loot Ledger</h1><span class="who" id="who"></span></div>
+  <nav class="tabs" aria-label="Sections">
+    <a href="#lookup">Lookup</a><a href="#sell">Sell</a><a href="#quests">Quests</a><a href="#prices">Prices</a><a href="#trophies">Trophies</a><a href="#wishlist">Wishlist</a><a href="#setup">Setup</a>
+  </nav>
+</header>
+<div class="today" id="today"></div>
+
+<!-- LOOKUP -->
+<section class="book" id="v-lookup" hidden>
+  <div class="panel">
+    <h2>Who buys it, and for how much?</h2>
+    <p class="muted small" style="margin:6px 0 10px">Type an item to see every NPC that buys or sells it, or type an NPC to see what they trade.</p>
+    <input id="lq" class="search" type="search" placeholder="e.g. dragon scale mail, Rashid, small ruby" autocomplete="off" aria-label="Search items and NPCs">
+    <div class="hits" id="lHits"></div>
+  </div>
+  <div id="lDetail"></div>
+</section>
+
+<!-- QUESTS -->
+<section class="book" id="v-quests" hidden>
+  <div class="tiles" id="qTiles"></div>
+  <div class="panel">
+    <div class="row">
+      <label class="grow">Search quests<input id="qq" type="search" placeholder="name, place, reward or creature" autocomplete="off"></label>
+      <label class="w-s">My level<input id="qLvl" inputmode="numeric" placeholder="e.g. 150"></label>
+      <label class="w-s">Show<select id="qShow"><option value="all">All quests</option><option value="doing">In progress</option><option value="todo">Not started</option><option value="done">Done</option></select></label>
+    </div>
+    <div class="row" style="margin-top:10px;gap:16px">
+      <label class="check"><input type="checkbox" id="qFit"> Only ones I can do at my level</label>
+      <label class="check"><input type="checkbox" id="qMain" checked> Hide outfits, addons, events and Rookgaard</label>
+    </div>
+  </div>
+  <div class="grid2" id="qCards"></div>
+  <div class="row" style="justify-content:center"><button id="qMore" hidden>Show more</button></div>
+</section>
+
+<!-- SELL -->
+<section class="book" id="v-sell" hidden>
+  <div class="panel">
+    <h2>What should I sell, and where?</h2>
+    <p class="muted small" style="margin:6px 0 10px">Paste the Hunt Analyser text (Copy to Clipboard), loot messages from the Server Log, or one item per line like <code>3 small rubies</code>.</p>
+    <textarea id="lootIn" aria-label="Loot text" spellcheck="false"></textarea>
+    <div class="row" style="margin-top:10px">
+      <button class="primary" id="lootGo">Price my loot</button>
+      <button id="lootEx">Load example hunt</button>
+      <button class="ghost" id="lootClr">Clear</button>
+    </div>
+  </div>
+  <div id="sellOut"></div>
+</section>
+
+<!-- PRICES -->
+<section class="book" id="v-prices" hidden>
+  <div class="panel">
+    <h2>Log a market price</h2>
+    <p class="muted small" style="margin:6px 0 10px">There is no public market feed, so this is your own record. Type prices as you see them in the Market: <code>45000</code>, <code>45k</code> or <code>1.2kk</code>.</p>
+    <form id="pForm" class="row">
+      <label class="grow">Item<input id="pItem" list="itemList" autocomplete="off" required></label>
+      <label class="w-s">World<select id="pWorld"></select></label>
+      <label class="w-s">Buy offer<input id="pBuy" inputmode="decimal" placeholder="highest"></label>
+      <label class="w-s">Sell offer<input id="pSell" inputmode="decimal" placeholder="lowest"></label>
+      <label class="w-s">Date<input id="pDate" type="date"></label>
+      <button class="primary" type="submit">Save price</button>
+    </form>
+    <p class="muted small" style="margin:8px 0 0">Buy offer: what someone will pay you right now. Sell offer: the cheapest listing you would compete with.</p>
+  </div>
+  <div id="pDetail"></div>
+  <div><h2 style="margin-bottom:10px">Watched items</h2><div class="cards" id="pCards"></div></div>
+</section>
+
+<!-- TROPHIES -->
+<section class="book" id="v-trophies" hidden>
+  <div id="tTiles" class="tiles"></div>
+  <div class="panel">
+    <h2>Log a drop</h2>
+    <form id="tForm" class="row" style="margin-top:10px">
+      <label class="grow">Item<input id="tItem" list="itemList" autocomplete="off" required></label>
+      <label class="grow">Dropped by<input id="tCre" list="creList" autocomplete="off"></label>
+      <label class="w-s">Date<input id="tDate" type="date"></label>
+      <label class="w-s">Kills it took<input id="tKills" inputmode="numeric" placeholder="optional"></label>
+      <label class="w-s">Value<input id="tVal" inputmode="decimal" placeholder="auto"></label>
+      <label class="grow">Note<input id="tNote" placeholder="optional"></label>
+      <button class="primary" type="submit">Add to trophy case</button>
+    </form>
+    <datalist id="creList"></datalist>
+  </div>
+  <div><h2 style="margin-bottom:10px">Trophy case</h2><div class="cards" id="tCards"></div></div>
+</section>
+
+<!-- WISHLIST -->
+<section class="book" id="v-wishlist" hidden>
+  <div class="panel">
+    <h2>Items I'm chasing</h2>
+    <form id="wForm" class="row" style="margin-top:10px">
+      <label class="grow">Item<input id="wItem" list="itemList" autocomplete="off" required></label>
+      <label class="w-s">Buy if under<input id="wTarget" inputmode="decimal" placeholder="optional"></label>
+      <label class="grow">Note<input id="wNote" placeholder="optional"></label>
+      <button class="primary" type="submit">Add to wishlist</button>
+    </form>
+  </div>
+  <div class="cards" id="wCards"></div>
+</section>
+
+<!-- SETUP -->
+<section class="book" id="v-setup" hidden>
+  <div class="panel">
+    <h2>Character</h2>
+    <form id="sForm" class="row" style="margin-top:10px">
+      <label class="grow">Character name<input id="sChar" autocomplete="off"></label>
+      <label class="w-s">World<select id="sWorld"></select></label>
+      <label class="w-s">Market fee %<input id="sFee" inputmode="decimal"></label>
+      <button class="primary" type="submit">Save</button>
+    </form>
+    <p class="muted small" style="margin:8px 0 0">The world sets which logged prices the Sell tab uses. The fee is taken when you list a sell offer; check the current rate in game and change it here if needed.</p>
+  </div>
+  <div class="panel">
+    <h2>Backup</h2>
+    <p class="muted small" style="margin:6px 0 10px">Your logs live in this browser only. Copy the backup and keep it somewhere safe, or paste one here to restore.</p>
+    <textarea id="bk" aria-label="Backup text" spellcheck="false"></textarea>
+    <div class="row" style="margin-top:10px">
+      <button id="bkMake">Show backup</button><button id="bkCopy">Copy</button><button id="bkLoad">Restore from text</button>
+      <button class="ghost" id="exClear">Remove example entries</button>
+    </div>
+  </div>
+  <div class="panel small">
+    <h3>Where the data comes from</h3>
+    <p class="muted" style="margin:6px 0 0">Item NPC prices, buyers, weights, drops, Rashid's schedule and wiki trade estimates: <a href="https://tibia.fandom.com" target="_blank" rel="noopener">TibiaWiki</a> and its contributors, CC BY-SA 3.0, via the <a href="https://www.npmjs.com/package/@tibia.sh/tibiawiki-data" target="_blank" rel="noopener">@tibia.sh/tibiawiki-data</a> snapshot (<span id="dataDate"></span>). Item images load from TibiaWiki. Boosted creature and character info: <a href="https://tibiadata.com" target="_blank" rel="noopener">TibiaData API</a>, when reachable. Market prices are only what you log. Tibia is © CipSoft GmbH; this is a fan tool and doesn't touch the game client.</p>
+  </div>
+</section>
+
+<datalist id="itemList"></datalist>
+<p class="foot">Fan-made. Data from TibiaWiki (CC BY-SA 3.0). Tibia © CipSoft GmbH.</p>
+</div>
+<div class="toast" id="toast" hidden role="status"></div>
+
+
+<script>
+(async function(){
+"use strict";
+// ---------- data ----------
+let D = window.LOOT_DATA;
+if(!D){ try{ D = await (await fetch('data/items.json')).json(); }catch(e){ document.getElementById('today').textContent='Could not load item data (data/items.json).'; return; } }
+const NPC = D.npcs, CRE = D.creatures, ITEMS = D.items;
+const QUEST_NPC = { 'Rashid':'needs The Travelling Trader Quest', 'Yaman':'Green Djinn access', 'Alesar':'Green Djinn access', "Nah'Bob":'Blue Djinn access', 'Haroun':'Blue Djinn access' };
+const QUEST_OF = { 'Rashid':'The Travelling Trader Quest', 'Yaman':'The Djinn War - Efreet Faction', 'Alesar':'The Djinn War - Efreet Faction', "Nah'Bob":'The Djinn War - Marid Faction', 'Haroun':'The Djinn War - Marid Faction' };
+// Clickable access note: opens the Quests tab on the quest that unlocks this NPC
+function qTag(n,paren){ const t=QUEST_NPC[n]; if(!t) return ''; const q=QUEST_OF[n]; const txt=paren?`(${esc(t)})`:esc(t);
+  return q?`<button class="link quest" data-quest="${esc(q)}" title="Open ${esc(q)}">${txt}</button>`:`<span class="quest">${txt}</span>`; }
+const COINS = { 'gold coin':1, 'platinum coin':100, 'crystal coin':10000 };
+const byName = new Map();
+function key(s){ return s.toLowerCase().replace(/[’`]/g,"'").replace(/\s+/g,' ').trim(); }
+ITEMS.forEach((o,i)=>{ o.i_ = i; const names=[o.n, o.p, o.a, o.n+'s', o.n+'es']; if(o.a){names.push(o.a+'s')} if(/y$/i.test(o.n)) names.push(o.n.slice(0,-1)+'ies');
+  names.forEach(n=>{ if(n){ const k=key(n); if(!byName.has(k)||key(o.n)===k) byName.set(k,o);} }); });
+['gold coin','platinum coin','crystal coin'].forEach(c=>{ byName.delete(c); byName.delete(c+'s'); });
+function findItem(name){ if(!name) return null; let k=key(name).replace(/^(a|an|the)\s+/,''); return byName.get(k) || null; }
+function wikiRange(o){ if(!o||!o.r) return null; const nums=(o.r.match(/\d[\d,\.]*\s*(kk|k)?/gi)||[]).map(parseGp).filter(x=>x>0); if(!nums.length) return null; return {lo:Math.min(...nums),hi:Math.max(...nums)}; }
+function bestNpc(o){ if(!o||!o.b||!o.b.length) return null; const [ni,p]=o.b[0]; return {npc:NPC[ni][0],city:NPC[ni][1],price:p}; }
+// Warn when NPCs pay far less than players do: TibiaWiki's low estimate is 2x+ the best NPC price, or the wiki calls the price negotiable (rare item)
+function lowball(o){ if(!o||!o.m) return null; const n=bestNpc(o), w=wikiRange(o), np=n?n.price:0;
+  if(w && w.lo>=1000 && w.lo>=2*np) return {why:'range', w};
+  if(!w && o.r && /negotiable/i.test(o.r)) return {why:'rare'};
+  return null; }
+function bestFreeNpc(o){ if(!o||!o.b) return null; for(const [ni,p] of o.b){ if(!QUEST_NPC[NPC[ni][0]]) return {npc:NPC[ni][0],city:NPC[ni][1],price:p}; } return null; }
+
+// ---------- store ----------
+const SKEY='lootLedger.v1';
+const blank = ()=>({settings:{char:'',world:'',fee:2,level:''},prices:[],trophies:[],wishes:[],quests:{},lastLoot:''});
+let S = blank(), firstRun=false;
+try{ const raw=localStorage.getItem(SKEY); if(raw){ S=Object.assign(blank(),JSON.parse(raw)); } else firstRun=true; }catch(e){ firstRun=true; }
+function save(){ try{ localStorage.setItem(SKEY, JSON.stringify(S)); }catch(e){ toast('Could not save in this browser. Use Setup → Backup.'); } }
+const uid=()=>Math.random().toString(36).slice(2,10);
+
+// ---------- helpers ----------
+const $=id=>document.getElementById(id);
+const esc=s=>String(s??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+function parseGp(s){ if(s==null) return null; s=String(s).trim().toLowerCase().replace(/\s/g,''); if(!s) return null;
+  const m=s.match(/^([\d.,]+)(kk|k|m)?$/); if(!m) return null; let n=m[1];
+  if(m[2]){ n=n.replace(/,/g,'.'); if((n.match(/\./g)||[]).length>1) n=n.replace(/\./g,''); }
+  else { n=n.replace(/[.,](?=\d{3}(\D|$))/g,'').replace(',', '.'); }
+  let v=parseFloat(n); if(isNaN(v)) return null; if(m[2]==='k') v*=1e3; if(m[2]==='kk'||m[2]==='m') v*=1e6; return Math.round(v); }
+function gp(n){ if(n==null||isNaN(n)) return '–'; const a=Math.abs(n), s=n<0?'-':'';
+  if(a>=1e6) return s+(+(a/1e6).toFixed(a>=1e7?1:2))+'kk';
+  if(a>=1e4) return s+(+(a/1e3).toFixed(a>=1e5?0:1))+'k';
+  return s+Math.round(a).toLocaleString('en-US'); }
+function tier(v){ return v>=1e6?4: v>=1e5?3: v>=1e4?2: v>=1e3?1:0; }
+function sprite(o,big){ const t=tier(valueOf(o)); const src=o&&o.i?`https://static.wikia.nocookie.net/tibia/images/${o.i}/revision/latest?path-prefix=en`:'';
+  return `<span class="sprite tier${t}${big?' big':''}">${src?`<img loading="lazy" alt="" src="${esc(src)}" onerror="this.remove()">`:''}</span>`; }
+const today=()=>{ const d=new Date(); return new Date(d.getTime()-d.getTimezoneOffset()*6e4).toISOString().slice(0,10); };
+function ago(d){ const days=Math.round((new Date(today())-new Date(d))/864e5); return days<=0?'today':days===1?'yesterday':days<60?days+'d ago':Math.round(days/30)+'mo ago'; }
+function toast(msg){ const t=$('toast'); t.textContent=msg; t.hidden=false; clearTimeout(toast.h); toast.h=setTimeout(()=>t.hidden=true,2600); }
+function world(){ return S.settings.world || D.worlds[0]; }
+function pricesFor(name, w){ return S.prices.filter(p=>p.item===name && (!w || p.world===w)).sort((a,b)=>a.date<b.date?-1:a.date>b.date?1:0); }
+function latest(name){ const own=pricesFor(name, world()); if(own.length) return Object.assign({sameWorld:true}, own[own.length-1]); return null; }
+// Best known value for an item: own market log, else NPC, else wiki estimate (low end)
+function valueOf(o){ if(!o) return 0; const l=latest(o.n); const n=bestNpc(o); const w=wikiRange(o);
+  const mk = l ? Math.max(l.buy||0, l.sell?Math.round(l.sell*(1-fee())):0) : 0;
+  return Math.max(mk, n?n.price:0, (!l && w)?w.lo:0, o.v||0); }
+const fee=()=>Math.max(0,Math.min(50,+S.settings.fee||0))/100;
+
+// Rashid: TibiaWiki lists Monday→Sunday; the in-game day turns over at server save, 10:00 Berlin time.
+function rashidToday(){ const p=new Intl.DateTimeFormat('en-GB',{timeZone:'Europe/Berlin',year:'numeric',month:'2-digit',day:'2-digit',hour:'2-digit',hour12:false}).formatToParts(new Date());
+  const g=t=>+p.find(x=>x.type===t).value; let d=new Date(Date.UTC(g('year'),g('month')-1,g('day'))); if(g('hour')%24<10) d=new Date(d-864e5);
+  const dow=(d.getUTCDay()+6)%7; rashidToday.dow=dow; return D.rashid[dow]; }
+function npcLabel(n){ if(!n) return ''; const city = n.npc==='Rashid' ? `${rashidToday()} today` : n.city; const q=QUEST_NPC[n.npc];
+  return `${esc(n.npc)}${city?`, ${esc(city)}`:''}${q?` ${qTag(n.npc,1)}`:''}`; }
+
+// ---------- loot parsing ----------
+function parseLoot(text){
+  const out=new Map(); let cash=0; const unknown=new Map();
+  const add=(name,qty)=>{ name=name.trim().replace(/[.\s]+$/,''); if(!name) return; qty=qty||1;
+    const k=key(name).replace(/^(a|an|the)\s+/,''); const coin=Object.keys(COINS).find(c=>k===c||k===c+'s');
+    if(coin){ cash+=COINS[coin]*qty; return; }
+    const o=findItem(k); if(!o){ unknown.set(name,(unknown.get(name)||0)+qty); return; }
+    out.set(o.n,(out.get(o.n)||0)+qty); };
+  const lines=text.replace(/\r\n?/g,'\n').split('\n');
+  const li=lines.findIndex(l=>/^\s*looted items\s*:/i.test(l));
+  if(li>=0){ for(let i=li+1;i<lines.length;i++){ const m=lines[i].match(/^\s+(\d+)x\s+(.+)$/i); if(m) add(m[2],+m[1]); else if(lines[i].trim() && !/^\s/.test(lines[i])) break; } }
+  else {
+    for(let l of lines){ l=l.trim(); if(!l) continue;
+      const lm=l.match(/loot of [^:]+:\s*(.*)$/i); if(lm){ if(/^nothing/i.test(lm[1])) continue; l=lm[1]; }
+      else if(/^\d{1,2}:\d{2}/.test(l) || /^(session|raw xp|xp gain|xp\/h|loot|supplies|balance|damage|healing|killed monsters)/i.test(l)) continue;
+      const parts = lm ? l.split(/,\s*/) : (l.includes(',')? l.split(/,\s*/) : [l]);
+      for(const p of parts){ const m=p.trim().match(/^(\d+)\s*x?\s+(.+)$/i); if(m) add(m[2],+m[1]); else add(p,1); } }
+  }
+  return {items:[...out].map(([n,q])=>({o:findItem(n),qty:q})), cash, unknown:[...unknown]};
+}
+
+function advise(o){
+  const n=bestNpc(o), nf=bestFreeNpc(o), l=latest(o.n), w=wikiRange(o), f=fee();
+  const opts=[];
+  if(n) opts.push({how:'npc',each:n.price});
+  if(l&&l.buy) opts.push({how:'mkt',each:l.buy});
+  if(l&&l.sell) opts.push({how:'list',each:Math.round(l.sell*(1-f))});
+  opts.sort((a,b)=>b.each-a.each);
+  let pick=opts[0]||null;
+  if(o.m && !l && ((w && w.lo >= 1000 && w.lo > (n?n.price:0)*1.2) || (lowball(o)&&lowball(o).why==='rare'))) pick={how:'check',each:n?n.price:0};
+  if(!pick) pick={how:(o.m&&w&&w.lo>=1000)?'check':'keep',each:0};
+  return {n,nf,l,w,pick};
+}
+const PILL={npc:['npc','NPC'],mkt:['mkt','Market now'],list:['list','List on market'],check:['check','Check market'],keep:['keep','Low value']};
+
+function renderSell(){
+  const box=$('sellOut'); const txt=$('lootIn').value;
+  if(!txt.trim()){ box.innerHTML=`<div class="empty">Paste loot above, or load the example hunt to see how it works.</div>`; return; }
+  const r=parseLoot(txt); S.lastLoot=txt; save();
+  const rows=r.items.map(({o,qty})=>{ const a=advise(o); return {o,qty,a,total:a.pick.each*qty,npcTotal:(a.n?a.n.price:0)*qty}; }).sort((x,y)=>y.total-x.total||y.qty-x.qty);
+  const npcSum=rows.reduce((s,x)=>s+x.npcTotal,0), bestSum=rows.reduce((s,x)=>s+x.total,0);
+  const checks=rows.filter(x=>x.a.pick.how==='check');
+  // NPC route
+  const stops=new Map(); rows.filter(x=>x.a.pick.how==='npc').forEach(x=>{ const n=x.a.n; const k=n.npc; if(!stops.has(k)) stops.set(k,{n,items:[],sum:0}); const s=stops.get(k); s.items.push(x); s.sum+=x.total; });
+  const route=[...stops.values()].sort((a,b)=>b.sum-a.sum);
+  const isEx = txt===EXAMPLE_LOOT;
+  box.innerHTML=`
+  ${isEx?'<div class="notice">Example hunt text, not a real session. Market prices shown come from the example price log.</div>':''}
+  <div class="tiles" style="margin-top:${isEx?10:0}px">
+    <div class="tile"><div class="k">All to NPCs</div><div class="v num">${gp(npcSum+r.cash)}</div></div>
+    <div class="tile hl"><div class="k">Following this plan</div><div class="v num">${gp(bestSum+r.cash)}</div></div>
+    <div class="tile"><div class="k">Extra from market</div><div class="v num" style="color:var(--good)">+${gp(bestSum-npcSum)}</div></div>
+    <div class="tile"><div class="k">Coins in loot</div><div class="v num">${gp(r.cash)}</div></div>
+  </div>
+  ${checks.length?`<div class="notice" style="margin-top:10px"><b>${checks.length} item${checks.length>1?'s':''} may sell for much more on the market</b> than to NPCs (TibiaWiki estimate). Look them up in the Market and log the price: ${checks.slice(0,6).map(x=>esc(x.o.n)).join(', ')}${checks.length>6?'…':''}.</div>`:''}
+  <div class="panel scroll" style="margin-top:10px"><table>
+    <thead><tr><th>Item</th><th class="r">Qty</th><th>Do this</th><th class="r">Each</th><th class="r">Total</th><th>Best NPC</th><th class="r">Market (${esc(world())})</th><th class="r">Wiki est.</th><th class="r">gp/oz</th></tr></thead>
+    <tbody>${rows.map(x=>{ const {o,a}=x; const p=PILL[a.pick.how]; const t=tier(Math.max(a.pick.each, a.w?a.w.lo:0));
+      return `<tr>
+      <td><div class="item">${sprite(o)}<span>${esc(o.n)}</span></div></td>
+      <td class="r num">${x.qty}</td>
+      <td><span class="pill ${p[0]}">${p[1]}</span></td>
+      <td class="r num"><span class="val tier${t}">${a.pick.each?gp(a.pick.each):'–'}</span></td>
+      <td class="r num">${x.total?gp(x.total):'–'}</td>
+      <td class="where">${a.n?`${gp(a.n.price)} · ${npcLabel(a.n)}${a.nf&&a.nf.npc!==a.n.npc&&QUEST_NPC[a.n.npc]?`<br>or ${gp(a.nf.price)} · ${npcLabel(a.nf)}`:''}`:'No NPC buys it'}</td>
+      <td class="r num where">${a.l?`${a.l.buy?'buy '+gp(a.l.buy):''}${a.l.buy&&a.l.sell?'<br>':''}${a.l.sell?'sell '+gp(a.l.sell):''}<br><span class="small">${ago(a.l.date)}${a.l.ex?' · example':''}</span>`:(o.m?`<button class="link" data-log="${esc(o.n)}">log price</button>`:'not on market')}</td>
+      <td class="r num where">${a.w?(a.w.lo===a.w.hi?gp(a.w.lo):gp(a.w.lo)+'–'+gp(a.w.hi)):(o.r?esc(o.r):'–')}</td>
+      <td class="r num where">${o.w&&a.pick.each?gp(Math.round(a.pick.each/o.w)):'–'}</td></tr>`; }).join('')}</tbody></table></div>
+  ${route.length?`<div class="panel"><h3>NPC route</h3><p class="muted small" style="margin:4px 0 10px">Items to sell to NPCs, grouped by who pays the most.</p><div class="route">${route.map(s=>`<div class="stop"><div class="hd"><b>${esc(s.n.npc)}</b><span class="num val tier${tier(s.sum)}">${gp(s.sum)}</span></div><div>${whereHtml(NPC.findIndex(r=>r[0]===s.n.npc))}${QUEST_NPC[s.n.npc]?` ${qTag(s.n.npc,1)}`:''}</div><div class="small" style="margin-top:4px">${s.items.map(x=>`${x.qty}× ${esc(x.o.n)}`).join(', ')}</div></div>`).join('')}</div></div>`:''}
+  ${r.unknown.length?`<p class="muted small">Not recognised: ${r.unknown.map(([n,q])=>`${q}× ${esc(n)}`).join(', ')}.</p>`:''}`;
+  box.querySelectorAll('[data-log]').forEach(b=>b.onclick=()=>{ location.hash='prices'; $('pItem').value=b.dataset.log; $('pBuy').focus(); });
+}
+
+// ---------- prices ----------
+function lineChart(list, o){
+  const W=640,H=220,L=56,R=12,T=14,B=30; const pts=list.map(p=>({t:+new Date(p.date),b:p.buy,s:p.sell}));
+  const vals=pts.flatMap(p=>[p.b,p.s]).filter(v=>v); const n=bestNpc(o); if(n) vals.push(n.price);
+  if(!vals.length) return '';
+  let lo=Math.min(...vals), hi=Math.max(...vals); if(lo===hi){lo*=.9;hi*=1.1;} const pad=(hi-lo)*.08; lo=Math.max(0,lo-pad); hi+=pad;
+  const t0=pts[0].t, t1=Math.max(pts[pts.length-1].t, t0+864e5);
+  const x=t=>L+(t-t0)/(t1-t0)*(W-L-R), y=v=>T+(1-(v-lo)/(hi-lo))*(H-T-B);
+  const ticks=[0,1,2,3].map(i=>lo+(hi-lo)*i/3);
+  const path=k=>{ const q=pts.filter(p=>p[k]); return q.length?`<path d="${q.map((p,i)=>(i?'L':'M')+x(p.t).toFixed(1)+' '+y(p[k]).toFixed(1)).join('')}" fill="none" stroke="var(--${k==='b'?'t1':'t2'})" stroke-width="2.2"/>`+q.map(p=>`<circle cx="${x(p.t).toFixed(1)}" cy="${y(p[k]).toFixed(1)}" r="3.2" fill="var(--${k==='b'?'t1':'t2'})"/>`).join(''):''; };
+  const fmtD=t=>new Date(t).toLocaleDateString('en-US',{month:'short',day:'numeric',timeZone:'UTC'});
+  return `<svg class="chart" viewBox="0 0 ${W} ${H}" role="img" aria-label="Price history for ${esc(o.n)}">
+   ${ticks.map(v=>`<line x1="${L}" x2="${W-R}" y1="${y(v)}" y2="${y(v)}" stroke="var(--line)" stroke-width="1"/><text x="${L-8}" y="${y(v)+4}" fill="var(--muted)" font-size="12" text-anchor="end">${gp(Math.round(v))}</text>`).join('')}
+   ${n?`<line x1="${L}" x2="${W-R}" y1="${y(n.price)}" y2="${y(n.price)}" stroke="var(--gold)" stroke-dasharray="5 4" stroke-width="1.4"/>`:''}
+   ${path('b')}${path('s')}
+   <text x="${L}" y="${H-8}" fill="var(--muted)" font-size="12">${fmtD(t0)}</text><text x="${W-R}" y="${H-8}" fill="var(--muted)" font-size="12" text-anchor="end">${fmtD(t1)}</text>
+  </svg>`;
+}
+function spark(list){ const v=list.map(p=>p.sell||p.buy).filter(Boolean); if(v.length<2) return '';
+  const W=240,H=46,lo=Math.min(...v),hi=Math.max(...v)||1,r=hi-lo||1; const P=v.map((a,i)=>[i/(v.length-1)*(W-6)+3, H-4-(a-lo)/r*(H-10)]);
+  return `<svg class="spark" viewBox="0 0 ${W} ${H}" preserveAspectRatio="none" aria-hidden="true"><path d="M${P.map(p=>p.map(n=>n.toFixed(1)).join(' ')).join('L')}" fill="none" stroke="var(--t2)" stroke-width="2"/><circle cx="${P[P.length-1][0]}" cy="${P[P.length-1][1]}" r="3" fill="var(--t2)"/></svg>`; }
+let openItem=null;
+function renderPrices(){
+  const w=world(); const names=[...new Set(S.prices.filter(p=>p.world===w).map(p=>p.item))];
+  const cards=names.map(n=>{ const o=findItem(n)||{n}; const list=pricesFor(n,w); const last=list[list.length-1]; const prev=list[list.length-2];
+    const cur=last.sell||last.buy, pv=prev?(prev.sell||prev.buy):null; const ch=pv?((cur-pv)/pv*100):null; const nb=bestNpc(o);
+    const wish=S.wishes.find(x=>x.item===n); const deal= wish&&wish.target&&last.sell&&last.sell<=wish.target;
+    return {n,o,list,last,ch,nb,deal,date:last.date}; }).sort((a,b)=>a.date<b.date?1:-1);
+  $('pCards').innerHTML = cards.length? cards.map(c=>`<div class="card"><div class="hd">${sprite(c.o)}<div class="t"><b>${esc(c.n)}</b><span class="muted small">${c.list.length} log${c.list.length>1?'s':''} · ${ago(c.last.date)}${c.last.ex?' · <span class="pill ex">example</span>':''}</span></div></div>
+     <div class="kv"><span>Buy offer</span><span class="num">${gp(c.last.buy)}</span><span>Sell offer</span><span class="num">${gp(c.last.sell)}${c.ch!=null?` <span class="small" style="color:var(--${c.ch>=0?'good':'bad'})">${c.ch>=0?'▲':'▼'} ${Math.abs(c.ch).toFixed(0)}%</span>`:''}</span><span>Best NPC</span><span class="num">${c.nb?gp(c.nb.price):'–'}</span></div>
+     ${spark(c.list)}${c.deal?'<div class="alert">Under your wishlist target</div>':''}
+     <div class="row"><button data-open="${esc(c.n)}">History</button><button class="ghost" data-add="${esc(c.n)}">Add price</button></div></div>`).join('')
+   : `<div class="empty">No prices logged for ${esc(w)} yet. Look an item up in the Market and save its buy and sell offers above.</div>`;
+  $('pCards').querySelectorAll('[data-open]').forEach(b=>b.onclick=()=>{ openItem=b.dataset.open; renderPrices(); $('pDetail').scrollIntoView({behavior:'smooth',block:'start'}); });
+  $('pCards').querySelectorAll('[data-add]').forEach(b=>b.onclick=()=>{ $('pItem').value=b.dataset.add; $('pBuy').focus(); });
+  const det=$('pDetail');
+  if(openItem && names.includes(openItem)){ const o=findItem(openItem)||{n:openItem}; const list=pricesFor(openItem,w);
+    const s=list.map(p=>p.sell).filter(Boolean), b=list.map(p=>p.buy).filter(Boolean);
+    det.innerHTML=`<div class="panel"><div class="row" style="justify-content:space-between;align-items:center"><div class="item">${sprite(o,1)}<h2>${esc(openItem)}</h2></div><button class="ghost" id="pClose">Close</button></div>
+     <div class="legend" style="margin:10px 0 4px"><span><i style="background:var(--t1)"></i>Buy offer</span><span><i style="background:var(--t2)"></i>Sell offer</span>${bestNpc(o)?`<span><i style="background:var(--gold)"></i>Best NPC (${gp(bestNpc(o).price)})</span>`:''}</div>
+     ${lineChart(list,o)}
+     <div class="kv" style="margin-top:8px"><span>Sell offer range</span><span class="num">${s.length?gp(Math.min(...s))+' – '+gp(Math.max(...s))+' (avg '+gp(Math.round(s.reduce((a,c)=>a+c,0)/s.length))+')':'–'}</span><span>Buy offer range</span><span class="num">${b.length?gp(Math.min(...b))+' – '+gp(Math.max(...b)):'–'}</span><span>TibiaWiki estimate</span><span>${esc(o.r||'–')}</span></div>
+     <details style="margin-top:10px"><summary>All entries</summary><div class="scroll"><table><thead><tr><th>Date</th><th class="r">Buy</th><th class="r">Sell</th><th></th></tr></thead><tbody>${list.slice().reverse().map(p=>`<tr><td>${esc(p.date)}${p.ex?' <span class="pill ex">example</span>':''}</td><td class="r num">${gp(p.buy)}</td><td class="r num">${gp(p.sell)}</td><td class="r"><button class="ghost" data-del="${p.id}">Delete</button></td></tr>`).join('')}</tbody></table></div></details></div>`;
+    $('pClose').onclick=()=>{openItem=null;renderPrices();};
+    det.querySelectorAll('[data-del]').forEach(b=>b.onclick=()=>{ S.prices=S.prices.filter(p=>p.id!==b.dataset.del); save(); renderPrices(); toast('Entry deleted'); });
+  } else det.innerHTML='';
+}
+
+// ---------- trophies ----------
+function renderTrophies(){
+  const T=S.trophies.slice().sort((a,b)=>b.value-a.value||(a.date<b.date?1:-1));
+  const total=T.reduce((s,t)=>s+(t.value||0),0); const best=T[0];
+  const year=new Date().getFullYear(); const thisYear=T.filter(t=>t.date&&t.date.startsWith(String(year)));
+  $('tTiles').innerHTML=`<div class="tile hl"><div class="k">Trophy case value</div><div class="v num">${gp(total)}</div></div>
+   <div class="tile"><div class="k">Drops logged</div><div class="v num">${T.length}</div></div>
+   <div class="tile"><div class="k">Best drop</div><div class="v" style="font-size:1.1rem">${best?esc(best.item)+` <span class="num val tier${tier(best.value)}">${gp(best.value)}</span>`:'–'}</div></div>
+   <div class="tile"><div class="k">In ${year}</div><div class="v num">${thisYear.length} · ${gp(thisYear.reduce((s,t)=>s+(t.value||0),0))}</div></div>`;
+  $('tCards').innerHTML = T.length? T.map(t=>{ const o=findItem(t.item)||{n:t.item}; return `<div class="card trophy"><div class="hd">${sprite(o,1)}<div class="t"><b>${esc(t.item)}</b><span class="num val tier${tier(t.value)} big">${gp(t.value)}</span></div></div>
+    <div class="kv">${t.creature?`<span>From</span><span>${esc(t.creature)}</span>`:''}<span>When</span><span>${esc(t.date||'–')}</span>${t.kills?`<span>Kills</span><span class="num">${(+t.kills).toLocaleString('en-US')}</span>`:''}${t.note?`<span>Note</span><span>${esc(t.note)}</span>`:''}</div>
+    <div class="row" style="justify-content:space-between">${t.ex?'<span class="pill ex">example</span>':'<span></span>'}<button class="ghost" data-tdel="${t.id}">Remove</button></div></div>`; }).join('')
+   : `<div class="empty">No drops yet. Log the next good one above.</div>`;
+  $('tCards').querySelectorAll('[data-tdel]').forEach(b=>b.onclick=()=>{ S.trophies=S.trophies.filter(t=>t.id!==b.dataset.tdel); save(); renderTrophies(); toast('Removed'); });
+}
+function fillCreatures(name){ const o=findItem(name); $('creList').innerHTML = o&&o.d? o.d.map(([ci])=>`<option value="${esc(CRE[ci])}">`).join(''):'';
+  $('tVal').placeholder = o? 'auto ≈ '+gp(valueOf(o)) : 'auto'; }
+
+// ---------- wishlist ----------
+function renderWishes(){
+  $('wCards').innerHTML = S.wishes.length? S.wishes.map(w=>{ const o=findItem(w.item)||{n:w.item}; const l=latest(w.item); const n=bestNpc(o);
+    const deal=w.target&&l&&l.sell&&l.sell<=w.target;
+    return `<div class="card"><div class="hd">${sprite(o,1)}<div class="t"><b>${esc(w.item)}</b><span class="muted small">${w.target?'buy if under '+gp(w.target):'chasing the drop'}${w.ex?' · <span class="pill ex">example</span>':''}</span></div></div>
+    ${deal?`<div class="alert">Market sell offer ${gp(l.sell)} is under your target</div>`:''}
+    <div class="kv"><span>Market</span><span class="num">${l?`${l.sell?'sell '+gp(l.sell):''} ${l.buy?'· buy '+gp(l.buy):''} <span class="muted small">(${ago(l.date)})</span>`:'not logged'}</span>
+    <span>TibiaWiki est.</span><span>${esc(o.r||'–')}</span>${n?`<span>NPC pays</span><span class="num">${gp(n.price)}</span>`:''}${w.note?`<span>Note</span><span>${esc(w.note)}</span>`:''}</div>
+    ${o.d&&o.d.length?`<details><summary>Who drops it (${o.d.length})</summary><table style="margin-top:6px"><tbody>${o.d.map(([ci,ch,ra,boss])=>`<tr><td>${esc(CRE[ci])}${boss?' <span class="muted small">boss</span>':''}</td><td class="r num where">${ch!=null?(ch<1?ch.toFixed(2):ch.toFixed(1))+'%':''} ${esc(ra)}</td></tr>`).join('')}</tbody></table></details>`:'<span class="muted small">No creature drops listed on TibiaWiki.</span>'}
+    <div class="row"><button class="primary" data-got="${w.id}">Got it!</button><button class="ghost" data-wdel="${w.id}">Remove</button></div></div>`; }).join('')
+   : `<div class="empty">Nothing on the wishlist yet.</div>`;
+  $('wCards').querySelectorAll('[data-wdel]').forEach(b=>b.onclick=()=>{ S.wishes=S.wishes.filter(x=>x.id!==b.dataset.wdel); save(); renderWishes(); });
+  $('wCards').querySelectorAll('[data-got]').forEach(b=>b.onclick=()=>{ const w=S.wishes.find(x=>x.id===b.dataset.got); S.wishes=S.wishes.filter(x=>x!==w); save();
+    location.hash='trophies'; $('tItem').value=w.item; fillCreatures(w.item); $('tCre').focus(); toast('Nice! Fill in the details and add it.'); });
+}
+
+// ---------- lookup ----------
+const QUESTS = D.quests||[];
+const npcBuys = NPC.map(()=>[]), npcSells = NPC.map(()=>[]);
+ITEMS.forEach(o=>{ (o.b||[]).forEach(([ni,p])=>npcBuys[ni].push([o,p])); (o.q||[]).forEach(([ni,p])=>npcSells[ni].push([o,p])); });
+npcBuys.forEach(l=>l.sort((a,b)=>b[1]-a[1])); npcSells.forEach(l=>l.sort((a,b)=>a[1].toString().localeCompare?a[0].n.localeCompare(b[0].n):0));
+const wiki = t=>'https://tibia.fandom.com/wiki/'+encodeURIComponent(t.replace(/ /g,'_'));
+function search(q){ q=key(q); if(q.length<2) return [];
+  const out=[]; const rank=n=>{ const k=key(n); return k===q?0: k.startsWith(q)?1: k.split(' ').some(w=>w.startsWith(q))?2: k.includes(q)?3:9; };
+  NPC.forEach(([n,c],i)=>{ const r=rank(n); if(r<9&&(npcBuys[i].length||npcSells[i].length)) out.push({r:r-0.5,kind:'npc',i,n}); });
+  ITEMS.forEach(o=>{ let r=Math.min(rank(o.n), o.p?rank(o.p):9); if(r<9) out.push({r,kind:'item',o,n:o.n}); });
+  return out.sort((a,b)=>a.r-b.r||a.n.length-b.n.length).slice(0,25); }
+function renderHits(){ const q=$('lq').value; const hits=search(q);
+  $('lHits').innerHTML = !q.trim()? '' : hits.length? hits.map((h,k)=> h.kind==='item'
+    ? `<button class="hit" data-k="${k}">${sprite(h.o)}<span>${esc(h.o.n)}</span><span class="meta">${bestNpc(h.o)?'NPC '+gp(bestNpc(h.o).price)+(lowball(h.o)?'<br><span style="color:var(--warn)">worth more on market</span>':''):(h.o.m?'market only':'')}</span></button>`
+    : `<button class="hit" data-k="${k}"><span class="sprite"></span><span>${esc(h.n)} <span class="tag">NPC</span></span><span class="meta">${esc(NPC[h.i][1])}</span></button>`).join('')
+    : `<div class="empty">Nothing matches "${esc(q)}".</div>`;
+  $('lHits').querySelectorAll('[data-k]').forEach(b=>b.onclick=()=>{ const h=hits[+b.dataset.k]; $('lHits').innerHTML=''; h.kind==='item'?showItem(h.o):showNpc(h.i); }); }
+// Exact spot from TibiaWiki, with a link to the TibiaMaps.io map at the NPC's coordinates
+function npcWhere(ni){ const r=NPC[ni]; let [n,c,loc,x,y,z]=r;
+  if(n==='Rashid'&&D.rashid_at){ c=rashidToday()+' today'; [loc,x,y,z]=D.rashid_at[rashidToday.dow]; }
+  return {city:c, loc:loc||'', map: x!=null?`https://tibiamaps.io/map#${x},${y},${z}:2`:null}; }
+function whereHtml(ni){ const w=npcWhere(ni); return `<span class="where">${esc(w.city)}${w.loc?` · ${esc(w.loc)}`:''}${w.map?` · <a href="${w.map}" target="_blank" rel="noopener">Map ↗</a>`:''}</span>`; }
+const DAYS=['Monday','Tuesday','Wednesday','Thursday','Friday','Saturday','Sunday'];
+function floorText(z){ if(z==null) return ''; if(z===7) return 'Ground floor'; return z<7? `${7-z} floor${7-z>1?'s':''} up` : `${z-7} floor${z-7>1?'s':''} underground`; }
+function howToFind(ni){ const [n,city0,,x,y,z0]=NPC[ni]; const w=npcWhere(ni); const isR=n==='Rashid'&&D.rashid_at;
+  const city=isR?rashidToday():city0; const z=isR?D.rashid_at[rashidToday.dow][3]:z0;
+  const boats=((D.travel||{})[city]||[]).filter(b=>b[1]&&b[1]!==city);
+  const seen=new Set(), bl=boats.filter(b=>!seen.has(b[1])&&seen.add(b[1])).slice(0,6);
+  const steps=[];
+  steps.push(`<b>Go to ${esc(city)}.</b> ${bl.length?`Boats and carpets that go there: ${bl.map(b=>`from ${esc(b[1])} with ${esc(b[0])} (${gp(b[2])} gp${b[3]?', '+esc(b[3].replace(/\.$/,'')):''})`).join('; ')}.`:'No boat route listed; check TibiaWiki for the way in.'}`);
+  if(w.loc) steps.push(`<b>Find the spot:</b> ${esc(w.loc)}`);
+  if(z!=null) steps.push(`<b>Floor:</b> ${floorText(z)}.`);
+  if(QUEST_NPC[n]) steps.push(`<b>Access:</b> ${qTag(n)} before ${esc(n)} will trade.`);
+  steps.push(`<b>Trade:</b> say <code>hi</code>, then <code>trade</code>.`);
+  return `<div class="panel" style="background:var(--panel2)"><h3>How to find ${esc(n)}</h3>
+   ${isR?`<p class="small" style="margin:6px 0">Rashid moves every day at server save (10:00 Berlin time). ${DAYS.map((d,i)=>`<span style="${i===rashidToday.dow?'color:var(--gold);font-weight:700':'color:var(--muted)'}">${d.slice(0,3)} ${esc(D.rashid[i])}</span>`).join(' · ')}</p>`:''}
+   <ol style="margin:8px 0 0;padding-left:20px;display:flex;flex-direction:column;gap:6px">${steps.map(t=>`<li>${t}</li>`).join('')}</ol>
+   ${x!=null||isR?`<figure style="margin:12px 0 0"><img class="minimap" data-k="${isR?'r'+rashidToday.dow:'n'+ni}" src="${mapSrc(isR?'r'+rashidToday.dow:'n'+ni)}" alt="Map around ${esc(n)}, marked with a yellow ring" width="270" height="270" onerror="this.closest('figure').remove()"><figcaption class="muted small" style="margin-top:4px">${esc(n)} is in the yellow ring · ${floorText(z)} · map data TibiaMaps.io</figcaption></figure>`:''}
+   ${w.map?`<p style="margin:8px 0 0"><a href="${w.map}" target="_blank" rel="noopener">Open the full map ↗</a></p>`:''}</div>`; }
+const BLANK='data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7';
+let mapsP=null;  // map pictures load once, on the first NPC page
+function loadMaps(){ if(window.LOOT_MAPS) return Promise.resolve(window.LOOT_MAPS); return mapsP||(mapsP=fetch('data/maps.json').then(r=>r.json()).then(m=>window.LOOT_MAPS=m).catch(()=>({}))); }
+function mapSrc(k){ if(window.LOOT_MAPS) return window.LOOT_MAPS[k]||BLANK;
+  loadMaps().then(m=>{ document.querySelectorAll('img.minimap[data-k="'+k+'"]').forEach(i=>{ if(m[k]) i.src=m[k]; else i.closest('figure')?.remove(); }); }); return BLANK; }
+function npcCity(ni){ const [n,c]=NPC[ni]; return n==='Rashid'? `${rashidToday()} today` : c; }
+function showItem(o){ const l=latest(o.n), w=wikiRange(o);
+  const buyers=(o.b||[]), sellers=(o.q||[]);
+  $('lDetail').innerHTML=`<div class="panel"><div class="row" style="justify-content:space-between;align-items:center"><div class="item">${sprite(o,1)}<div><h2>${esc(o.n)}</h2><span class="muted small">${o.w!=null?o.w+' oz':''}${o.t?' · '+esc(o.t):''}${o.m?' · sold on the Market':''}</span></div></div>
+    <div class="row">${o.m?`<button data-act="price">Log price</button>`:''}<button data-act="wish">Add to wishlist</button></div></div>
+    <div class="grid2" style="margin-top:14px">
+     ${(()=>{ const lb=lowball(o); if(!lb||!buyers.length) return ''; const np=buyers[0][1];
+      return `<div class="notice" style="grid-column:1/-1"><b>Don't sell this to an NPC.</b> ${lb.why==='range'?`Players pay about ${gp(lb.w.lo)}${lb.w.hi>lb.w.lo?'–'+gp(lb.w.hi):''} (TibiaWiki estimate), and the best NPC pays only ${gp(np)}.`:`It's a rare item that players trade for far more than the ${gp(np)} an NPC pays (TibiaWiki lists the price as negotiable).`} Check the Market first.</div>`; })()}
+     <div><h3>NPCs that buy it</h3>${buyers.length?`<div class="scroll"><table><tbody>${buyers.map(([ni,p],k)=>`<tr><td><button class="link" data-npc="${ni}" style="font-weight:700">${esc(NPC[ni][0])}</button>${QUEST_NPC[NPC[ni][0]]?` ${qTag(NPC[ni][0])}`:''}<br>${whereHtml(ni)}</td><td class="r num"><span class="val tier${tier(p)}">${gp(p)}</span>${k===0?(lowball(o)?' <span class="pill check">lowball</span>':' <span class="pill npc">best</span>'):''}</td></tr>`).join('')}</tbody></table></div>`:'<p class="muted">No NPC buys this item.</p>'}</div>
+     <div class="kv" style="align-content:start"><span>Your market price</span><span class="num">${l?`${l.buy?'buy '+gp(l.buy):''} ${l.sell?'· sell '+gp(l.sell):''} <span class="muted small">(${ago(l.date)}, ${esc(world())})</span>`:(o.m?'not logged yet':'not on market')}</span>
+       <span>TibiaWiki est.</span><span>${esc(o.r||'–')}</span>
+       ${sellers.length?`<span>Buy it from</span><span>${sellers.slice().sort((a,b)=>a[1]-b[1]).slice(0,6).map(([ni,p])=>`${esc(NPC[ni][0])} (${esc(npcCity(ni))}) ${gp(p)}`).join('<br>')}</span>`:''}
+       ${o.d&&o.d.length?`<span>Dropped by</span><span>${o.d.slice(0,5).map(([ci,ch,ra])=>`${esc(CRE[ci])}${ch!=null?' '+(ch<1?ch.toFixed(2):ch.toFixed(1))+'%':ra?' ('+esc(ra)+')':''}`).join('<br>')}</span>`:''}
+       <span>Wiki page</span><span><a href="${wiki(o.n)}" target="_blank" rel="noopener">${esc(o.n)} on TibiaWiki</a></span></div>
+    </div></div>`;
+  const d=$('lDetail'); d.querySelectorAll('[data-npc]').forEach(b=>b.onclick=()=>showNpc(+b.dataset.npc)); const a=d.querySelector('[data-act="price"]'); if(a) a.onclick=()=>{ location.hash='prices'; $('pItem').value=o.n; $('pBuy').focus(); };
+  d.querySelector('[data-act="wish"]').onclick=()=>{ if(!S.wishes.some(x=>x.item===o.n)){ S.wishes.push({id:uid(),item:o.n,target:null,note:''}); save(); } toast(o.n+' is on your wishlist'); };
+  d.scrollIntoView({behavior:'smooth',block:'start'}); }
+function showNpc(ni){ const [n]=NPC[ni]; const B=npcBuys[ni], Sl=npcSells[ni];
+  const list=(L,lab)=>L.length?`<div><h3>${lab} (${L.length})</h3><div class="scroll"><table><tbody>${L.map(([o,p])=>`<tr><td><button class="link" data-item="${esc(o.n)}">${esc(o.n)}</button></td><td class="r num"><span class="val tier${tier(p)}">${gp(p)}</span></td></tr>`).join('')}</tbody></table></div></div>`:'';
+  $('lDetail').innerHTML=`<div class="panel"><h2>${esc(n)}</h2><p style="margin:4px 0 12px">${whereHtml(ni)}${QUEST_NPC[n]?` · ${qTag(n)}`:''} · <a href="${wiki(n)}" target="_blank" rel="noopener">TibiaWiki</a></p>
+   ${howToFind(ni)}<div class="grid2" style="margin-top:14px">${list(B,'Buys from you')}${list(Sl,'Sells to you')}</div></div>`;
+  $('lDetail').querySelectorAll('[data-item]').forEach(b=>b.onclick=()=>showItem(findItem(b.dataset.item)));
+  $('lDetail').scrollIntoView({behavior:'smooth',block:'start'}); }
+
+// ---------- quests ----------
+let qLimit=30;
+const QS=()=>S.quests||(S.quests={});
+const qState=n=>(QS()[n]&&QS()[n].st)||'todo';
+const needLvl=q=>q.lr||q.lc||0;
+const isSide=q=>q.t&&/outfit|addon|event|mwc|change|exchange/i.test(q.t);
+function renderQuests(){
+  const lvl=parseInt(S.settings.level)||0; const term=key($('qq').value||''); const show=$('qShow').value; const fit=$('qFit').checked, main=$('qMain').checked;
+  const done=QUESTS.filter(q=>qState(q.n)==='done').length, doing=QUESTS.filter(q=>qState(q.n)==='doing').length;
+  const avail=lvl?QUESTS.filter(q=>!isSide(q)&&qState(q.n)!=='done'&&needLvl(q)<=lvl).length:null;
+  $('qTiles').innerHTML=`<div class="tile hl"><div class="k">In progress</div><div class="v num">${doing}</div></div><div class="tile"><div class="k">Done</div><div class="v num">${done} <span class="muted small">of ${QUESTS.length}</span></div></div><div class="tile"><div class="k">Open at level ${lvl||'?'}</div><div class="v num">${avail??'–'}</div></div>`;
+  const order={doing:0,todo:1,done:2};
+  let L=QUESTS.filter(q=>{ const st=qState(q.n);
+    if(show!=='all'&&st!==show) return false;
+    if(main&&(isSide(q)||q.rk)&&st==='todo') return false;
+    if(fit&&lvl&&needLvl(q)>lvl) return false;
+    if(term){ const hay=key([q.n,q.l,q.g,(q.r||[]).join(' '),(q.d||[]).join(' '),(q.o||[]).join(' ')].join(' ')); if(!term.split(' ').every(w=>hay.includes(w))) return false; }
+    return true; }).sort((a,b)=>order[qState(a.n)]-order[qState(b.n)] || (!needLvl(a))-(!needLvl(b)) || (lvl?(needLvl(a)>lvl)-(needLvl(b)>lvl):0) || (lvl? (needLvl(a)>lvl? needLvl(a)-needLvl(b) : needLvl(b)-needLvl(a)) : needLvl(a)-needLvl(b)) || a.n.localeCompare(b.n));
+  const total=L.length; L=L.slice(0,qLimit);
+  $('qCards').innerHTML = L.length? L.map(q=>{ const st=qState(q.n), me=QS()[q.n]||{}; const steps=me.steps||[];
+    const lvlTxt=[q.lr?'level '+q.lr+'+':'' , q.lc&&q.lc!==q.lr?'recommended '+q.lc:''].filter(Boolean).join(', ');
+    const tooHigh=lvl&&needLvl(q)>lvl;
+    const rewards=(q.r||[]).filter(r=>!/^(gold|platinum|crystal) coin$/i.test(r));
+    return `<div class="card qcard" data-q="${esc(q.n)}">
+     <div class="qtop"><div style="min-width:0"><b style="font-size:1.05rem;overflow-wrap:anywhere">${esc(q.n)}</b><div class="where">${lvlTxt?`<span style="color:var(--${tooHigh?'bad':'fg'})">${esc(lvlTxt)}</span> · `:''}${q.p?'Premium':'Free'}${q.e?' · '+esc(q.e):''}${q.rk?' · Rookgaard':''}</div></div>${q.t?`<span class="tag">${esc(q.t)}</span>`:''}</div>
+     ${q.g?`<p class="lg">${esc(q.g)}</p>`:''}
+     <div class="kv">${q.l?`<span>Where</span><span>${esc(q.l)}</span>`:''}${rewards.length?`<span>Rewards</span><span>${rewards.slice(0,8).map(r=>{const o=findItem(r);return o?`<button class="link" data-item="${esc(o.n)}">${esc(r)}</button>`:esc(r);}).join(', ')}${rewards.length>8?' …':''}</span>`:''}${q.o?`<span>Unlocks</span><span>${q.o.map(esc).join(', ')}</span>`:''}</div>
+     ${q.d?`<details><summary>Creatures you'll face (${q.d.length})</summary><div class="chips" style="margin-top:6px">${q.d.map(c=>`<span class="chip">${esc(c)}</span>`).join('')}</div></details>`:''}
+     <div class="row" style="justify-content:space-between;align-items:center"><div class="seg" role="group" aria-label="Status">${[['todo','Not started'],['doing','In progress'],['done','Done']].map(([k,t])=>`<button class="${k}" data-st="${k}" aria-pressed="${st===k}">${t}</button>`).join('')}</div>
+       <a href="${wiki(q.n)}" target="_blank" rel="noopener" class="small">Steps on TibiaWiki ↗</a></div>
+     ${st!=='todo'||steps.length?`<div><div class="muted small" style="margin-bottom:4px">My steps${steps.length?` · ${steps.filter(x=>x.ok).length}/${steps.length}`:''}</div><ul class="steps">${steps.map((x,k)=>`<li class="${x.ok?'ok':''}"><input type="checkbox" data-step="${k}" ${x.ok?'checked':''} aria-label="Step done"><span>${esc(x.t)}</span><button class="ghost" data-sdel="${k}" aria-label="Delete step">✕</button></li>`).join('')}</ul>
+       <form class="row" data-addstep style="margin-top:6px;flex-wrap:nowrap"><input placeholder="Add a step, e.g. talk to Melchior" aria-label="New step"><button>Add</button></form></div>`:''}
+    </div>`; }).join('') : `<div class="empty">No quests match. Try clearing the search or filters.</div>`;
+  $('qMore').hidden = total<=qLimit; $('qMore').textContent=`Show more (${total-qLimit} left)`;
+  $('qCards').querySelectorAll('.qcard').forEach(card=>{ const n=card.dataset.q; const me=()=>QS()[n]||(QS()[n]={st:'todo',steps:[]});
+    card.querySelectorAll('[data-st]').forEach(b=>b.onclick=()=>{ me().st=b.dataset.st; save(); renderQuests(); if(b.dataset.st==='done') toast(n+' done!'); });
+    card.querySelectorAll('[data-step]').forEach(c=>c.onchange=()=>{ me().steps[+c.dataset.step].ok=c.checked; save(); renderQuests(); });
+    card.querySelectorAll('[data-sdel]').forEach(b=>b.onclick=()=>{ me().steps.splice(+b.dataset.sdel,1); save(); renderQuests(); });
+    const f=card.querySelector('[data-addstep]'); if(f) f.onsubmit=e=>{ e.preventDefault(); const t=f.querySelector('input').value.trim(); if(!t) return; (me().steps||(me().steps=[])).push({t,ok:false}); save(); renderQuests(); card.querySelector('[data-addstep] input')?.focus(); };
+    card.querySelectorAll('[data-item]').forEach(b=>b.onclick=()=>{ location.hash='lookup'; setTimeout(()=>showItem(findItem(b.dataset.item)),0); });
+  });
+}
+
+// ---------- today strip ----------
+async function renderToday(){
+  const parts=[`<span>Rashid is in <b>${esc(rashidToday())}</b> today</span>`];
+  $('today').innerHTML=parts.join('');
+  try{ const r=await fetch('https://api.tibiadata.com/v4/creatures'); const j=await r.json(); const b=j.creatures&&j.creatures.boosted&&j.creatures.boosted.name; if(b){ parts.push(`<span>Boosted creature: <b>${esc(b)}</b></span>`); } }catch(e){}
+  try{ const r=await fetch('https://api.tibiadata.com/v4/boostablebosses'); const j=await r.json(); const b=j.boostable_bosses&&j.boostable_bosses.boosted&&j.boostable_bosses.boosted.name; if(b){ parts.push(`<span>Boosted boss: <b>${esc(b)}</b></span>`); } }catch(e){}
+  $('today').innerHTML=parts.join('');
+}
+async function renderWho(){
+  const c=S.settings.char; $('who').textContent = c? `${c} · ${world()}` : world();
+  if(!c) return;
+  try{ const r=await fetch('https://api.tibiadata.com/v4/character/'+encodeURIComponent(c)); const j=await r.json(); const ch=j.character&&j.character.character;
+    if(ch&&ch.name){ $('who').textContent=`${ch.name} · level ${ch.level} ${ch.vocation} · ${ch.world}`; if(ch.level&&+S.settings.level!==ch.level){ S.settings.level=ch.level; save(); if(location.hash==='#quests') renderQuests(); } if(ch.world&&D.worlds.includes(ch.world)&&ch.world!==S.settings.world){ S.settings.world=ch.world; save(); } } }catch(e){}
+}
+
+// ---------- examples (clearly marked) ----------
+const EXAMPLE_LOOT=`Session data: From 2026-11-20, 19:02:11 to 2026-11-20, 20:14:40
+Session: 01:12h
+XP Gain: 1,412,300
+Loot: 0
+Supplies: 0
+Balance: 0
+Killed Monsters:
+\t41x dragon lord
+\t23x dragon
+Looted Items:
+\t9,412x gold coin
+\t31x platinum coin
+\t1x dragon scale mail
+\t2x royal helmet
+\t1x dragon slayer
+\t3x fire sword
+\t2x dragon shield
+\t1x tower shield
+\t4x strange helmet
+\t1x dragonbone staff
+\t11x small sapphire
+\t38x green dragon leather
+\t24x red dragon leather
+\t17x red dragon scale
+\t2x life crystal
+\t3x power ring
+\t1x dragon claw
+\t1x dragon lord trophy
+\t46x dragon ham`.replace(/(\d),(\d{3})x/g,'$1$2x');
+function seedExamples(){
+  const w=D.worlds.includes('Antica')?'Antica':D.worlds[0]; S.settings.world=w;
+  const d=k=>{ const t=new Date(); t.setDate(t.getDate()-k); return new Date(t-t.getTimezoneOffset()*6e4).toISOString().slice(0,10); };
+  const P=(item,k,buy,sell)=>S.prices.push({id:uid(),item,world:w,buy,sell,date:d(k),ex:1});
+  [[24,68e3,79e3],[17,72e3,84e3],[10,70e3,88e3],[3,81e3,95e3],[0,86e3,99e3]].forEach(([k,b,s])=>P('Dragon Claw',k,b,s));
+  [[20,1200,1650],[9,1300,1800],[1,1500,1990]].forEach(([k,b,s])=>P('Red Dragon Leather',k,b,s));
+  [[15,520,700],[2,610,780]].forEach(([k,b,s])=>P('Life Crystal',k,b,s));
+  S.trophies.push({id:uid(),item:'Dragon Claw',creature:'Dragon Lord',date:d(6),kills:812,value:95000,note:'Example entry',ex:1});
+  S.trophies.push({id:uid(),item:'Dragon Scale Mail',creature:'Dragon Lord',date:d(30),kills:'',value:40000,note:'Example entry',ex:1});
+  S.wishes.push({id:uid(),item:'Hunting Horn',target:8e5,note:'Example entry',ex:1});
+  S.lastLoot=EXAMPLE_LOOT; save();
+}
+if(firstRun) seedExamples();
+
+// ---------- wiring ----------
+$('itemList').innerHTML=ITEMS.map(o=>`<option value="${esc(o.n)}">`).join('');
+const wOpts=D.worlds.map(w=>`<option>${esc(w)}</option>`).join(''); $('pWorld').innerHTML=wOpts; $('sWorld').innerHTML=wOpts;
+$('dataDate').textContent='TibiaWiki snapshot '+(D.generated||'').slice(0,10);
+function syncForms(){ $('pWorld').value=world(); $('sWorld').value=world(); $('sChar').value=S.settings.char||''; $('sFee').value=S.settings.fee; $('qLvl').value=S.settings.level||''; if(!$('pDate').value) $('pDate').value=today(); if(!$('tDate').value) $('tDate').value=today(); }
+$('lootIn').value=S.lastLoot||'';
+$('lootGo').onclick=renderSell;
+$('lootEx').onclick=()=>{ $('lootIn').value=EXAMPLE_LOOT; renderSell(); };
+$('lootClr').onclick=()=>{ $('lootIn').value=''; S.lastLoot=''; save(); renderSell(); };
+$('pForm').onsubmit=e=>{ e.preventDefault(); const o=findItem($('pItem').value); if(!o){ toast('Pick an item from the list'); return; }
+  const buy=parseGp($('pBuy').value), sell=parseGp($('pSell').value); if(!buy&&!sell){ toast('Enter a buy or sell offer'); return; }
+  S.prices.push({id:uid(),item:o.n,world:$('pWorld').value,buy,sell,date:$('pDate').value||today()}); save();
+  $('pBuy').value=''; $('pSell').value=''; openItem=o.n; renderPrices(); toast(`Saved ${o.n}: ${buy?'buy '+gp(buy):''} ${sell?'sell '+gp(sell):''}`); };
+$('tItem').addEventListener('change',()=>fillCreatures($('tItem').value));
+$('tForm').onsubmit=e=>{ e.preventDefault(); const o=findItem($('tItem').value); if(!o){ toast('Pick an item from the list'); return; }
+  const v=parseGp($('tVal').value) ?? valueOf(o);
+  S.trophies.push({id:uid(),item:o.n,creature:$('tCre').value.trim(),date:$('tDate').value,kills:parseGp($('tKills').value)||'',value:v,note:$('tNote').value.trim()}); save();
+  ['tItem','tCre','tKills','tVal','tNote'].forEach(i=>$(i).value=''); renderTrophies(); toast(`${o.n} added to the trophy case`); };
+$('wForm').onsubmit=e=>{ e.preventDefault(); const o=findItem($('wItem').value); if(!o){ toast('Pick an item from the list'); return; }
+  S.wishes.push({id:uid(),item:o.n,target:parseGp($('wTarget').value)||null,note:$('wNote').value.trim()}); save(); ['wItem','wTarget','wNote'].forEach(i=>$(i).value=''); renderWishes(); };
+$('sForm').onsubmit=e=>{ e.preventDefault(); S.settings.char=$('sChar').value.trim(); S.settings.world=$('sWorld').value; const f=parseFloat($('sFee').value); S.settings.fee=isNaN(f)?2:f; save(); renderWho(); toast('Saved'); };
+$('bkMake').onclick=()=>{ $('bk').value=JSON.stringify(S); };
+$('bkCopy').onclick=()=>{ $('bk').value=JSON.stringify(S); navigator.clipboard.writeText($('bk').value).then(()=>toast('Backup copied'),()=>{ $('bk').select(); toast('Select all and copy the text'); }); };
+$('bkLoad').onclick=()=>{ try{ const j=JSON.parse($('bk').value); if(!j||!Array.isArray(j.prices)) throw 0; S=Object.assign(blank(),j); save(); syncForms(); route(); toast('Backup restored'); }catch(e){ toast('That text is not a Loot Ledger backup'); } };
+$('exClear').onclick=()=>{ S.prices=S.prices.filter(x=>!x.ex); S.trophies=S.trophies.filter(x=>!x.ex); S.wishes=S.wishes.filter(x=>!x.ex); if(S.lastLoot===EXAMPLE_LOOT){S.lastLoot='';$('lootIn').value='';} save(); route(); toast('Example entries removed'); };
+
+let lt; $('lq').addEventListener('input',()=>{ clearTimeout(lt); lt=setTimeout(renderHits,120); });
+$('lq').addEventListener('keydown',e=>{ if(e.key==='Enter'){ const b=$('lHits').querySelector('.hit'); if(b) b.click(); } });
+let qt; $('qq').addEventListener('input',()=>{ clearTimeout(qt); qt=setTimeout(()=>{qLimit=30;renderQuests();},150); });
+['qShow','qFit','qMain'].forEach(i=>$(i).addEventListener('change',()=>{qLimit=30;renderQuests();}));
+$('qLvl').addEventListener('change',()=>{ S.settings.level=parseInt($('qLvl').value)||''; save(); renderQuests(); });
+$('qMore').onclick=()=>{ qLimit+=30; renderQuests(); };
+function openQuest(name){ $('qq').value=name; $('qShow').value='all'; $('qFit').checked=false; $('qMain').checked=false; qLimit=30;
+  if(location.hash!=='#quests') location.hash='quests'; else renderQuests();
+  setTimeout(()=>{ const c=[...document.querySelectorAll('.qcard')].find(x=>x.dataset.q===name); if(c){ c.scrollIntoView({behavior:'smooth',block:'start'}); c.style.borderColor='var(--gold)'; } },60); }
+document.addEventListener('click',e=>{ const b=e.target.closest('[data-quest]'); if(b){ e.preventDefault(); openQuest(b.dataset.quest); } });
+const VIEWS=['lookup','sell','quests','prices','trophies','wishlist','setup'];
+function route(){ const v=VIEWS.includes(location.hash.slice(1))?location.hash.slice(1):'lookup';
+  VIEWS.forEach(x=>$('v-'+x).hidden=x!==v); document.querySelectorAll('nav.tabs a').forEach(a=>a.toggleAttribute('aria-current',a.getAttribute('href')==='#'+v)); document.querySelectorAll('nav.tabs a[aria-current]').forEach(a=>a.setAttribute('aria-current','page'));
+  syncForms(); ({lookup:()=>{ if(!$('lq').value) $('lq').focus({preventScroll:true}); },quests:renderQuests,sell:renderSell,prices:renderPrices,trophies:renderTrophies,wishlist:renderWishes,setup:()=>{}})[v](); }
+window.addEventListener('hashchange',route);
+route(); renderToday(); renderWho();
+window.LootLedger={search,showItem,showNpc,renderQuests,parseLoot,parseGp,gp,advise,findItem,rashidToday,valueOf};
+})();
+</script>
+
+</body>
+</html>
