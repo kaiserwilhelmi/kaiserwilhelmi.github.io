@@ -1,0 +1,204 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Forecast Method Comparison</title>
+<meta name="description" content="Backtest up to eleven forecasting methods on a procurement series and compare MAE, MSE, RMSE, MAPE, sMAPE and MASE.">
+<style>
+:root {
+  --bg: #f6f5f2; --surface: #fcfcfb; --border: #e3e1db; --grid: #ebe9e4;
+  --text: #0b0b0b; --text-2: #52514e; --text-3: #6f6e69;
+  --accent: #2a78d6; --accent-soft: rgba(42,120,214,.10);
+  --s1: #2a78d6; --s2: #eb6834; --band: rgba(42,120,214,.07);
+  --warn-ink: #8a5a00; --warn-soft: rgba(250,178,25,.18); --crit-ink: #a52222;
+  --font: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+  color-scheme: light;
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --bg: #121211; --surface: #1a1a19; --border: #33332f; --grid: #2a2a27;
+    --text: #f0efec; --text-2: #c3c2b7; --text-3: #9a998f;
+    --accent: #5a9cec; --accent-soft: rgba(90,156,236,.14);
+    --s1: #3987e5; --s2: #d95926; --band: rgba(90,156,236,.09);
+    --warn-ink: #f0c060; --warn-soft: rgba(250,178,25,.16); --crit-ink: #e66767;
+    color-scheme: dark;
+  }
+}
+:root[data-theme="dark"] {
+  --bg: #121211; --surface: #1a1a19; --border: #33332f; --grid: #2a2a27;
+  --text: #f0efec; --text-2: #c3c2b7; --text-3: #9a998f;
+  --accent: #5a9cec; --accent-soft: rgba(90,156,236,.14);
+  --s1: #3987e5; --s2: #d95926; --band: rgba(90,156,236,.09);
+  --warn-ink: #f0c060; --warn-soft: rgba(250,178,25,.16); --crit-ink: #e66767;
+  color-scheme: dark;
+}
+* { box-sizing: border-box; }
+html { -webkit-text-size-adjust: 100%; }
+body { margin: 0; background: var(--bg); color: var(--text); font: 15px/1.5 var(--font); }
+.wrap { max-width: 1240px; margin: 0 auto; padding: 20px 16px 48px; }
+a { color: var(--accent); }
+.crumb { font-size: 13px; margin-bottom: 8px; }
+.crumb a { text-decoration: none; }
+h1 { font-size: 28px; line-height: 1.2; margin: 0 0 6px; letter-spacing: -.01em; }
+.lede { color: var(--text-2); margin: 0 0 18px; max-width: 760px; }
+h2 { font-size: 18px; margin: 0 0 10px; }
+h3 { font-size: 15px; margin: 0 0 6px; }
+.card { background: var(--surface); border: 1px solid var(--border); border-radius: 10px; padding: 16px; margin-bottom: 16px; }
+.controls { display: flex; flex-wrap: wrap; gap: 12px 16px; align-items: flex-end; }
+.ctl { display: flex; flex-direction: column; gap: 4px; font-size: 12px; color: var(--text-2); min-width: 0; }
+.ctl.grow { flex: 1 1 260px; }
+select, .btn { font: inherit; font-size: 14px; color: var(--text); background: var(--bg); border: 1px solid var(--border); border-radius: 8px; padding: 7px 10px; min-height: 38px; max-width: 100%; }
+.btn { cursor: pointer; display: inline-flex; align-items: center; gap: 6px; }
+.btn:hover, select:hover { border-color: var(--text-3); }
+input[type=file] { position: absolute; width: 1px; height: 1px; opacity: 0; }
+.hint { font-size: 12px; color: var(--text-3); margin-top: 10px; }
+.badge { display: inline-block; font-size: 12px; font-weight: 600; color: var(--warn-ink); background: var(--warn-soft); border-radius: 6px; padding: 3px 8px; margin-top: 10px; }
+.err { color: var(--crit-ink); font-weight: 600; margin-top: 10px; }
+.kpis { display: grid; grid-template-columns: repeat(4, minmax(0,1fr)); gap: 12px; margin-bottom: 16px; }
+.kpi { background: var(--surface); border: 1px solid var(--border); border-radius: 10px; padding: 12px 14px; min-width: 0; }
+.kt { font-size: 12px; color: var(--text-2); }
+.kv { font-size: 22px; font-weight: 650; line-height: 1.25; margin: 2px 0; overflow-wrap: anywhere; }
+.ks { font-size: 12px; color: var(--text-3); }
+#rec { border-left: 3px solid var(--accent); }
+#rec ul { margin: 0; padding-left: 20px; }
+#rec li { margin: 4px 0; }
+.chart { position: relative; }
+.ax { font-size: 11px; fill: var(--text-3); font-family: var(--font); }
+.tip { position: absolute; pointer-events: none; background: var(--surface); border: 1px solid var(--border); border-radius: 8px; padding: 8px 10px; font-size: 12px; box-shadow: 0 4px 14px rgba(0,0,0,.14); white-space: nowrap; z-index: 2; }
+.tip .tt { font-weight: 600; margin-bottom: 2px; }
+.tip i, .lg i { display: inline-block; width: 14px; height: 3px; border-radius: 2px; vertical-align: middle; margin-right: 6px; }
+.legend { display: flex; flex-wrap: wrap; gap: 6px 16px; font-size: 13px; color: var(--text-2); margin-bottom: 8px; }
+.head { display: flex; flex-wrap: wrap; justify-content: space-between; align-items: flex-end; gap: 8px 16px; margin-bottom: 8px; }
+.tblwrap { overflow-x: auto; -webkit-overflow-scrolling: touch; }
+table { border-collapse: collapse; width: 100%; font-size: 13px; font-variant-numeric: tabular-nums; }
+th, td { padding: 8px 10px; border-bottom: 1px solid var(--border); text-align: right; vertical-align: top; white-space: nowrap; }
+th { font-size: 12px; color: var(--text-2); font-weight: 600; cursor: pointer; user-select: none; position: sticky; top: 0; background: var(--surface); }
+th:hover { color: var(--text); }
+.l { text-align: left; }
+td.l { white-space: normal; min-width: 40px; }
+td.l .ref { font-size: 11px; color: var(--text-3); max-width: 300px; }
+td.pm { font-size: 12px; color: var(--text-2); white-space: nowrap; }
+td.best { font-weight: 700; }
+tr.win td { background: var(--accent-soft); }
+.grid2 { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
+.doc p, .doc li { color: var(--text-2); font-size: 14px; }
+.doc ul { padding-left: 20px; margin: 6px 0; }
+.doc code { font-size: 13px; }
+.refs li { margin-bottom: 6px; }
+footer { font-size: 12px; color: var(--text-3); margin-top: 24px; }
+@media (max-width: 760px) {
+  h1 { font-size: 23px; }
+  .kpis { grid-template-columns: repeat(2, minmax(0,1fr)); }
+  .kv { font-size: 18px; }
+  .grid2 { grid-template-columns: 1fr; }
+  td.l .ref { display: none; }
+  td.l { min-width: 120px; }
+  th, td { padding: 7px 8px; }
+  .ctl { flex: 1 1 140px; }
+  .ctl.grow { flex-basis: 100%; }
+}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <div class="crumb"><a href="/">← dawsonwilhelmi.com</a></div>
+  <h1>Forecast Method Comparison</h1>
+  <p class="lede">Which forecasting method should a buyer trust for this series? Up to eleven methods are re-fitted and tested month by month on data they have not seen, then scored on six error metrics. Pick a series or upload your own.</p>
+
+  <div class="card">
+    <div class="controls">
+      <label class="ctl grow">Series<select id="series"></select></label>
+      <label class="ctl">Forecast horizon<select id="h"><option value="1">1 period</option><option value="3">3 periods</option><option value="6" selected>6 periods</option><option value="12">12 periods</option></select></label>
+      <label class="ctl">Backtest window<select id="test"><option value="12">Last 12 periods</option><option value="24" selected>Last 24 periods</option><option value="36">Last 36 periods</option></select></label>
+      <label class="ctl">Seasonality<select id="m"><option value="12" selected>Monthly (12)</option><option value="4">Quarterly (4)</option><option value="1">None</option></select></label>
+      <div class="ctl"><span>Your data</span><label class="btn" for="file">Upload CSV</label><input type="file" id="file" accept=".csv,.txt,text/csv"></div>
+    </div>
+    <div id="tag"></div>
+    <div id="busy" class="hint" hidden><b>Fitting every method at each backtest origin…</b></div>
+    <div id="err" class="err" hidden></div>
+    <div class="hint">CSV: two columns, <code>date,value</code>, oldest first, one row per period. Files are read in your browser and never uploaded.</div>
+  </div>
+
+  <div class="kpis" id="kpis"></div>
+  <div class="card" id="rec"></div>
+
+  <div class="card">
+    <div class="head">
+      <div><h2 style="margin:0">Actuals, backtest and 12-period forecast</h2><div class="hint" id="meta" style="margin-top:2px"></div></div>
+      <label class="ctl">Compare best method with<select id="cmp"></select></label>
+    </div>
+    <div class="legend" id="lg1"></div>
+    <div class="chart" id="ch1"></div>
+    <div class="hint">Dots inside the shaded window are each method's 1-step-ahead forecasts from the backtest. Lines after the last actual are the forecasts from the model fitted on all data.</div>
+  </div>
+
+  <div class="card">
+    <div class="head">
+      <h2 style="margin:0">Error metrics, all methods</h2>
+      <button class="btn" id="dl" type="button">Download backtest CSV</button>
+    </div>
+    <div class="tblwrap" id="tbl"></div>
+    <div class="hint">Ranked by MASE (lowest first). ★ marks the best value in each column. Click a column to sort. Hover a header for its definition.</div>
+  </div>
+
+  <div class="card" id="hz">
+    <h2>Error grows with horizon</h2>
+    <div class="legend" id="lg2"></div>
+    <div class="chart" id="ch2"></div>
+    <div class="hint">MAE at each step ahead. A method that wins at 1 step can lose at 6; match the horizon to your purchasing lead time.</div>
+  </div>
+
+  <div class="grid2">
+    <div class="card doc">
+      <h2>How the test works</h2>
+      <p><b>Rolling origin.</b> For each of the last <i>N</i> periods, every method is fitted only on data before that point and forecasts the next <i>h</i> periods. Forecasts are compared with what actually happened. This mimics real use and avoids judging a model on data it was fitted to (Tashman, 2000; Hyndman &amp; Athanasopoulos, 2021, §5.10).</p>
+      <p><b>Fitting.</b> Holt-Winters fits its three weights and its starting level, trend and seasonal pattern together by minimising one-step squared error (Nelder–Mead search). Seasonal ARIMA is fitted by conditional least squares. The simpler smoothing methods pick their weights from a grid (0.05 to 0.95); full fitting changed their accuracy by under 1% on these series. Every number was re-computed by an independent Python implementation and matches; accuracy is in line with the statsmodels library's maximum-likelihood fits.</p>
+      <p><b>No method is favoured.</b> The backtest on your series picks the winner. Two combinations (simple averages of other methods) are entered as candidates because averaging often reduces error (Bates &amp; Granger, 1969; Makridakis et al., 2020), but they only win when the data says so. The page also checks whether the same method wins with 12, 24 and 36-period windows.</p>
+      <p><b>Ranking.</b> MASE decides the winner because it compares methods on a common, scale-free basis and does not break when values approach zero (Hyndman &amp; Koehler, 2006).</p>
+    </div>
+    <div class="card doc">
+      <h2>What the metrics mean</h2>
+      <ul>
+        <li><b>MAE</b>: average miss in the series' units. Easy to explain to a supplier or a CFO.</li>
+        <li><b>MSE / RMSE</b>: square the misses first, so one big miss counts heavily. Use when large errors are costly (stockouts, budget overruns).</li>
+        <li><b>MAPE</b>: average miss as a % of actual. Intuitive, but undefined at zero, explodes near zero and penalises over-forecasts more than under-forecasts.</li>
+        <li><b>sMAPE</b>: divides by the average of actual and forecast; bounded at 200%, but still unstable near zero.</li>
+        <li><b>MASE</b>: MAE divided by the in-sample MAE of a seasonal-naive forecast. Below 1 means the method beats that simple benchmark.</li>
+        <li><b>Bias (ME)</b>: average of actual minus forecast. Persistently positive = under-forecasting.</li>
+      </ul>
+    </div>
+  </div>
+
+  <div class="card doc">
+    <h2>References</h2>
+    <ol class="refs">
+      <li>Hyndman, R. J., &amp; Athanasopoulos, G. (2021). <i>Forecasting: Principles and Practice</i> (3rd ed.). OTexts. <a href="https://otexts.com/fpp3/">otexts.com/fpp3</a></li>
+      <li>Hyndman, R. J., &amp; Koehler, A. B. (2006). Another look at measures of forecast accuracy. <i>International Journal of Forecasting, 22</i>(4), 679–688. <a href="https://doi.org/10.1016/j.ijforecast.2006.03.001">doi:10.1016/j.ijforecast.2006.03.001</a></li>
+      <li>Tashman, L. J. (2000). Out-of-sample tests of forecasting accuracy: An analysis and review. <i>International Journal of Forecasting, 16</i>(4), 437–450. <a href="https://doi.org/10.1016/S0169-2070(00)00065-0">doi:10.1016/S0169-2070(00)00065-0</a></li>
+      <li>Holt, C. C. (2004). Forecasting seasonals and trends by exponentially weighted moving averages. <i>International Journal of Forecasting, 20</i>(1), 5–10. (Reprint of 1957 ONR memorandum.) <a href="https://doi.org/10.1016/j.ijforecast.2003.09.015">doi:10.1016/j.ijforecast.2003.09.015</a></li>
+      <li>Winters, P. R. (1960). Forecasting sales by exponentially weighted moving averages. <i>Management Science, 6</i>(3), 324–342. <a href="https://doi.org/10.1287/mnsc.6.3.324">doi:10.1287/mnsc.6.3.324</a></li>
+      <li>Box, G. E. P., &amp; Jenkins, G. M. (1970). <i>Time Series Analysis: Forecasting and Control</i>. Holden-Day.</li>
+      <li>Bates, J. M., &amp; Granger, C. W. J. (1969). The combination of forecasts. <i>Operational Research Quarterly, 20</i>(4), 451–468. <a href="https://doi.org/10.2307/3008764">doi:10.2307/3008764</a></li>
+      <li>Makridakis, S., Spiliotis, E., &amp; Assimakopoulos, V. (2020). The M4 Competition: 100,000 time series and 61 forecasting methods. <i>International Journal of Forecasting, 36</i>(1), 54–74. <a href="https://doi.org/10.1016/j.ijforecast.2019.04.014">doi:10.1016/j.ijforecast.2019.04.014</a></li>
+      <li>Nelder, J. A., &amp; Mead, R. (1965). A simplex method for function minimization. <i>The Computer Journal, 7</i>(4), 308–313. <a href="https://doi.org/10.1093/comjnl/7.4.308">doi:10.1093/comjnl/7.4.308</a></li>
+      <li>Gardner, E. S., Jr., &amp; McKenzie, E. (1985). Forecasting trends in time series. <i>Management Science, 31</i>(10), 1237–1246. <a href="https://doi.org/10.1287/mnsc.31.10.1237">doi:10.1287/mnsc.31.10.1237</a></li>
+    </ol>
+    <h2 style="margin-top:14px">Data</h2>
+    <ul>
+      <li>Cass Freight Index: Shipments (FRGSHPUSM649NCIS), index Jan 1990 = 1, not seasonally adjusted. Cass Information Systems, Inc., via FRED, Federal Reserve Bank of St. Louis.</li>
+      <li>PPI by Industry: Corrugated and Solid Fiber Box Manufacturing (PCU322211322211), index Mar 1980 = 100. U.S. Bureau of Labor Statistics, via FRED.</li>
+      <li>Global price of Copper (PCOPPUSDM), US$ per metric ton. International Monetary Fund, Primary Commodity Prices, via FRED.</li>
+      <li>Kerosene-Type Jet Fuel Prices: U.S. Gulf Coast (DJFUELUSGULF), US$ per gallon, monthly average of daily prices. U.S. Energy Information Administration, via FRED.</li>
+      <li><b>Sample demand (units)</b> is synthetic: trend + seasonality + random noise, generated with a fixed seed for demonstration. It is not real company data.</li>
+    </ul>
+    <p>Data snapshot: /*__ASOF__*/. Monthly series, Jan 2018 onward.</p>
+  </div>
+
+  <footer>Built by Dawson Wilhelmi · part of the procurement analytics portfolio at <a href="/">dawsonwilhelmi.com</a></footer>
+</div>
+<script>window.SERIES = /*__DATA__*/null;</script>
+<script>/*__ENGINE__*/</script>
+<script>/*__APP__*/</script>
+</body>
+</html>
