@@ -16,7 +16,7 @@ for key, fn, name, unit, short, src, sample in SERIES:
     if not sample: last.append(rows[-1]["date"][:7])
 page = open("template.html").read()
 for tag, val in [("/*__DATA__*/null", json.dumps(data, separators=(",", ":"))),
-                 ("/*__ENGINE__*/", open("engine.js").read()), ("/*__APP__*/", open("app.js").read()),
+                 ("/*__ENGINE__*/", open("engine.js").read()), ("/*__UPLOAD__*/", open("upload.js").read()), ("/*__APP__*/", open("app.js").read()),
                  ("/*__ASOF__*/", "FRED pull of Nov 2026; latest observations " + ", ".join(sorted(set(last))))]:
     assert tag in page, tag
     page = page.replace(tag, val)

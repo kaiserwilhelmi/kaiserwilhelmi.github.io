@@ -224,8 +224,8 @@
     { id: "hw", name: "Holt-Winters additive", seasonal: true, fn: hw, ref: "Winters (1960); FPP3 §8.3", note: "Level, trend and a repeating seasonal pattern; weights and starting values fitted together." },
     { id: "sarima", name: "Seasonal ARIMA", seasonal: true, fn: sarima, ref: "Box & Jenkins (1970); FPP3 §9.9", note: "ARIMA(0,1,1)(0,1,1)m: differences out trend and season, models what is left." },
     { id: "tslm", name: "Regression: trend + season", seasonal: false, fn: tslm, ref: "FPP3 §7.4", note: "Least-squares line plus a dummy for each month." },
-    { id: "combS", name: "Combination: HW + ARIMA", seasonal: true, fn: combo([hw, sarima]), ref: "Bates & Granger (1969); Makridakis et al. (2020)", note: "Average of Holt-Winters and seasonal ARIMA." },
-    { id: "combN", name: "Combination: SES + Holt + damped", seasonal: false, nonseasonalOnly: true, fn: combo([ses, holt, damped]), ref: "M4 benchmark; Makridakis et al. (2020)", note: "Average of the three smoothing methods." }
+    { id: "combS", name: "Combination: HW + ARIMA", seasonal: true, fn: combo([hw, sarima]), parts: ["hw", "sarima"], ref: "Bates & Granger (1969); Makridakis et al. (2020)", note: "Average of Holt-Winters and seasonal ARIMA." },
+    { id: "combN", name: "Combination: SES + Holt + damped", seasonal: false, nonseasonalOnly: true, fn: combo([ses, holt, damped]), parts: ["ses", "holt", "damped"], ref: "M4 benchmark; Makridakis et al. (2020)", note: "Average of the three smoothing methods." }
   ];
 
   function activeMethods(m) { return METHODS.filter(function (d) { return m > 1 ? !d.nonseasonalOnly : !d.seasonal; }); }
@@ -261,10 +261,16 @@
     var n = y.length, W = maxWindow(n, m);
     if (!W) throw new Error("Need at least " + (minTrain(m) + 12) + " observations for this seasonality setting (have " + n + ").");
     var meths = activeMethods(m), fc = {}, fut = {};
+    function avg(arrs) { var o = []; for (var k = 0; k < MAXH; k++) { var s = 0; for (var i = 0; i < arrs.length; i++) s += arrs[i][k]; o.push(s / arrs.length); } return o; }
     meths.forEach(function (d) {
       fc[d.id] = {};
-      for (var T = n - W; T < n; T++) fc[d.id][T] = d.fn(y.slice(0, T), MAXH, m).f;
-      fut[d.id] = d.fn(y, MAXH, m);
+      if (d.parts) { // a combination: average the component forecasts already computed (same numbers as refitting)
+        for (var T0 = n - W; T0 < n; T0++) fc[d.id][T0] = avg(d.parts.map(function (p) { return fc[p][T0]; }));
+        fut[d.id] = { f: avg(d.parts.map(function (p) { return fut[p].f; })) };
+      } else {
+        for (var T = n - W; T < n; T++) fc[d.id][T] = d.fn(y.slice(0, T), MAXH, m).f;
+        fut[d.id] = d.fn(y, MAXH, m);
+      }
       if (onProgress) onProgress(d.id);
     });
     return { y: y, m: m, W: W, meths: meths, fc: fc, fut: fut };
@@ -286,7 +292,7 @@
       }
       var byH = [];
       for (var k2 = 1; k2 <= h; k2++) byH.push(metrics(rec.filter(function (r) { return r.k === k2; }), scale).MAE);
-      out.push({ id: d.id, name: d.name, ref: d.ref, note: d.note, metrics: metrics(rec, scale),
+      out.push({ id: d.id, name: d.id === "tslm" && m === 1 ? "Regression: linear trend" : d.name, ref: d.ref, note: d.note, metrics: metrics(rec, scale),
         maeByH: byH, future: P.fut[d.id].f, params: P.fut[d.id].params || null, records: rec });
     });
     return { scale: scale, first: first, results: out };
