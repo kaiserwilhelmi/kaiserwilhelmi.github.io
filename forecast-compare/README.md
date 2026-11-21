@@ -32,8 +32,16 @@ The page backtests up to eleven methods on a series with a rolling origin, score
 - **Winner:** lowest MASE (RMSE breaks ties). The recommendation flags near-ties, small gains over naive (< 5%), disagreement between metrics, bias, and whether the winner is stable across 12/24/36-period windows.
 - **Speed:** every method is fitted once per origin (longest window, 12 steps ahead); each horizon/window setting is then scored from those forecasts. A k-step forecast doesn't depend on how many steps were requested, so this is exact.
 
+## Uploading your own data
+Upload a CSV/TSV/text export or an Excel workbook (.xlsx). Everything is read in the browser (`upload.js`, no libraries; .xlsx is unzipped with the browser's built-in decompression).
+- **Layout:** any number of columns and header rows. The value column is the one with the most numbers (you can switch if there are several); the date column is the one with the most readable dates. With no dates, rows are periods 1, 2, 3…
+- **File quirks handled:** Excel BOM and UTF-16 "Unicode text", comma/semicolon/tab separators, Mac/Windows line endings, quoted cells, thousands separators, currency and % signs, (negatives), decimal commas, blank or text rows, newest-first order, duplicates, an .xlsx saved with a .csv name, data on a later sheet. Old binary .xls gets a message to re-save as .xlsx or CSV.
+- **Dates:** ISO (2020-01-22), US and European numeric (1/22/2020, 22.01.2020), month names (22-Jan, Jan 22 2020, January 2020, Jan-22), quarters (2020Q1, Q1 2020), ISO weeks (2020-W05), years, times (1/22/2020 1:30 PM) and Excel date cells. When dates could be month/day or day/month, the page picks the reading that gives evenly spaced dates, says so, and offers a toggle.
+- **Time unit:** detected from the spacing (seconds, minutes, hours, days, business days, weeks, months, quarters, years, or plain periods). Seasonality defaults to 60/60/24/7/5/52/12/4/none respectively (or none if there isn't enough history for two full cycles) and can be changed, including a custom length. Labels, horizon and backtest wording follow the unit.
+- `test/uploads/` holds 22 test files (Excel-style CSVs, UTF-16, .xlsx, multi-sheet, quarterly, weekly, hourly, business-day, ambiguous dates, etc.); `node test/test_uploads.js` loads each into the page and prints what was read.
+
 ## Verification
-`verify.py` is an independent Python re-implementation (regression via numpy least squares, a different solver from the JS). `node dump_js.js` runs `engine.js` over 5 series × 2 seasonality settings × 3 windows × 4 horizons (120 cases); `python3 verify.py` compares every metric, MAE-by-horizon value, 12-step future forecast, fitted parameter and the winner at each window: **30,330 values, worst relative difference 1.8e-10, all winners identical.** The Python check uses plain left-to-right sums because Python 3.12+ `sum()` is compensated and would make the optimiser drift from JavaScript's.
+`verify.py` is an independent Python re-implementation (regression via numpy least squares, a different solver from the JS). `node dump_js.js` runs `engine.js` over 5 series × 2 seasonality settings × 3 windows × 4 horizons (120 cases) plus daily, business-day, hourly, weekly and quarterly test series; `python3 verify.py` compares every metric, MAE-by-horizon value, 12-step future forecast, fitted parameter and the winner at each window: **33,045 values, worst relative difference 9.0e-10, all winners identical.** The Python check uses plain left-to-right sums because Python 3.12+ `sum()` is compensated and would make the optimiser drift from JavaScript's.
 
 ## Data (snapshot Nov 2026, monthly from Jan 2018)
 - Cass Freight Index: Shipments (FRGSHPUSM649NCIS), NSA, index Jan 1990 = 1. Cass Information Systems, Inc., via FRED (Federal Reserve Bank of St. Louis).
@@ -44,7 +52,7 @@ The page backtests up to eleven methods on a series with a rolling origin, score
 
 ## Files
 - `index.html`: the finished, self-contained page (GitHub Pages ready)
-- `template.html`, `engine.js` (methods, backtest, metrics), `app.js` (UI, SVG charts), `build.py` (inlines everything into index.html)
+- `template.html`, `engine.js` (methods, backtest, metrics), `upload.js` (CSV/Excel reader, dates, time units), `app.js` (UI, SVG charts), `build.py` (inlines everything into index.html)
 - `make_sample.py`, `data/*.csv`
 - `dump_js.js`, `verify.py`: cross-check
 - `research/`: the experiments behind the method choices (`compare_fit.py` vs statsmodels, `proto.py` + `score.py`)

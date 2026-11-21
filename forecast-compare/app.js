@@ -15,7 +15,10 @@
   var MON = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
   function parseYM(s) { var m = /^(\d{4})-(\d{1,2})/.exec(s); return m ? { y: +m[1], m: +m[2] } : null; }
   function label(s) { var p = parseYM(s); return p ? MON[p.m - 1] + " " + p.y : s; }
-  function futureDates(dates, k) {
+  function one(s) { return s.unitOne || "month"; }
+  function many(s) { return s.unitMany || "months"; }
+  function futureDates(dates, k, s) {
+    if (s && s.future) return s.future(k);
     var a = parseYM(dates[dates.length - 2]), b = parseYM(dates[dates.length - 1]), out = [];
     if (!a || !b) { for (var i = 1; i <= k; i++) out.push("t+" + i); return out; }
     var step = (b.y - a.y) * 12 + (b.m - a.m) || 1, cur = b.y * 12 + b.m - 1;
@@ -28,19 +31,6 @@
     if (state.key === "upload" && state.upload) return state.upload;
     return SERIES.filter(function (s) { return s.key === state.key; })[0];
   }
-  function parseCSV(text, name) {
-    var lines = text.replace(/\r/g, "").split("\n").filter(function (l) { return l.trim(); });
-    var dates = [], vals = [];
-    lines.forEach(function (l) {
-      var cells = l.split(/[,;\t]/).map(function (c) { return c.trim().replace(/^"|"$/g, ""); });
-      if (cells.length < 2) return;
-      var v = parseFloat(cells[cells.length - 1].replace(/[$\s]/g, ""));
-      if (!isFinite(v)) return; // header or blank value
-      dates.push(cells[0]); vals.push(v);
-    });
-    return { key: "upload", name: name, unit: "", source: "Uploaded by you (stays in your browser)", sample: false, dates: dates, values: vals };
-  }
-
   // ---- charts (inline SVG) -----------------------------------------------
   function lineChart(el, cfg) {
     var W = el.clientWidth || 720, H = cfg.height || 300, pad = { l: 56, r: 16, t: 12, b: 28 };
@@ -113,7 +103,8 @@
   // series + seasonality and every horizon/window choice is scored from it.
   var cache = {};
   function run() {
-    var s = current(), key = s.key + "|" + (s.name) + "|" + state.m, err = $("err");
+    var s = current(), key = s.key + "|" + (s.uid || s.name) + "|" + state.m, err = $("err");
+    unitLabels(s);
     err.hidden = true;
     if (cache[key]) return render(s, cache[key]);
     $("busy").hidden = false;
@@ -128,7 +119,8 @@
   function render(s, P) {
     var err = $("err");
     Array.prototype.forEach.call($("test").options, function (o) { o.disabled = +o.value > P.W; });
-    if (state.test > P.W) { state.test = P.W; $("test").value = String(P.W); }
+    if (!state.testPref) state.testPref = state.test;
+    state.test = Math.min(state.testPref, P.W); $("test").value = String(state.test);
     var meths = P.meths;
     if (!meths.some(function (d) { return d.id === state.compare; })) state.compare = "naive";
     var res;
@@ -146,7 +138,7 @@
       kpi("Best method", best.name, "lowest MASE of " + ranked.length) +
       kpi("Best MASE", fmt(best.metrics.MASE, 3), (best.metrics.MASE < 1 ? "beats" : "worse than") + " in-sample " + (state.m > 1 ? "seasonal naive" : "naive") + " (1-step)") +
       kpi("MAE vs naive", best.id === "naive" ? "0%" : (gain >= 0 ? "−" : "+") + fmt(Math.abs(gain), 1) + "%", best.id === "naive" ? "naive is the winner" : "error " + (gain >= 0 ? "lower" : "higher") + " than naive") +
-      kpi("Forecasts scored", best.metrics.n, state.test + " origins × up to " + state.h + " step" + (state.h > 1 ? "s" : ""));
+      kpi("Forecasts scored", best.metrics.n, state.test + " origins × up to " + state.h + " " + (state.h > 1 ? many(s) : one(s)) + " ahead");
 
     // recommendation
     $("rec").innerHTML = recommend(s, ranked, nv, ref);
@@ -159,7 +151,7 @@
     var cmp = res.results.filter(function (r) { return r.id === state.compare; })[0];
 
     // main chart
-    var n = s.values.length, fut = futureDates(s.dates, 12), labels = s.dates.concat(fut);
+    var n = s.values.length, fut = futureDates(s.dates, 12, s), labels = s.dates.concat(fut);
     var actual = s.values.map(function (v, i) { return [i, v]; });
     function bt(r) { return r.records.filter(function (q) { return q.k === 1; }).map(function (q) { return [q.idx, q.f]; }); }
     function fu(r) { return [[n - 1, s.values[n - 1]]].concat(r.future.map(function (v, i) { return [n + i, v]; })); }
@@ -173,7 +165,7 @@
     ];
     $("lg1").innerHTML = legend([{ name: "Actual", color: CA }, { name: best.name + " (best)", color: C1 }, { name: cmp.name, color: C2, dash: true }]);
     lineChart($("ch1"), { labels: labels, series: series, xfmt: label, ref: ref, band: [res.first - 0.5 < 0 ? 0 : res.first - 0.5, n - 1], bandLabel: "Backtest window",
-      aria: "Actual values with backtest and 12-period forecasts for " + best.name + " and " + cmp.name, height: 320 });
+      aria: "Actual values with backtest and 12-" + one(s) + " forecasts for " + best.name + " and " + cmp.name, height: 320 });
 
     // horizon chart
     if (state.h > 1) {
@@ -186,7 +178,8 @@
     } else $("hz").hidden = true;
 
     table(ranked);
-    $("meta").innerHTML = esc(s.name) + (s.unit ? " · " + esc(s.unit) : "") + " · " + n + " observations, " + label(s.dates[0]) + " to " + label(s.dates[n - 1]) + " · Source: " + s.source;
+    $("ch1t").textContent = "Actuals, backtest and 12-" + one(s) + " forecast";
+    $("meta").innerHTML = esc(s.name) + (s.unit ? " · " + esc(s.unit) : "") + " · " + n + " " + many(s) + ", " + label(s.dates[0]) + " to " + label(s.dates[n - 1]) + " · Source: " + s.source;
   }
 
   function kpi(t, v, sub) { return '<div class="kpi"><div class="kt">' + esc(t) + '</div><div class="kv">' + esc(v) + '</div><div class="ks">' + esc(sub) + "</div></div>"; }
@@ -197,7 +190,7 @@
     if (best.id === "naive") out += "<li>No method beat the naive forecast. For this series, last month's value is the best planning number; extra modelling adds complexity without accuracy.</li>";
     else {
       var gain = 100 * (1 - best.metrics.MASE / nv.metrics.MASE);
-      out += "<li>Over the " + state.test + "-period backtest it was off by " + fmtV(best.metrics.MAE, ref) + (s.short ? " " + esc(s.short) : "") + " on average (MAE), " +
+      out += "<li>Over the " + state.test + "-" + one(s) + " backtest it was off by " + fmtV(best.metrics.MAE, ref) + (s.short ? " " + esc(s.short) : "") + " on average (MAE), " +
         fmt(Math.abs(gain), 1) + "% " + (gain >= 0 ? "better" : "worse") + " than the naive benchmark.</li>";
       if (gain < 5) out += "<li>That edge over naive is small (under 5%). Treat the series as close to a random walk: plan on the latest value and spend effort on hedging or contract terms rather than on a model.</li>";
     }
@@ -213,18 +206,18 @@
     else out += "<li>Every error metric agrees on the winner.</li>";
     var bias = best.metrics.ME, rel = Math.abs(bias) / best.metrics.MAE;
     if (rel > 0.5) out += "<li>Watch the bias: it tends to " + (bias > 0 ? "under" : "over") + "-forecast (mean error " + fmtV(bias, ref) + "). " + (bias > 0 ? "Budget and safety stock set from it will run short." : "Budget set from it will be padded.") + "</li>";
-    out += stabilityText(last.stab, best);
+    out += stabilityText(last.stab, best, s);
     var nxt = best.future[0];
-    out += "<li>Next-period forecast: <b>" + fmtV(nxt, ref) + "</b>" + (s.short ? " " + esc(s.short) : "") + ", 12-period path in the chart below.</li></ul>";
+    out += "<li>Next " + one(s) + ": <b>" + fmtV(nxt, ref) + "</b>" + (s.short ? " " + esc(s.short) : "") + ", 12-" + one(s) + " path in the chart below.</li></ul>";
     return out;
   }
 
-  function stabilityText(rows, best) {
+  function stabilityText(rows, best, s) {
     if (rows.length < 2) return "";
     var ws = rows.map(function (r) { return r.test; }).join(", ");
     if (rows.every(function (r) { return r.winner === best.id; }))
-      return "<li><b>Stable:</b> " + esc(best.name) + " also wins with " + ws + "-period backtest windows.</li>";
-    var list = rows.map(function (r) { return r.test + " periods: " + esc(r.name); }).join("; ");
+      return "<li><b>Stable:</b> " + esc(best.name) + " also wins with " + ws + "-" + one(s) + " backtest windows.</li>";
+    var list = rows.map(function (r) { return r.test + " " + many(s) + ": " + esc(r.name); }).join("; ");
     if (rows.every(function (r) { return r.top3.indexOf(best.id) >= 0; }))
       return "<li><b>Mostly stable:</b> the winner changes with the backtest window (" + list + "), but " + esc(best.name) + " stays in the top 3 each time.</li>";
     return "<li><b>Not stable:</b> the winner changes with the backtest window (" + list + "). Treat the ranking as a shortlist, and lean toward the simpler or combined method.</li>";
@@ -279,24 +272,106 @@
     a.download = "backtest-" + (last.s.key || "series") + ".csv"; document.body.appendChild(a); a.click(); a.remove();
   }
 
+  // ---- uploads -------------------------------------------------------------
+  var uid = 0, MAXN = 2000;
+  function setM(v) {
+    var sel = $("m"), has = Array.prototype.some.call(sel.options, function (o) { return o.value === String(v); });
+    sel.value = has ? String(v) : "custom";
+    $("mcustom").hidden = has; $("mcustom").value = v;
+    state.m = v;
+  }
+  function unitLabels(s) {
+    var o1 = one(s), om = many(s);
+    Array.prototype.forEach.call($("h").options, function (o) { o.textContent = o.value + " " + (o.value === "1" ? o1 : om); });
+    Array.prototype.forEach.call($("test").options, function (o) { o.textContent = "Last " + o.value + " " + om; });
+  }
+  function applyUpload(res, fname, keepM) {
+    var notes = res.notes.slice(), warns = res.warnings.slice(), vals = res.values, dates = res.dates;
+    if (vals.length > MAXN) {
+      notes.push("The file has " + vals.length.toLocaleString() + " rows; the most recent " + MAXN.toLocaleString() + " are used to keep the page fast.");
+      vals = vals.slice(-MAXN); dates = dates.slice(-MAXN);
+    }
+    var s = { key: "upload", uid: ++uid, name: res.name || fname.replace(/\.[^.]+$/, ""), unit: "", short: "", sample: false,
+      source: "your file (" + fname + "), read in your browser", dates: dates, values: vals, future: res.future,
+      unitOne: res.unitOne, unitMany: res.unitMany, res: res, fname: fname, m: keepM && state.upload ? state.upload.m : res.suggestedM };
+    var mNote = "";
+    if (!keepM) {
+      var n = vals.length, want = res.suggestedM;
+      if (want > 1 && n < E.minTrain(want) + 12) {
+        mNote = " A " + want + "-" + res.unitOne + " seasonal cycle needs at least " + (E.minTrain(want) + 12) + " " + res.unitMany + " of history, so seasonality is set to None.";
+        s.m = 1;
+      } else if (want > 1) mNote = " Seasonality is set to " + want + " (" + cycleName(want, res.unit) + "); change it above if your data cycles differently.";
+      else mNote = res.unit === "year" ? " Yearly data has no seasonality, so it is set to None." : " Seasonality is set to None; pick a cycle above if your data has one.";
+    }
+    if (vals.length < 10) { $("busy").hidden = true; $("err").textContent = "Only " + vals.length + " usable rows were found; at least 10 are needed (more for seasonal methods)."; $("err").hidden = false; return; }
+    state.upload = s; state.key = "upload";
+    setM(s.m);
+    var o = $("series").querySelector('option[value="upload"]'); o.disabled = false; o.textContent = "Uploaded: " + s.name; $("series").value = "upload";
+    var range = dates[0] + " to " + dates[dates.length - 1];
+    var h = '<div class="upok"><b>' + esc(fname) + ":</b> " + vals.length.toLocaleString() + " values" + (res.ms ? ", one per " + esc(res.unitOne) + ", " + esc(range) : "") +
+      (res.name ? ", column “" + esc(res.name) + "”" : "") + "." + (keepM ? "" : esc(mNote)) + "</div>";
+    notes.forEach(function (x) { h += '<div class="upinfo">' + esc(x) + "</div>"; });
+    if (res.orderAmbiguous) warns.unshift("Your dates could be read as month/day or day/month. Read as " + (res.order === "MDY" ? "month/day (US)" : "day/month") + " (" + res.orderHow + "). Check below.");
+    warns.forEach(function (x) { h += '<div class="upwarn">⚠ ' + esc(x) + "</div>"; });
+    var pick = "";
+    if (res.numericCols.length > 1) pick += '<label class="ctl">Value column<select id="upcol">' + res.numericCols.map(function (c) {
+      return '<option value="' + c.c + '"' + (c.c === res.valueCol ? " selected" : "") + ">" + esc(c.label) + "</option>"; }).join("") + "</select></label>";
+    if (res.order) pick += '<label class="ctl">Date order<select id="uporder"><option value="MDY"' + (res.order === "MDY" ? " selected" : "") + '>Month/day (US)</option><option value="DMY"' + (res.order === "DMY" ? " selected" : "") + ">Day/month</option></select></label>";
+    if (pick) h += '<div class="controls" style="margin-top:8px">' + pick + "</div>";
+    $("upnote").innerHTML = h; $("upnote").hidden = false;
+    function rebuild() {
+      try {
+        var r2 = window.FCUpload.build(res.table, { valueCol: $("upcol") ? +$("upcol").value : res.valueCol, order: $("uporder") ? $("uporder").value : undefined, date1904: res.date1904, decimalComma: res.decimalComma });
+        r2.table = res.table; r2.date1904 = res.date1904; r2.decimalComma = res.decimalComma; r2.notes = res.notes.filter(function (x) { return /sheet|workbook/i.test(x); }).concat(r2.notes);
+        applyUpload(r2, fname, true);
+      } catch (er) { $("err").textContent = er.message; $("err").hidden = false; }
+    }
+    if ($("upcol")) $("upcol").addEventListener("change", rebuild);
+    if ($("uporder")) $("uporder").addEventListener("change", rebuild);
+    $("busy").hidden = true;
+    run();
+  }
+  function cycleName(m, u) {
+    var names = { 4: "quarters in a year", 5: "business days in a week", 7: "days in a week", 12: "months in a year", 24: "hours in a day", 52: "weeks in a year", 60: u === "second" ? "seconds in a minute" : "minutes in an hour" };
+    return names[m] || "a " + m + "-" + u + " cycle";
+  }
+
   // ---- wiring -------------------------------------------------------------
   function init() {
     $("series").innerHTML = SERIES.map(function (s) { return '<option value="' + s.key + '">' + esc(s.name) + "</option>"; }).join("") +
-      '<option value="upload" disabled>Uploaded CSV</option>';
-    $("series").addEventListener("change", function (e) { state.key = e.target.value; run(); });
-    [["h", "h"], ["test", "test"], ["m", "m"]].forEach(function (p) { $(p[0]).addEventListener("change", function (e) { state[p[1]] = +e.target.value; run(); }); });
+      '<option value="upload" disabled>Uploaded file</option>';
+    $("series").addEventListener("change", function (e) {
+      state.key = e.target.value;
+      if (state.key !== "upload") { setM(12); $("upnote").hidden = true; } else if (state.upload) { setM(state.upload.m); $("upnote").hidden = false; }
+      run();
+    });
+    [["h", "h"], ["test", "test"], ["m", "m"]].forEach(function (p) { $(p[0]).addEventListener("change", function (e) {
+      if (e.target.value === "custom") return;
+      state[p[1]] = +e.target.value;
+      if (p[0] === "test") state.testPref = state.test;
+      if (p[0] === "m" && state.upload && state.key === "upload") state.upload.m = state.m;
+      run();
+    }); });
     $("cmp").addEventListener("change", function (e) { state.compare = e.target.value; run(); });
     $("file").addEventListener("change", function (e) {
       var f = e.target.files[0]; if (!f) return;
+      e.target.value = "";
       var rd = new FileReader();
+      $("busy").hidden = false; $("err").hidden = true;
       rd.onload = function () {
-        var p = parseCSV(rd.result, f.name.replace(/\.[^.]+$/, ""));
-        if (p.values.length < 10) { $("err").textContent = "Could not find a numeric value column in that file. Use two columns: date, value."; $("err").hidden = false; return; }
-        state.upload = p; state.key = "upload";
-        var o = $("series").querySelector('option[value="upload"]'); o.disabled = false; o.textContent = "Uploaded: " + p.name; $("series").value = "upload";
-        run();
+        window.FCUpload.read(rd.result, f.name).then(function (res) { applyUpload(res, f.name, false); })
+          .catch(function (er) { $("busy").hidden = true; $("err").textContent = "Could not read “" + f.name + "”: " + er.message; $("err").hidden = false; });
       };
-      rd.readAsText(f);
+      rd.readAsArrayBuffer(f);
+    });
+    $("m").addEventListener("change", function (e) {
+      if (e.target.value === "custom") { $("mcustom").hidden = false; $("mcustom").focus(); return; }
+      $("mcustom").hidden = true;
+    }, true);
+    $("mcustom").addEventListener("change", function (e) {
+      var v = Math.round(+e.target.value);
+      if (!(v >= 1 && v <= 400)) { e.target.value = state.m; return; }
+      state.m = v; if (state.upload && state.key === "upload") state.upload.m = v; run();
     });
     $("dl").addEventListener("click", downloadCSV);
     var t; window.addEventListener("resize", function () { clearTimeout(t); t = setTimeout(run, 150); });

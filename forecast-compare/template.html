@@ -55,6 +55,10 @@ input[type=file] { position: absolute; width: 1px; height: 1px; opacity: 0; }
 .hint { font-size: 12px; color: var(--text-3); margin-top: 10px; }
 .badge { display: inline-block; font-size: 12px; font-weight: 600; color: var(--warn-ink); background: var(--warn-soft); border-radius: 6px; padding: 3px 8px; margin-top: 10px; }
 .err { color: var(--crit-ink); font-weight: 600; margin-top: 10px; }
+.upnote { margin-top: 10px; font-size: 13px; color: var(--text-2); border-left: 3px solid var(--accent); padding: 4px 0 4px 10px; }
+.upnote > div { margin: 2px 0; }
+.upwarn { color: var(--warn-ink); }
+input[type=number] { font: inherit; font-size: 14px; color: var(--text); background: var(--bg); border: 1px solid var(--border); border-radius: 8px; padding: 7px 8px; min-height: 38px; }
 .kpis { display: grid; grid-template-columns: repeat(4, minmax(0,1fr)); gap: 12px; margin-bottom: 16px; }
 .kpi { background: var(--surface); border: 1px solid var(--border); border-radius: 10px; padding: 12px 14px; min-width: 0; }
 .kt { font-size: 12px; color: var(--text-2); }
@@ -104,20 +108,21 @@ footer { font-size: 12px; color: var(--text-3); margin-top: 24px; }
 <div class="wrap">
   <div class="crumb"><a href="/">← dawsonwilhelmi.com</a></div>
   <h1>Forecast Method Comparison</h1>
-  <p class="lede">Which forecasting method should a buyer trust for this series? Up to eleven methods are re-fitted and tested month by month on data they have not seen, then scored on six error metrics. Pick a series or upload your own.</p>
+  <p class="lede">Which forecasting method should a buyer trust for this series? Up to eleven methods are re-fitted and tested period by period on data they have not seen, then scored on six error metrics. Pick a series or upload your own.</p>
 
   <div class="card">
     <div class="controls">
       <label class="ctl grow">Series<select id="series"></select></label>
       <label class="ctl">Forecast horizon<select id="h"><option value="1">1 period</option><option value="3">3 periods</option><option value="6" selected>6 periods</option><option value="12">12 periods</option></select></label>
       <label class="ctl">Backtest window<select id="test"><option value="12">Last 12 periods</option><option value="24" selected>Last 24 periods</option><option value="36">Last 36 periods</option></select></label>
-      <label class="ctl">Seasonality<select id="m"><option value="12" selected>Monthly (12)</option><option value="4">Quarterly (4)</option><option value="1">None</option></select></label>
-      <div class="ctl"><span>Your data</span><label class="btn" for="file">Upload CSV</label><input type="file" id="file" accept=".csv,.txt,text/csv"></div>
+      <div class="ctl"><span>Seasonality</span><div style="display:flex;gap:6px"><select id="m" aria-label="Seasonal cycle length"><option value="1">None</option><option value="4">4 (quarters in a year)</option><option value="5">5 (business-day week)</option><option value="7">7 (days in a week)</option><option value="12" selected>12 (months in a year)</option><option value="24">24 (hours in a day)</option><option value="52">52 (weeks in a year)</option><option value="60">60 (minutes in an hour)</option><option value="custom">Custom…</option></select><input id="mcustom" type="number" min="1" max="400" step="1" value="12" hidden aria-label="Custom cycle length" style="width:80px"></div></div>
+      <div class="ctl"><span>Your data</span><label class="btn" for="file">Upload CSV or Excel</label><input type="file" id="file" accept=".csv,.tsv,.txt,.xlsx,.xlsm,.xls,text/csv,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet,application/vnd.ms-excel"></div>
     </div>
     <div id="tag"></div>
     <div id="busy" class="hint" hidden><b>Fitting every method at each backtest origin…</b></div>
     <div id="err" class="err" hidden></div>
-    <div class="hint">CSV: two columns, <code>date,value</code>, oldest first, one row per period. Files are read in your browser and never uploaded.</div>
+    <div id="upnote" class="upnote" hidden></div>
+    <div class="hint">CSV or Excel (.xlsx): a column of numbers, plus a column of dates or periods if you have one. Most date formats and any time unit (hours to years) work. Files are read in your browser and never uploaded.</div>
   </div>
 
   <div class="kpis" id="kpis"></div>
@@ -125,7 +130,7 @@ footer { font-size: 12px; color: var(--text-3); margin-top: 24px; }
 
   <div class="card">
     <div class="head">
-      <div><h2 style="margin:0">Actuals, backtest and 12-period forecast</h2><div class="hint" id="meta" style="margin-top:2px"></div></div>
+      <div><h2 style="margin:0" id="ch1t">Actuals, backtest and 12-month forecast</h2><div class="hint" id="meta" style="margin-top:2px"></div></div>
       <label class="ctl">Compare best method with<select id="cmp"></select></label>
     </div>
     <div class="legend" id="lg1"></div>
@@ -199,6 +204,7 @@ footer { font-size: 12px; color: var(--text-3); margin-top: 24px; }
 </div>
 <script>window.SERIES = /*__DATA__*/null;</script>
 <script>/*__ENGINE__*/</script>
+<script>/*__UPLOAD__*/</script>
 <script>/*__APP__*/</script>
 </body>
 </html>
