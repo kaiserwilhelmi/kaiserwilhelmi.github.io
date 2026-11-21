@@ -4,7 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Dawson Wilhelmi · Projects</title>
-<meta name="description" content="Procurement and supply chain analytics projects by Dawson Wilhelmi: supplier scorecard and industry input-cost tracking.">
+<meta name="description" content="Procurement and supply chain analytics projects by Dawson Wilhelmi: supplier scorecard, industry input-cost tracking and forecast method comparison.">
 <style>
 :root { color-scheme: dark;
   --bg: #0b0c0e; --surface: #141518; --border: #26282d; --grid: #1e2024;
@@ -132,6 +132,28 @@ nav .links a.on { color: var(--text); }
         </div>
       </a>
 
+      <a class="proj" href="/forecast-compare/">
+        <div class="thumb" aria-hidden="true">
+          <svg viewBox="0 0 400 150" preserveAspectRatio="none">
+            <g stroke="var(--grid)"><line x1="0" x2="400" y1="30" y2="30"/><line x1="0" x2="400" y1="75" y2="75"/><line x1="0" x2="400" y1="120" y2="120"/></g>
+            <rect x="200" y="0" width="100" height="150" fill="var(--accent)" opacity=".08"/>
+            <path d="M0,108 L20,92 L40,80 L60,96 L80,112 L100,100 L120,84 L140,70 L160,86 L180,102 L200,90 L220,74 L240,60 L260,76 L280,92 L300,80" fill="none" stroke="var(--text-2)" stroke-width="2" stroke-linejoin="round"/>
+            <path d="M300,80 L320,64 L340,50 L360,66 L380,80 L400,68" fill="none" stroke="var(--accent)" stroke-width="2.5" stroke-linejoin="round"/>
+            <path d="M300,80 L400,80" fill="none" stroke="var(--warn)" stroke-width="2" stroke-dasharray="5 4"/>
+            <g font-size="12" font-weight="600" font-family="inherit">
+              <rect x="6" y="6" width="104" height="22" rx="11" fill="var(--surface)" stroke="var(--border)"/><circle cx="20" cy="17" r="5" fill="var(--accent)"/><text x="31" y="21" fill="var(--text)">11 methods</text>
+              <rect x="118" y="6" width="96" height="22" rx="11" fill="var(--surface)" stroke="var(--border)"/><circle cx="132" cy="17" r="5" fill="var(--good)"/><text x="143" y="21" fill="var(--text)">7 metrics</text>
+            </g>
+          </svg>
+        </div>
+        <div class="pbody">
+          <h3>Forecast Method Comparison</h3>
+          <p class="q">Which forecasting method should a buyer trust for this series, and how wrong is it likely to be?</p>
+          <p>Backtests up to 11 methods (naive benchmarks, exponential smoothing, Holt-Winters, seasonal ARIMA, regression and forecast combinations) month by month on freight, packaging, copper and jet fuel data, or on your own CSV. Scores each on MAE, MSE, RMSE, MAPE, sMAPE, MASE and bias, lets the data pick the winner, and checks whether that pick holds up across backtest windows. Every number is verified against an independent Python implementation.</p>
+          <div class="tags"><span>Time-series forecasting</span><span>Rolling-origin backtesting</span><span>Error metrics</span><span>Python verification</span><span>JavaScript dashboard</span></div>
+          <span class="open">Open tool →</span>
+        </div>
+      </a>
     </div>
   </section>
 
