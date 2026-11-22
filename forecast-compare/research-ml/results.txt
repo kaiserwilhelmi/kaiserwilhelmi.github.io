@@ -1,0 +1,41 @@
+86 series, h=6, last 24 origins. MASE: mean / median / mean rank / #wins
+  combS    0.504 0.320  rank  6.81  wins 4
+  hw       0.505 0.376  rank  8.49  wins 7
+  sarima   0.522 0.310  rank  6.56  wins 12
+  combS3   0.562 0.325  rank  5.59  wins 6
+  damped   0.581 0.370  rank  8.64  wins 1
+  gbm      0.584 0.402  rank 10.41  wins 4
+  holt     0.600 0.403  rank  9.91  wins 2
+  combML   0.663 0.372  rank  8.71  wins 5
+  theta    0.717 0.314  rank  6.07  wins 11
+  mlp      0.746 0.502  rank 12.69  wins 1
+  ridge    0.760 0.314  rank  6.36  wins 10
+  drift    0.763 0.326  rank  6.29  wins 5
+  naive    0.834 0.366  rank  7.84  wins 5
+  ses      0.841 0.371  rank  8.71  wins 4
+  ma3      0.972 0.453  rank 11.48  wins 2
+  snaive   1.461 0.800  rank 15.00  wins 0
+  tslm     1.652 0.690  rank 13.45  wins 7
+nested pick-by-backtest, current lineup  : mean MASE 0.571, median 0.391
+nested pick-by-backtest, + Theta only    : mean MASE 0.565, median 0.380
+nested pick-by-backtest, + Theta + ML    : mean MASE 0.491, median 0.368
+always naive   : mean 1.003 median 0.422
+always theta   : mean 0.877 median 0.384
+always combS3  : mean 0.667 median 0.373
+--- real FRED series only: 80
+  current    mean 0.490 median 0.363
+  +Theta     mean 0.484 median 0.354
+  +Theta+ML  mean 0.486 median 0.354
+  Wilcoxon current vs +Theta+ML p = 0.4237107971667934 ; better on 9 worse on 15 of 80
+  Wilcoxon current vs +Theta    p = 0.8092039689931078
+  picked with full lineup: {'tslm': 1, 'theta': 8, 'ridge': 7, 'holt': 3, 'combS': 7, 'drift': 6, 'combS3': 8, 'damped': 5, 'combML': 1, 'naive': 8, 'ma3': 7, 'ses': 8, 'sarima': 9, 'snaive': 1, 'hw': 1}
+real FRED 80
+  current lineup, lowest error           mean 0.457 median 0.346
+  full lineup, lowest error              mean 0.457 median 0.339
+  full lineup, simplest not sig. worse   mean 0.427 median 0.361
+  Wilcoxon cur vs rule p=0.450  cur vs best p=0.367
+all incl. synthetic 86
+  current lineup, lowest error           mean 0.530 median 0.362
+  full lineup, lowest error              mean 0.464 median 0.346
+  full lineup, simplest not sig. worse   mean 0.454 median 0.367
+  Wilcoxon cur vs rule p=0.940  cur vs best p=0.452

@@ -4,26 +4,33 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <title>Forecast Method Comparison</title>
-<meta name="description" content="Backtest up to eleven forecasting methods on a procurement series and compare MAE, MSE, RMSE, MAPE, sMAPE and MASE.">
-<link rel="icon" href="/favicon.svg" type="image/svg+xml">
-<meta property="og:type" content="website">
-<meta property="og:site_name" content="Dawson Wilhelmi">
-<meta property="og:title" content="Forecast Method Comparison">
-<meta property="og:description" content="Backtest up to eleven forecasting methods on a procurement series and compare MAE, MSE, RMSE, MAPE, sMAPE and MASE.">
-<meta property="og:url" content="https://dawsonwilhelmi.com/forecast-compare/">
-<meta property="og:image" content="https://dawsonwilhelmi.com/og.png">
-<meta property="og:image:width" content="1200">
-<meta property="og:image:height" content="630">
-<meta name="twitter:card" content="summary_large_image">
+<meta name="description" content="Backtest up to fourteen forecasting methods on a procurement series and compare MAE, MSE, RMSE, MAPE, sMAPE and MASE.">
 <style>
 :root {
-  /* dark only, same palette as the rest of dawsonwilhelmi.com */
-  --bg: #0b0c0e; --surface: #141518; --border: #26282d; --grid: #1e2024;
-  --text: #ecedef; --text-2: #b4b7bd; --text-3: #959aa2;
-  --accent: #4c9aff; --accent-soft: rgba(76,154,255,.14);
-  --s1: #4c9aff; --s2: #e07a45; --band: rgba(76,154,255,.09);
-  --warn-ink: #f0c060; --warn-soft: rgba(250,178,25,.16); --crit-ink: #e66767;
+  --bg: #f6f5f2; --surface: #fcfcfb; --border: #e3e1db; --grid: #ebe9e4;
+  --text: #0b0b0b; --text-2: #52514e; --text-3: #6f6e69;
+  --accent: #2a78d6; --accent-soft: rgba(42,120,214,.10);
+  --s1: #2a78d6; --s2: #eb6834; --band: rgba(42,120,214,.07);
+  --warn-ink: #8a5a00; --warn-soft: rgba(250,178,25,.18); --crit-ink: #a52222;
   --font: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+  color-scheme: light;
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --bg: #121211; --surface: #1a1a19; --border: #33332f; --grid: #2a2a27;
+    --text: #f0efec; --text-2: #c3c2b7; --text-3: #9a998f;
+    --accent: #5a9cec; --accent-soft: rgba(90,156,236,.14);
+    --s1: #3987e5; --s2: #d95926; --band: rgba(90,156,236,.09);
+    --warn-ink: #f0c060; --warn-soft: rgba(250,178,25,.16); --crit-ink: #e66767;
+    color-scheme: dark;
+  }
+}
+:root[data-theme="dark"] {
+  --bg: #121211; --surface: #1a1a19; --border: #33332f; --grid: #2a2a27;
+  --text: #f0efec; --text-2: #c3c2b7; --text-3: #9a998f;
+  --accent: #5a9cec; --accent-soft: rgba(90,156,236,.14);
+  --s1: #3987e5; --s2: #d95926; --band: rgba(90,156,236,.09);
+  --warn-ink: #f0c060; --warn-soft: rgba(250,178,25,.16); --crit-ink: #e66767;
   color-scheme: dark;
 }
 * { box-sizing: border-box; }
@@ -31,9 +38,8 @@ html { -webkit-text-size-adjust: 100%; }
 body { margin: 0; background: var(--bg); color: var(--text); font: 15px/1.5 var(--font); }
 .wrap { max-width: 1240px; margin: 0 auto; padding: 20px 16px 48px; }
 a { color: var(--accent); }
-.home { margin-bottom: 16px; }
-.home a { font-weight: 700; font-size: 15px; color: var(--text); text-decoration: none; }
-.home a:hover { color: var(--accent); }
+.crumb { font-size: 13px; margin-bottom: 8px; }
+.crumb a { text-decoration: none; }
 h1 { font-size: 28px; line-height: 1.2; margin: 0 0 6px; letter-spacing: -.01em; }
 .lede { color: var(--text-2); margin: 0 0 18px; max-width: 760px; }
 h2 { font-size: 18px; margin: 0 0 10px; }
@@ -100,9 +106,9 @@ footer { font-size: 12px; color: var(--text-3); margin-top: 24px; }
 </head>
 <body>
 <div class="wrap">
-  <nav class="home"><a href="/">Dawson Wilhelmi</a></nav>
+  <div class="crumb"><a href="/">← dawsonwilhelmi.com</a></div>
   <h1>Forecast Method Comparison</h1>
-  <p class="lede">Which forecasting method should a buyer trust for this series? Up to eleven methods are re-fitted and tested period by period on data they have not seen, then scored on six error metrics. Pick a series or upload your own.</p>
+  <p class="lede">Which forecasting method should a buyer trust for this series? Up to fourteen methods, from simple benchmarks to machine learning, are re-fitted and tested period by period on data they have not seen, then scored on six error metrics. Pick a series or upload your own.</p>
 
   <div class="card">
     <div class="controls">
@@ -153,6 +159,7 @@ footer { font-size: 12px; color: var(--text-3); margin-top: 24px; }
       <h2>How the test works</h2>
       <p><b>Rolling origin.</b> For each of the last <i>N</i> periods, every method is fitted only on data before that point and forecasts the next <i>h</i> periods. Forecasts are compared with what actually happened. This mimics real use and avoids judging a model on data it was fitted to (Tashman, 2000; Hyndman &amp; Athanasopoulos, 2021, §5.10).</p>
       <p><b>Fitting.</b> Holt-Winters fits its three weights and its starting level, trend and seasonal pattern together by minimising one-step squared error (Nelder–Mead search). Seasonal ARIMA is fitted by conditional least squares. The simpler smoothing methods pick their weights from a grid (0.05 to 0.95); full fitting changed their accuracy by under 1% on these series. Every number was re-computed by an independent Python implementation and matches; accuracy is in line with the statsmodels library's maximum-likelihood fits.</p>
+      <p><b>Significance.</b> A Diebold-Mariano test (with the Harvey-Leybourne-Newbold small-sample correction) checks whether the winner's lower error could be luck, against both naive and the runner-up. When it could, the page names the simplest method that is not significantly worse.</p>
       <p><b>No method is favoured.</b> The backtest on your series picks the winner. Two combinations (simple averages of other methods) are entered as candidates because averaging often reduces error (Bates &amp; Granger, 1969; Makridakis et al., 2020), but they only win when the data says so. The page also checks whether the same method wins with 12, 24 and 36-period windows.</p>
       <p><b>Ranking.</b> MASE decides the winner because it compares methods on a common, scale-free basis and does not break when values approach zero (Hyndman &amp; Koehler, 2006).</p>
     </div>
@@ -170,6 +177,12 @@ footer { font-size: 12px; color: var(--text-3); margin-top: 24px; }
   </div>
 
   <div class="card doc">
+    <h2>Does machine learning win? An honest test</h2>
+    <p>Before adding the two machine-learning methods (ridge regression and gradient-boosted trees on recent changes), all candidates were backtested on 80 real monthly price, wage, freight and currency series from FRED, plus six series with other time units. Theta, ridge and seasonal ARIMA had the lowest median error (MASE 0.31). But when the method was picked from an older window and scored on the newest 12 months, adding the new methods cut average error only from 0.490 to 0.486, which is <b>not statistically significant</b> (Wilcoxon p = 0.42). A small neural network was also tested and dropped: it ranked worst and was six times slower.</p>
+    <p>That matches the research. On short single series, statistical methods usually match or beat machine learning (Makridakis, Spiliotis &amp; Assimakopoulos, 2018). Machine learning won the M5 competition because it learned from tens of thousands of related series plus prices and promotions (Makridakis et al., 2022). So the ML methods are here as candidates, and they win only when your data says so: ridge, for example, handles fast exponential growth that the smoothing methods miss.</p>
+  </div>
+
+  <div class="card doc">
     <h2>References</h2>
     <ol class="refs">
       <li>Hyndman, R. J., &amp; Athanasopoulos, G. (2021). <i>Forecasting: Principles and Practice</i> (3rd ed.). OTexts. <a href="https://otexts.com/fpp3/">otexts.com/fpp3</a></li>
@@ -181,6 +194,14 @@ footer { font-size: 12px; color: var(--text-3); margin-top: 24px; }
       <li>Bates, J. M., &amp; Granger, C. W. J. (1969). The combination of forecasts. <i>Operational Research Quarterly, 20</i>(4), 451–468. <a href="https://doi.org/10.2307/3008764">doi:10.2307/3008764</a></li>
       <li>Makridakis, S., Spiliotis, E., &amp; Assimakopoulos, V. (2020). The M4 Competition: 100,000 time series and 61 forecasting methods. <i>International Journal of Forecasting, 36</i>(1), 54–74. <a href="https://doi.org/10.1016/j.ijforecast.2019.04.014">doi:10.1016/j.ijforecast.2019.04.014</a></li>
       <li>Nelder, J. A., &amp; Mead, R. (1965). A simplex method for function minimization. <i>The Computer Journal, 7</i>(4), 308–313. <a href="https://doi.org/10.1093/comjnl/7.4.308">doi:10.1093/comjnl/7.4.308</a></li>
+      <li>Assimakopoulos, V., &amp; Nikolopoulos, K. (2000). The theta model: A decomposition approach to forecasting. <i>International Journal of Forecasting, 16</i>(4), 521–530. <a href="https://doi.org/10.1016/S0169-2070(00)00066-2">doi:10.1016/S0169-2070(00)00066-2</a></li>
+      <li>Hyndman, R. J., &amp; Billah, B. (2003). Unmasking the Theta method. <i>International Journal of Forecasting, 19</i>(2), 287–290. <a href="https://doi.org/10.1016/S0169-2070(01)00143-1">doi:10.1016/S0169-2070(01)00143-1</a></li>
+      <li>Hoerl, A. E., &amp; Kennard, R. W. (1970). Ridge regression: Biased estimation for nonorthogonal problems. <i>Technometrics, 12</i>(1), 55–67. <a href="https://doi.org/10.1080/00401706.1970.10488634">doi:10.1080/00401706.1970.10488634</a></li>
+      <li>Friedman, J. H. (2001). Greedy function approximation: A gradient boosting machine. <i>Annals of Statistics, 29</i>(5), 1189–1232. <a href="https://doi.org/10.1214/aos/1013203451">doi:10.1214/aos/1013203451</a></li>
+      <li>Diebold, F. X., &amp; Mariano, R. S. (1995). Comparing predictive accuracy. <i>Journal of Business &amp; Economic Statistics, 13</i>(3), 253–263. <a href="https://doi.org/10.1080/07350015.1995.10524599">doi:10.1080/07350015.1995.10524599</a></li>
+      <li>Harvey, D., Leybourne, S., &amp; Newbold, P. (1997). Testing the equality of prediction mean squared errors. <i>International Journal of Forecasting, 13</i>(2), 281–291. <a href="https://doi.org/10.1016/S0169-2070(96)00719-4">doi:10.1016/S0169-2070(96)00719-4</a></li>
+      <li>Makridakis, S., Spiliotis, E., &amp; Assimakopoulos, V. (2018). Statistical and machine learning forecasting methods: Concerns and ways forward. <i>PLOS ONE, 13</i>(3), e0194889. <a href="https://doi.org/10.1371/journal.pone.0194889">doi:10.1371/journal.pone.0194889</a></li>
+      <li>Makridakis, S., Spiliotis, E., &amp; Assimakopoulos, V. (2022). M5 accuracy competition: Results, findings, and conclusions. <i>International Journal of Forecasting, 38</i>(4), 1346–1364. <a href="https://doi.org/10.1016/j.ijforecast.2021.11.013">doi:10.1016/j.ijforecast.2021.11.013</a></li>
       <li>Gardner, E. S., Jr., &amp; McKenzie, E. (1985). Forecasting trends in time series. <i>Management Science, 31</i>(10), 1237–1246. <a href="https://doi.org/10.1287/mnsc.31.10.1237">doi:10.1287/mnsc.31.10.1237</a></li>
     </ol>
     <h2 style="margin-top:14px">Data</h2>
