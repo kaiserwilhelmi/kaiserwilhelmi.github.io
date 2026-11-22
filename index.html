@@ -90,7 +90,7 @@ nav .links a.on { color: var(--text); }
 
   <header class="top">
     <h1>Projects</h1>
-    <p>Procurement and supply chain analytics. Each project uses real published data or clearly labeled sample data.</p>
+    <p>Tools I built while studying supply chain at CSU San Marcos and working as a controller. Most of them use public government data. When a project uses sample data, the page says so.</p>
   </header>
 
   <section style="padding-bottom:clamp(28px,5vw,56px)">
@@ -114,8 +114,8 @@ nav .links a.on { color: var(--text); }
         </div>
         <div class="pbody">
           <h3>Supplier Scorecard</h3>
-          <p class="q">Which suppliers deserve more of our spend, and which need a corrective plan?</p>
-          <p>Weighted scorecard across 12 suppliers and ~2,000 purchase orders: on-time delivery, fill rate, defects, invoice accuracy and price compliance. Flags high-spend, low-performing suppliers and tracks trends; upload your own data to score real vendors.</p>
+          <p class="q">Which suppliers should get more of our orders, and which ones need a corrective action plan?</p>
+          <p>I made up 12 office-supply suppliers and about 2,000 purchase orders, then scored each supplier on on-time delivery, fill rate, defects, invoice accuracy and price compliance. The chart shows where a lot of money goes to a supplier that scores low. You can change the weights or upload your own PO data.</p>
           <div class="tags"><span>Python</span><span>KPI design</span><span>Weighted scoring</span><span>Spend analysis</span><span>JavaScript dashboard</span></div>
           <span class="open">Open dashboard →</span>
         </div>
@@ -135,8 +135,8 @@ nav .links a.on { color: var(--text); }
         </div>
         <div class="pbody">
           <h3>Industry Market Watch</h3>
-          <p class="q">When should we lock in pricing, and when should we push suppliers for decreases?</p>
-          <p>Input-cost pressure for 17 industries, from aerospace to restaurants, built on 80 published price, wage, freight and currency series (BLS, EIA, IMF, Federal Reserve and Cass), plus EIA, USDA, Census import and USAspending data pulled directly from each agency. Each driver gets a 6-month forecast with a backtested 80% range and an Alert, Watch or Opportunity signal with a recommended buyer action. Updates daily.</p>
+          <p class="q">Are the costs behind what we buy going up or down, and is now a good time to negotiate?</p>
+          <p>Each of the 17 industries has a page that tracks the costs behind its prices, like materials, wages, fuel, freight and exchange rates. The data comes from BLS, EIA, IMF, the Federal Reserve and Cass, plus USDA, Census and USAspending, and it refreshes every day. Each cost gets a 6-month forecast, a rating of Alert, Watch or Opportunity, and a short note on what a buyer could do about it.</p>
           <div class="tags"><span>Python</span><span>FRED, EIA, USDA &amp; Census APIs</span><span>Time-series forecasting</span><span>Backtesting</span><span>GitHub Actions automation</span></div>
           <span class="open">Open dashboard →</span>
         </div>
@@ -158,8 +158,8 @@ nav .links a.on { color: var(--text); }
         </div>
         <div class="pbody">
           <h3>Forecast Method Comparison</h3>
-          <p class="q">Which forecasting method should a buyer trust for this series, and how wrong is it likely to be?</p>
-          <p>Backtests up to 11 methods (naive benchmarks, exponential smoothing, Holt-Winters, seasonal ARIMA, regression and forecast combinations) month by month on freight, packaging, copper and jet fuel data, or on your own CSV. Scores each on MAE, MSE, RMSE, MAPE, sMAPE, MASE and bias, lets the data pick the winner, and checks whether that pick holds up across backtest windows. Every number is verified against an independent Python implementation.</p>
+          <p class="q">Which forecasting method works best for this data, and how far off is it likely to be?</p>
+          <p>Pick freight, packaging, copper or jet fuel data, or upload your own spreadsheet. The tool tests up to 11 methods, from just repeating last month's number to Holt-Winters and seasonal ARIMA, by having each one forecast past months it hasn't seen. Then it ranks them by how far off they were. The best method changes from one series to the next. I checked the results against a separate Python version.</p>
           <div class="tags"><span>Time-series forecasting</span><span>Rolling-origin backtesting</span><span>Error metrics</span><span>Python verification</span><span>JavaScript dashboard</span></div>
           <span class="open">Open tool →</span>
         </div>
@@ -180,8 +180,8 @@ nav .links a.on { color: var(--text); }
         </div>
         <div class="pbody">
           <h3>Loot Ledger</h3>
-          <p class="q">Who pays the most for each item, and where do I find them?</p>
-          <p>A companion for the online game Tibia, built for a player who kept leaving the game to look things up. Search any of 5,111 items to see every NPC buyer ranked by price, with directions, the floor and a map to each one, and a warning when players pay far more than NPCs. Pasted loot becomes a sell plan with an NPC route. Also tracks 369 quests, rare drops and a wishlist. Data comes from TibiaWiki (CC BY-SA 3.0) and TibiaMaps.io.</p>
+          <p class="q">Who pays the most for this item, and where are they?</p>
+          <p>Search any of the 5,111 items in the online game Tibia and it lists every NPC that buys it, highest price first, with a map to each one. Paste your loot after a hunt and it tells you who to sell each item to. It's the same idea as comparing supplier quotes, just in a game. Item and map data come from TibiaWiki (CC BY-SA 3.0) and TibiaMaps.io.</p>
           <div class="tags"><span>Side project</span><span>Python</span><span>SQLite</span><span>Price comparison</span><span>JavaScript app</span></div>
           <span class="open">Open app →</span>
         </div>
