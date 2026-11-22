@@ -5,32 +5,25 @@
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <title>Forecast Method Comparison</title>
 <meta name="description" content="Backtest up to eleven forecasting methods on a procurement series and compare MAE, MSE, RMSE, MAPE, sMAPE and MASE.">
+<link rel="icon" href="/favicon.svg" type="image/svg+xml">
+<meta property="og:type" content="website">
+<meta property="og:site_name" content="Dawson Wilhelmi">
+<meta property="og:title" content="Forecast Method Comparison">
+<meta property="og:description" content="Backtest up to eleven forecasting methods on a procurement series and compare MAE, MSE, RMSE, MAPE, sMAPE and MASE.">
+<meta property="og:url" content="https://dawsonwilhelmi.com/forecast-compare/">
+<meta property="og:image" content="https://dawsonwilhelmi.com/og.png">
+<meta property="og:image:width" content="1200">
+<meta property="og:image:height" content="630">
+<meta name="twitter:card" content="summary_large_image">
 <style>
 :root {
-  --bg: #f6f5f2; --surface: #fcfcfb; --border: #e3e1db; --grid: #ebe9e4;
-  --text: #0b0b0b; --text-2: #52514e; --text-3: #6f6e69;
-  --accent: #2a78d6; --accent-soft: rgba(42,120,214,.10);
-  --s1: #2a78d6; --s2: #eb6834; --band: rgba(42,120,214,.07);
-  --warn-ink: #8a5a00; --warn-soft: rgba(250,178,25,.18); --crit-ink: #a52222;
-  --font: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
-  color-scheme: light;
-}
-@media (prefers-color-scheme: dark) {
-  :root:not([data-theme="light"]) {
-    --bg: #121211; --surface: #1a1a19; --border: #33332f; --grid: #2a2a27;
-    --text: #f0efec; --text-2: #c3c2b7; --text-3: #9a998f;
-    --accent: #5a9cec; --accent-soft: rgba(90,156,236,.14);
-    --s1: #3987e5; --s2: #d95926; --band: rgba(90,156,236,.09);
-    --warn-ink: #f0c060; --warn-soft: rgba(250,178,25,.16); --crit-ink: #e66767;
-    color-scheme: dark;
-  }
-}
-:root[data-theme="dark"] {
-  --bg: #121211; --surface: #1a1a19; --border: #33332f; --grid: #2a2a27;
-  --text: #f0efec; --text-2: #c3c2b7; --text-3: #9a998f;
-  --accent: #5a9cec; --accent-soft: rgba(90,156,236,.14);
-  --s1: #3987e5; --s2: #d95926; --band: rgba(90,156,236,.09);
+  /* dark only, same palette as the rest of dawsonwilhelmi.com */
+  --bg: #0b0c0e; --surface: #141518; --border: #26282d; --grid: #1e2024;
+  --text: #ecedef; --text-2: #b4b7bd; --text-3: #959aa2;
+  --accent: #4c9aff; --accent-soft: rgba(76,154,255,.14);
+  --s1: #4c9aff; --s2: #e07a45; --band: rgba(76,154,255,.09);
   --warn-ink: #f0c060; --warn-soft: rgba(250,178,25,.16); --crit-ink: #e66767;
+  --font: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
   color-scheme: dark;
 }
 * { box-sizing: border-box; }
@@ -38,8 +31,9 @@ html { -webkit-text-size-adjust: 100%; }
 body { margin: 0; background: var(--bg); color: var(--text); font: 15px/1.5 var(--font); }
 .wrap { max-width: 1240px; margin: 0 auto; padding: 20px 16px 48px; }
 a { color: var(--accent); }
-.crumb { font-size: 13px; margin-bottom: 8px; }
-.crumb a { text-decoration: none; }
+.home { margin-bottom: 16px; }
+.home a { font-weight: 700; font-size: 15px; color: var(--text); text-decoration: none; }
+.home a:hover { color: var(--accent); }
 h1 { font-size: 28px; line-height: 1.2; margin: 0 0 6px; letter-spacing: -.01em; }
 .lede { color: var(--text-2); margin: 0 0 18px; max-width: 760px; }
 h2 { font-size: 18px; margin: 0 0 10px; }
@@ -106,7 +100,7 @@ footer { font-size: 12px; color: var(--text-3); margin-top: 24px; }
 </head>
 <body>
 <div class="wrap">
-  <div class="crumb"><a href="/">← dawsonwilhelmi.com</a></div>
+  <nav class="home"><a href="/">Dawson Wilhelmi</a></nav>
   <h1>Forecast Method Comparison</h1>
   <p class="lede">Which forecasting method should a buyer trust for this series? Up to eleven methods are re-fitted and tested period by period on data they have not seen, then scored on six error metrics. Pick a series or upload your own.</p>
 

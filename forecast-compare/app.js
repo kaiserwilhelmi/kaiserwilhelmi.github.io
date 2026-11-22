@@ -341,6 +341,7 @@
     $("series").innerHTML = SERIES.map(function (s) { return '<option value="' + s.key + '">' + esc(s.name) + "</option>"; }).join("") +
       '<option value="upload" disabled>Uploaded file</option>';
     $("series").addEventListener("change", function (e) {
+      if (e.target.value === "upload" && !state.upload) { e.target.value = state.key; return; } // nothing uploaded yet
       state.key = e.target.value;
       if (state.key !== "upload") { setM(12); $("upnote").hidden = true; } else if (state.upload) { setM(state.upload.m); $("upnote").hidden = false; }
       run();
