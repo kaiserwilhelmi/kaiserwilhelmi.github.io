@@ -58,6 +58,8 @@ input[type=file] { position: absolute; width: 1px; height: 1px; opacity: 0; }
 .upnote { margin-top: 10px; font-size: 13px; color: var(--text-2); border-left: 3px solid var(--accent); padding: 4px 0 4px 10px; }
 .upnote > div { margin: 2px 0; }
 .upwarn { color: var(--warn-ink); }
+input[type=search] { font: inherit; font-size: 16px; color: var(--text); background: var(--bg); border: 1px solid var(--border); border-radius: 8px; padding: 7px 10px; min-height: 38px; width: 100%; box-sizing: border-box; }
+.findn { font-size: 12px; color: var(--text-3); }
 input[type=number] { font: inherit; font-size: 14px; color: var(--text); background: var(--bg); border: 1px solid var(--border); border-radius: 8px; padding: 7px 8px; min-height: 38px; }
 .kpis { display: grid; grid-template-columns: repeat(4, minmax(0,1fr)); gap: 12px; margin-bottom: 16px; }
 .kpi { background: var(--surface); border: 1px solid var(--border); border-radius: 10px; padding: 12px 14px; min-width: 0; }
@@ -108,11 +110,11 @@ footer { font-size: 12px; color: var(--text-3); margin-top: 24px; }
 <div class="wrap">
   <div class="crumb"><a href="/">← dawsonwilhelmi.com</a></div>
   <h1>Forecast Method Comparison</h1>
-  <p class="lede">Which forecasting method should a buyer trust for this series? Up to fourteen methods, from simple benchmarks to machine learning, are re-fitted and tested period by period on data they have not seen, then scored on six error metrics. Pick a series or upload your own.</p>
+  <p class="lede">Which forecasting method should a buyer trust for this series? Up to fourteen methods, from simple benchmarks to machine learning, are re-fitted and tested period by period on data they have not seen, then scored on six error metrics. Pick any of the /*__COUNT__*/ price, wage, freight and currency series from the <a href="/market-watch/">Industry Market Watch</a>, or upload your own.</p>
 
   <div class="card">
     <div class="controls">
-      <label class="ctl grow">Series<select id="series"></select></label>
+      <div class="ctl grow"><label for="series">Series</label><input id="find" type="search" placeholder="Search: steel, diesel, construction…" autocomplete="off" aria-label="Search series"><select id="series"></select><span id="findn" class="findn" hidden></span></div>
       <label class="ctl">Forecast horizon<select id="h"><option value="1">1 period</option><option value="3">3 periods</option><option value="6" selected>6 periods</option><option value="12">12 periods</option></select></label>
       <label class="ctl">Backtest window<select id="test"><option value="12">Last 12 periods</option><option value="24" selected>Last 24 periods</option><option value="36">Last 36 periods</option></select></label>
       <div class="ctl"><span>Seasonality</span><div style="display:flex;gap:6px"><select id="m" aria-label="Seasonal cycle length"><option value="1">None</option><option value="4">4 (quarters in a year)</option><option value="5">5 (business-day week)</option><option value="7">7 (days in a week)</option><option value="12" selected>12 (months in a year)</option><option value="24">24 (hours in a day)</option><option value="52">52 (weeks in a year)</option><option value="60">60 (minutes in an hour)</option><option value="custom">Custom…</option></select><input id="mcustom" type="number" min="1" max="400" step="1" value="12" hidden aria-label="Custom cycle length" style="width:80px"></div></div>
@@ -121,6 +123,7 @@ footer { font-size: 12px; color: var(--text-3); margin-top: 24px; }
     <div id="tag"></div>
     <div id="busy" class="hint" hidden><b>Fitting every method at each backtest origin…</b></div>
     <div id="err" class="err" hidden></div>
+    <div id="mwnote" class="upnote" hidden></div>
     <div id="upnote" class="upnote" hidden></div>
     <div class="hint">CSV or Excel (.xlsx): a column of numbers, plus a column of dates or periods if you have one. Most date formats and any time unit (hours to years) work. Files are read in your browser and never uploaded.</div>
   </div>
@@ -206,20 +209,19 @@ footer { font-size: 12px; color: var(--text-3); margin-top: 24px; }
     </ol>
     <h2 style="margin-top:14px">Data</h2>
     <ul>
-      <li>Cass Freight Index: Shipments (FRGSHPUSM649NCIS), index Jan 1990 = 1, not seasonally adjusted. Cass Information Systems, Inc., via FRED, Federal Reserve Bank of St. Louis.</li>
-      <li>PPI by Industry: Corrugated and Solid Fiber Box Manufacturing (PCU322211322211), index Mar 1980 = 100. U.S. Bureau of Labor Statistics, via FRED.</li>
-      <li>Global price of Copper (PCOPPUSDM), US$ per metric ton. International Monetary Fund, Primary Commodity Prices, via FRED.</li>
-      <li>Kerosene-Type Jet Fuel Prices: U.S. Gulf Coast (DJFUELUSGULF), US$ per gallon, monthly average of daily prices. U.S. Energy Information Administration, via FRED.</li>
+      <li><b>Market Watch series</b> (/*__COUNT__*/) are loaded when you pick one, from the <a href="/market-watch/">Industry Market Watch</a>, which refreshes them every day. The monthly series come from FRED (Federal Reserve Bank of St. Louis) and are credited to their original publishers: the U.S. Bureau of Labor Statistics (producer and consumer prices, hourly earnings), the International Monetary Fund (commodity prices), the U.S. Energy Information Administration, the Federal Reserve Board (exchange rates) and Cass Information Systems (freight). History starts in January 2004, or when the series starts. Series that FRED publishes daily or weekly are monthly averages.</li>
+      <li><b>Recent spot prices</b> cover about the last year, daily or weekly as published: U.S. Energy Information Administration Open Data, and USDA Agricultural Marketing Service market news.</li>
+      <li>A month or day the publisher skipped (for example October 2025 for some BLS consumer price series) is filled by a straight line between its neighbours, as on Market Watch, and the page says so when it happens.</li>
       <li><b>Sample demand (units)</b> is synthetic: trend + seasonality + random noise, generated with a fixed seed for demonstration. It is not real company data.</li>
     </ul>
-    <p>Data snapshot: /*__ASOF__*/. Monthly series, Jan 2018 onward.</p>
   </div>
 
   <footer>Built by Dawson Wilhelmi · part of the procurement analytics portfolio at <a href="/">dawsonwilhelmi.com</a></footer>
 </div>
-<script>window.SERIES = /*__DATA__*/null;</script>
+<script>window.SERIES = /*__DATA__*/null; window.MW_CATALOG = /*__CATALOG__*/null;</script>
 <script>/*__ENGINE__*/</script>
 <script>/*__UPLOAD__*/</script>
+<script>/*__MW__*/</script>
 <script>/*__APP__*/</script>
 </body>
 </html>
