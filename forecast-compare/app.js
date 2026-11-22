@@ -1,7 +1,7 @@
 /* UI for the forecast comparison page. Depends on FCEngine (engine.js) and SERIES (inlined data). */
 (function () {
   "use strict";
-  var E = window.FCEngine, SERIES = window.SERIES;
+  var E = window.FCEngine, SERIES = window.SERIES, MW = window.MW_CATALOG || { groups: [], items: [] }, MK = window.FCMarket;
   var $ = function (id) { return document.getElementById(id); };
   var state = { key: SERIES[0].key, upload: null, h: 6, test: 24, m: 12, compare: "naive", sort: "rank", dir: 1 };
   var last = null;
@@ -29,6 +29,7 @@
   // ---- data ---------------------------------------------------------------
   function current() {
     if (state.key === "upload" && state.upload) return state.upload;
+    if (loaded[state.key]) return loaded[state.key];
     return SERIES.filter(function (s) { return s.key === state.key; })[0];
   }
   // ---- charts (inline SVG) -----------------------------------------------
@@ -107,7 +108,7 @@
     unitLabels(s);
     err.hidden = true;
     if (cache[key]) return render(s, cache[key]);
-    $("busy").hidden = false;
+    $("busy").innerHTML = "<b>Fitting every method at each backtest origin…</b>"; $("busy").hidden = false;
     setTimeout(function () {
       try { cache[key] = E.prepare(s.values, state.m); }
       catch (e) { $("busy").hidden = true; err.textContent = e.message; err.hidden = false; return; }
@@ -179,7 +180,7 @@
 
     table(ranked);
     $("ch1t").textContent = "Actuals, backtest and 12-" + one(s) + " forecast";
-    $("meta").innerHTML = esc(s.name) + (s.unit ? " · " + esc(s.unit) : "") + " · " + n + " " + many(s) + ", " + label(s.dates[0]) + " to " + label(s.dates[n - 1]) + " · Source: " + s.source;
+    $("meta").innerHTML = esc(s.name) + (s.unit ? " · " + esc(s.unit) : "") + " · " + n + " " + many(s) + ", " + label(s.dates[0]) + " to " + label(s.dates[n - 1]) + " · Source: " + (s.sourceHtml || esc(s.source));
   }
 
   function kpi(t, v, sub) { return '<div class="kpi"><div class="kt">' + esc(t) + '</div><div class="kv">' + esc(v) + '</div><div class="ks">' + esc(sub) + "</div></div>"; }
@@ -287,7 +288,95 @@
     });
     var a = document.createElement("a");
     a.href = URL.createObjectURL(new Blob([lines.join("\n")], { type: "text/csv" }));
-    a.download = "backtest-" + (last.s.key || "series") + ".csv"; document.body.appendChild(a); a.click(); a.remove();
+    a.download = "backtest-" + String(last.s.key || "series").replace(/[^A-Za-z0-9_-]+/g, "-") + ".csv"; document.body.appendChild(a); a.click(); a.remove();
+  }
+
+  // ---- Industry Market Watch series ------------------------------------------
+  var loaded = {}, byKey = {};
+  MW.items.forEach(function (it) {
+    byKey[it.k] = it;
+    it.q = [it.n, it.id, it.u, it.p, it.ind.join(" "), (MW.groups.filter(function (g) { return g.k === it.g; })[0] || {}).label].join(" ").toLowerCase();
+  });
+  function opt(k, name, cur, dis) { return '<option value="' + esc(k) + '"' + (k === cur ? " selected" : "") + (dis ? " disabled" : "") + ">" + esc(name) + "</option>"; }
+  function fillSeries() {
+    var words = $("find").value.toLowerCase().split(/\s+/).filter(Boolean), cur = state.key;
+    function hit(txt) { return words.every(function (w) { return txt.indexOf(w) >= 0; }); }
+    var html = "", count = 0, curHit = !words.length;
+    var ex = SERIES.filter(function (x) { return !words.length || hit(x.name.toLowerCase()); });
+    if (ex.some(function (x) { return x.key === cur; })) curHit = true;
+    if (ex.length) html += '<optgroup label="Example">' + ex.map(function (x) { return opt(x.key, x.name, cur); }).join("") + "</optgroup>";
+    MW.groups.forEach(function (g) {
+      var its = MW.items.filter(function (it) { return it.g === g.k; });
+      count += its.filter(function (it) { return words.length && hit(it.q); }).length;
+      its = its.filter(function (it) { return !words.length || hit(it.q); });
+      if (its.some(function (it) { return it.k === cur; })) curHit = true;
+      if (its.length) html += '<optgroup label="' + esc(g.label) + '">' + its.map(function (it) { return opt(it.k, it.n, cur); }).join("") + "</optgroup>";
+    });
+    html += '<optgroup label="Your data">' + opt("upload", state.upload ? "Uploaded: " + state.upload.name : "Uploaded file (use the button)", cur, !state.upload) + "</optgroup>";
+    if (cur === "upload" && state.upload) curHit = true;
+    if (!curHit) html = '<option value="" disabled selected>' + (count ? "Pick one of " + count + " matches" : "No matches") + "</option>" + html;
+    $("series").innerHTML = html; if (curHit) $("series").value = cur;
+    var fn = $("findn");
+    fn.hidden = !words.length;
+    fn.textContent = !words.length ? "" : count ? count + (count === 1 ? " match" : " matches") + " in the Series menu" : "No series match “" + $("find").value.trim() + "”";
+  }
+  function loadSeries(it) {
+    if (it.k.indexOf("mw:") === 0) {
+      return MK.monthly(it.id).then(function (c) {
+        return { key: it.k, name: it.n, unit: it.u, short: it.s, sample: false, dates: c.dates, values: c.values, m: 12, c: c, it: it };
+      });
+    }
+    return MK.spot(it.id).then(function (c) {
+      var res = window.FCUpload.build([["Date", it.n]].concat(c.dates.map(function (d, i) { return [d, String(c.values[i])]; })), {});
+      var m = res.suggestedM, mNote = "";
+      if (m > 1 && res.values.length < E.minTrain(m) + 12) { mNote = "A " + m + "-" + res.unitOne + " seasonal cycle needs more history than this, so seasonality is set to None."; m = 1; }
+      else if (m > 1) mNote = "Seasonality is set to " + m + " (" + cycleName(m, res.unit) + "); change it above if you like.";
+      return { key: it.k, name: it.n, unit: it.u, short: it.s, sample: false, dates: res.dates, values: res.values, future: res.future,
+        unitOne: res.unitOne, unitMany: res.unitMany, m: m, c: c, it: it, mNote: mNote };
+    });
+  }
+  function mwNote(s) {
+    var it = s.it, c = s.c, n = s.values.length;
+    var h = "<div class=\"upok\"><b>Loaded from Industry Market Watch</b> (refreshed daily): " + n.toLocaleString() + " " + esc(n === 1 ? one(s) : many(s)) +
+      ", " + esc(label(s.dates[0])) + " to " + esc(label(s.dates[n - 1])) + ". Published by " + esc(it.p) +
+      (it.k.indexOf("mw:") === 0 ? ", via FRED (" + esc(it.id) + ")" : "") + ".</div>";
+    if (it.ind.length) h += '<div class="upinfo">Tracked for: ' + esc(it.ind.join(", ")) + ".</div>";
+    if (it.avg) h += '<div class="upinfo">Published daily or weekly; shown as monthly averages.</div>';
+    if (c.filled.length) h += '<div class="upwarn">⚠ ' + esc(c.filled.map(label).join(", ")) + (c.filled.length > 1 ? " were" : " was") +
+      " missing at the source and " + (c.filled.length > 1 ? "are" : "is") + " filled by a straight line between neighbouring values, as on Market Watch.</div>";
+    if (s.mNote) h += '<div class="upinfo">' + esc(s.mNote) + "</div>";
+    return h;
+  }
+  function sourceHtml(it) {
+    return esc(it.p) + ' (<a href="' + esc(it.src) + '" target="_blank" rel="noopener">' + (it.k.indexOf("mw:") === 0 ? "FRED " + esc(it.id) : "source page") + "</a>), loaded from Industry Market Watch";
+  }
+  var reqId = 0;
+  function choose(k) {
+    var prev = state.key, err = $("err");
+    err.hidden = true;
+    if (k === "upload") {
+      if (!state.upload) { $("series").value = prev; return; }
+      state.key = k; setM(state.upload.m); $("mwnote").hidden = true; $("upnote").hidden = false; run(); return;
+    }
+    $("upnote").hidden = true;
+    var it = byKey[k];
+    if (!it) { state.key = k; setM(current().m || 12); $("mwnote").hidden = true; run(); return; }
+    function show(s) { state.key = k; setM(s.m); $("mwnote").innerHTML = mwNote(s); $("mwnote").hidden = false; run(); }
+    if (loaded[k]) return show(loaded[k]);
+    var my = ++reqId;
+    $("busy").innerHTML = "<b>Loading " + esc(it.n) + " from Industry Market Watch…</b>"; $("busy").hidden = false;
+    loadSeries(it).then(function (s) {
+      s.sourceHtml = sourceHtml(it);
+      loaded[k] = s;
+      if (my !== reqId) return;
+      show(s);
+    }).catch(function (er) {
+      if (my !== reqId) return;
+      $("busy").hidden = true;
+      err.textContent = "Could not load “" + it.n + "” from Industry Market Watch (" + (er && er.message || "network error") + "). Check your connection and pick it again.";
+      err.hidden = false;
+      state.key = prev; $("series").value = prev;
+    });
   }
 
   // ---- uploads -------------------------------------------------------------
@@ -324,7 +413,7 @@
     if (vals.length < 10) { $("busy").hidden = true; $("err").textContent = "Only " + vals.length + " usable rows were found; at least 10 are needed (more for seasonal methods)."; $("err").hidden = false; return; }
     state.upload = s; state.key = "upload";
     setM(s.m);
-    var o = $("series").querySelector('option[value="upload"]'); o.disabled = false; o.textContent = "Uploaded: " + s.name; $("series").value = "upload";
+    $("mwnote").hidden = true; fillSeries();
     var range = dates[0] + " to " + dates[dates.length - 1];
     var h = '<div class="upok"><b>' + esc(fname) + ":</b> " + vals.length.toLocaleString() + " values" + (res.ms ? ", one per " + esc(res.unitOne) + ", " + esc(range) : "") +
       (res.name ? ", column “" + esc(res.name) + "”" : "") + "." + (keepM ? "" : esc(mNote)) + "</div>";
@@ -356,18 +445,14 @@
 
   // ---- wiring -------------------------------------------------------------
   function init() {
-    $("series").innerHTML = SERIES.map(function (s) { return '<option value="' + s.key + '">' + esc(s.name) + "</option>"; }).join("") +
-      '<option value="upload" disabled>Uploaded file</option>';
-    $("series").addEventListener("change", function (e) {
-      state.key = e.target.value;
-      if (state.key !== "upload") { setM(12); $("upnote").hidden = true; } else if (state.upload) { setM(state.upload.m); $("upnote").hidden = false; }
-      run();
-    });
+    fillSeries();
+    $("series").addEventListener("change", function (e) { choose(e.target.value); });
+    var ft; $("find").addEventListener("input", function () { clearTimeout(ft); ft = setTimeout(fillSeries, 120); });
     [["h", "h"], ["test", "test"], ["m", "m"]].forEach(function (p) { $(p[0]).addEventListener("change", function (e) {
       if (e.target.value === "custom") return;
       state[p[1]] = +e.target.value;
       if (p[0] === "test") state.testPref = state.test;
-      if (p[0] === "m" && state.upload && state.key === "upload") state.upload.m = state.m;
+      if (p[0] === "m") current().m = state.m;
       run();
     }); });
     $("cmp").addEventListener("change", function (e) { state.compare = e.target.value; run(); });
@@ -389,7 +474,7 @@
     $("mcustom").addEventListener("change", function (e) {
       var v = Math.round(+e.target.value);
       if (!(v >= 1 && v <= 400)) { e.target.value = state.m; return; }
-      state.m = v; if (state.upload && state.key === "upload") state.upload.m = v; run();
+      state.m = v; current().m = v; run();
     });
     $("dl").addEventListener("click", downloadCSV);
     var t; window.addEventListener("resize", function () { clearTimeout(t); t = setTimeout(run, 150); });

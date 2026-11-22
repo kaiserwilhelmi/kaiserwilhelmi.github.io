@@ -2,7 +2,7 @@
 
 **Business question:** Which forecasting method should a buyer trust for a given demand or price series, and how wrong is it likely to be?
 
-The page backtests up to fourteen methods (statistical and machine learning) on a series with a rolling origin, scores them on seven error measures, and lets the data pick the winner. No method is favoured in advance. It also checks whether the winner holds up when the backtest window changes (12, 24, 36 periods). Pick a built-in series or upload your own CSV (`date,value`, oldest first). Everything runs in the browser; uploaded files never leave it.
+The page backtests up to fourteen methods (statistical and machine learning) on a series with a rolling origin, scores them on seven error measures, and lets the data pick the winner. No method is favoured in advance. It also checks whether the winner holds up when the backtest window changes (12, 24, 36 periods). Pick any of the 100 Industry Market Watch series (grouped, with search) or upload your own CSV or Excel file. Everything runs in the browser; uploaded files never leave it.
 
 ## Methods
 | Method | Reference |
@@ -50,22 +50,24 @@ Upload a CSV/TSV/text export or an Excel workbook (.xlsx). Everything is read in
 ## Verification
 `verify.py` is an independent Python re-implementation (regression via numpy least squares, a different solver from the JS). `node dump_js.js` runs `engine.js` over 5 series × 2 seasonality settings × 3 windows × 4 horizons (120 cases) plus daily, business-day, hourly, weekly and quarterly test series; `python3 verify.py` compares every metric, MAE-by-horizon value, 12-step future forecast, fitted parameter and the winner at each window: **84,190 values (including Theta, ridge, boosted trees and every Diebold–Mariano p-value, checked against scipy), worst relative difference 9.0e-10, all winners identical.** The Python check uses plain left-to-right sums because Python 3.12+ `sum()` is compensated and would make the optimiser drift from JavaScript's.
 
-## Data (snapshot Nov 2026, monthly from Jan 2018)
-- Cass Freight Index: Shipments (FRGSHPUSM649NCIS), NSA, index Jan 1990 = 1. Cass Information Systems, Inc., via FRED (Federal Reserve Bank of St. Louis).
-- PPI by Industry: Corrugated and Solid Fiber Box Mfg (PCU322211322211), index Mar 1980 = 100. U.S. Bureau of Labor Statistics, via FRED.
-- Global price of Copper (PCOPPUSDM), $/metric ton. International Monetary Fund, via FRED.
-- Kerosene-Type Jet Fuel Prices: U.S. Gulf Coast (DJFUELUSGULF), $/gal, monthly average of daily. U.S. Energy Information Administration, via FRED.
-- `SAMPLE_demand.csv` is **synthetic sample data** (trend + seasonality + noise, seed 42) from `make_sample.py`. Not real company data.
+## Data
+- **Industry Market Watch series (100).** The Series menu lists every series the [Market Watch](https://dawsonwilhelmi.com/market-watch/) tracks, grouped by type and searchable by name, ID, publisher or industry. Only the catalog is built into the page; the numbers are fetched from the Market Watch site (`/market-watch/data/...`) when a series is picked, so they stay current with its daily refresh and no API key is needed in the browser.
+  - 80 monthly series from `data/long/<id>.csv`, history from January 2004 (or the series start), via FRED (Federal Reserve Bank of St. Louis) and credited to the original publisher: U.S. Bureau of Labor Statistics (PPI, CPI average prices, CES hourly earnings), International Monetary Fund (Primary Commodity Prices), U.S. Energy Information Administration, Federal Reserve Board (H.10 exchange rates), Cass Information Systems (Cass Freight Index). FRED series published daily or weekly are monthly averages.
+  - 20 recent spot prices from `data/agency/spot.json` (about one year, daily, weekly or monthly as published): EIA Open Data and USDA Agricultural Marketing Service market news. These go through the same reader as uploads, so the time unit and seasonality are detected (weekly series with one year of data get no seasonality).
+  - Blanks before the first or after the last value are dropped. A value the publisher skipped inside a series (October 2025 in two BLS CPI series) is filled by a straight line between its neighbours, the same rule Market Watch uses, and the page says so.
+- `data/*.csv` (Cass shipments, corrugated boxes PPI, copper, jet fuel; Nov 2026 FRED snapshot, monthly from Jan 2018) are kept for the verification suite only.
+- `SAMPLE_demand.csv` is **synthetic sample data** (trend + seasonality + noise, seed 42) from `make_sample.py`. Not real company data. It is the page's default series.
 
 ## Files
 - `index.html`: the finished, self-contained page (GitHub Pages ready)
-- `template.html`, `engine.js` (methods, backtest, metrics), `upload.js` (CSV/Excel reader, dates, time units), `app.js` (UI, SVG charts), `build.py` (inlines everything into index.html)
+- `template.html`, `engine.js` (methods, backtest, metrics), `upload.js` (CSV/Excel reader, dates, time units), `mw.js` (loads and cleans Market Watch series), `app.js` (UI, SVG charts), `build.py` (inlines everything into index.html and builds the series catalog from a clone of the market-watch repo; set `MW_REPO`, default `../../market-watch`)
 - `make_sample.py`, `data/*.csv`
-- `dump_js.js`, `verify.py`: cross-check
+- `dump_js.js`, `verify.py`: cross-check of the engine
+- `test/dump_mw.js`, `test/verify_mw.py`: cross-check of the Market Watch loader (all 100 series, 24,432 values identical to an independent Python/numpy clean-up; the engine runs on every series with finite metrics)
 - `research/`: the experiments behind the method choices (`compare_fit.py` vs statsmodels, `proto.py` + `score.py`)
 - `preview/`: screenshots
 
-Rebuild: `python3 build.py`. Verify: `node dump_js.js && python3 verify.py`.
+Rebuild: `python3 build.py`. Verify: `node dump_js.js && python3 verify.py`, and `node test/dump_mw.js ../../market-watch > /tmp/mw.json && python3 test/verify_mw.py ../../market-watch /tmp/mw.json`.
 
 ## References
 - Hyndman, R. J., & Athanasopoulos, G. (2021). *Forecasting: Principles and Practice* (3rd ed.). OTexts. https://otexts.com/fpp3/
