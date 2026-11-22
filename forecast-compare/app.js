@@ -95,7 +95,7 @@
 
   function paramText(p) {
     if (!p) return "";
-    var sym = { alpha: "α", beta: "β", gamma: "γ", phi: "φ", slope: "slope", theta: "θ", Theta: "Θ" };
+    var sym = { alpha: "α", beta: "β", gamma: "γ", phi: "φ", slope: "slope", theta: "θ", Theta: "Θ", lambda: "λ", trees: "trees" };
     return Object.keys(p).map(function (k) { return sym[k] + " " + (k === "slope" ? fmtV(p[k]) : p[k].toFixed(2)); }).join(", ");
   }
 
@@ -194,8 +194,20 @@
         fmt(Math.abs(gain), 1) + "% " + (gain >= 0 ? "better" : "worse") + " than the naive benchmark.</li>";
       if (gain < 5) out += "<li>That edge over naive is small (under 5%). Treat the series as close to a random walk: plan on the latest value and spend effort on hedging or contract terms rather than on a model.</li>";
     }
-    var edge = 100 * (second.metrics.MASE / best.metrics.MASE - 1);
-    if (edge < 2) out += "<li>" + esc(second.name) + " is within " + (edge < 0.1 ? "0.1" : fmt(edge, 1)) + "% on MASE, effectively a tie. Prefer the simpler of the two.</li>";
+    // Significance (Diebold-Mariano with HLN correction) on per-origin scaled errors
+    var pf = function (p) { return p < 0.001 ? "p < 0.001" : "p = " + fmt(p, 3); };
+    if (best.id !== "naive") {
+      var dn = E.dmTest(best.loss, nv.loss, state.h).p;
+      out += dn < 0.05 ? "<li>The edge over naive is <b>statistically significant</b> (Diebold-Mariano test, " + pf(dn) + "), so it is unlikely to be luck.</li>"
+        : "<li>The edge over naive is <b>not statistically significant</b> (Diebold-Mariano test, " + pf(dn) + "): it could be luck, so naive is a defensible choice too.</li>";
+    }
+    var d2 = E.dmTest(best.loss, second.loss, state.h).p;
+    var simpler = function (a2, b2) { return E.SIMPLE_ORDER.indexOf(a2.id) < E.SIMPLE_ORDER.indexOf(b2.id); };
+    var alt = ranked.filter(function (r) { return r.id !== best.id && simpler(r, best) && E.dmTest(best.loss, r.loss, state.h).p >= 0.05; })
+      .sort(function (x, y) { return E.SIMPLE_ORDER.indexOf(x.id) - E.SIMPLE_ORDER.indexOf(y.id); })[0];
+    if (d2 >= 0.05) out += "<li>The runner-up, " + esc(second.name) + ", is not significantly worse (" + pf(d2) + ")." +
+      (alt ? " The simplest method that is not significantly worse is <b>" + esc(alt.name) + "</b>; if you value simplicity, it is a sound alternative." : "") + "</li>";
+    else out += "<li>It is significantly better than the runner-up, " + esc(second.name) + " (" + pf(d2) + ").</li>";
     var winners = {};
     ["MAE", "RMSE", "MAPE", "sMAPE"].forEach(function (k) {
       var w = ranked.filter(function (r) { return r.metrics[k] !== null; }).sort(function (a, b) { return a.metrics[k] - b.metrics[k]; })[0];
@@ -223,6 +235,12 @@
     return "<li><b>Not stable:</b> the winner changes with the backtest window (" + list + "). Treat the ranking as a shortlist, and lean toward the simpler or combined method.</li>";
   }
 
+  function pv(r) {
+    if (r.id === "naive") return "–";
+    var nv = last.ranked.filter(function (x) { return x.id === "naive"; })[0], t = E.dmTest(r.loss, nv.loss, state.h);
+    var txt = t.p < 0.001 ? "<0.001" : fmt(t.p, 3);
+    return t.p < 0.05 ? (t.mean < 0 ? "<b>" + txt + " better</b>" : txt + " worse") : txt;
+  }
   function table(ranked) {
     var rows = ranked.map(function (r, i) { return { r: r, rank: i + 1 }; });
     if (state.sort !== "rank") rows.sort(function (a, b) {
@@ -239,7 +257,7 @@
     var ref = last.s.values[last.s.values.length - 1];
     var h = '<table><thead><tr><th data-k="rank" class="l">#</th><th class="l">Method</th>' +
       COLS.map(function (c) { return '<th data-k="' + c.k + '" title="' + esc(c.tip) + '">' + c.t + (state.sort === c.k ? (state.dir > 0 ? " ▲" : " ▼") : "") + "</th>"; }).join("") +
-      '<th class="l">Fitted parameters</th></tr></thead><tbody>';
+      '<th title="Diebold-Mariano test against the naive forecast. Below 0.05 = significantly different.">p vs naive</th><th class="l">Fitted parameters</th></tr></thead><tbody>';
     rows.forEach(function (o) {
       var r = o.r, m = r.metrics;
       h += '<tr' + (o.rank === 1 ? ' class="win"' : "") + '><td class="l">' + o.rank + '</td><td class="l"><b>' + esc(r.name) + '</b><div class="ref">' + esc(r.note) + " " + esc(r.ref) + "</div></td>" +
@@ -247,7 +265,7 @@
           var v = m[c.k], isBest = v !== null && (c.k === "ME" ? Math.abs(v) : v) === bestOf[c.k];
           var d = c.k === "MASE" ? 3 : (c.k === "MAPE" || c.k === "sMAPE") ? 2 : c.k === "MSE" ? digits(v) : digits(ref);
           return "<td" + (isBest ? ' class="best" title="Best in column"' : "") + ">" + (isBest ? "★ " : "") + fmt(v, d) + "</td>";
-        }).join("") + '<td class="l pm">' + esc(paramText(r.params)) + "</td></tr>";
+        }).join("") + "<td>" + pv(r) + '</td><td class="l pm">' + esc(paramText(r.params)) + "</td></tr>";
     });
     $("tbl").innerHTML = h + "</tbody></table>";
     Array.prototype.forEach.call($("tbl").querySelectorAll("th[data-k]"), function (th) {
@@ -341,7 +359,6 @@
     $("series").innerHTML = SERIES.map(function (s) { return '<option value="' + s.key + '">' + esc(s.name) + "</option>"; }).join("") +
       '<option value="upload" disabled>Uploaded file</option>';
     $("series").addEventListener("change", function (e) {
-      if (e.target.value === "upload" && !state.upload) { e.target.value = state.key; return; } // nothing uploaded yet
       state.key = e.target.value;
       if (state.key !== "upload") { setM(12); $("upnote").hidden = true; } else if (state.upload) { setM(state.upload.m); $("upnote").hidden = false; }
       run();

@@ -163,6 +163,186 @@
     return { f: yy.slice(n), params: { theta: th, Theta: TH } };
   }
 
+  // ---- Theta method (Assimakopoulos & Nikolopoulos, 2000; Hyndman & Billah, 2003) ----
+  // As in the M3/M4 benchmark: seasonal adjustment (classical decomposition) only when a
+  // 90% autocorrelation test at lag m says the series is seasonal; then SES plus half the
+  // linear-trend slope.
+  function acf(y, k) {
+    var mu = mean(y), num = 0, den = 0;
+    for (var t = 0; t < y.length; t++) { den += (y[t] - mu) * (y[t] - mu); if (t >= k) num += (y[t] - mu) * (y[t - k] - mu); }
+    return den === 0 ? 0 : num / den;
+  }
+  function seasonalTest(y, m) {
+    if (m <= 1 || y.length < 3 * m) return false;
+    var s = 0; for (var k = 1; k < m; k++) { var r = acf(y, k); s += r * r; }
+    return Math.abs(acf(y, m)) > 1.645 * Math.sqrt((1 + 2 * s) / y.length);
+  }
+  function seasonalIndex(y, m, mult) {
+    var n = y.length, half = Math.floor(m / 2), sums = [], cnt = [], t, j;
+    for (j = 0; j < m; j++) { sums.push(0); cnt.push(0); }
+    for (t = half; t < n - half; t++) {
+      var s = 0;
+      if (m % 2 === 0) { for (j = -half; j <= half; j++) s += (j === -half || j === half ? 0.5 : 1) * y[t + j]; }
+      else { for (j = -half; j <= half; j++) s += y[t + j]; }
+      s /= m;
+      sums[t % m] += mult ? y[t] / s : y[t] - s; cnt[t % m]++;
+    }
+    var idx = sums.map(function (v, i) { return v / cnt[i]; }), c = mean(idx);
+    return idx.map(function (v) { return mult ? v / c : v - c; });
+  }
+  function theta(y, h, m) {
+    var n = y.length, seas = seasonalTest(y, m), mult = y.every(function (v) { return v > 0; }), t;
+    var idx = seas ? seasonalIndex(y, m, mult) : null;
+    var x = seas ? y.map(function (v, i) { return mult ? v / idx[i % m] : v - idx[i % m]; }) : y.slice();
+    var tm = (n - 1) / 2, xm = mean(x), sxy = 0, sxx = 0;
+    for (t = 0; t < n; t++) { sxy += (t - tm) * (x[t] - xm); sxx += (t - tm) * (t - tm); }
+    var b0 = sxy / sxx, best = null;
+    for (var i = 1; i <= 99; i++) {
+      var a = i / 100, l = x[0], sse = 0;
+      for (t = 1; t < n; t++) { var e = x[t] - l; sse += e * e; l += a * e; }
+      if (best === null || sse < best.sse) best = { sse: sse, l: l, a: a };
+    }
+    var o = [], decay = Math.pow(1 - best.a, n);
+    for (var k = 1; k <= h; k++) {
+      var v = best.l + 0.5 * b0 * ((1 - decay) / best.a + k - 1);
+      if (seas) v = mult ? v * idx[(n + k - 1) % m] : v + idx[(n + k - 1) % m];
+      o.push(v);
+    }
+    return { f: o, params: { alpha: best.a } };
+  }
+
+  // ---- machine learning on recent changes --------------------------------------
+  // Both learners predict the next period's change from the last p changes (p = m up to 13,
+  // plus lag m for longer cycles), scaled by their root mean square, then forecast
+  // recursively. With fewer than 10 training rows they fall back to the naive forecast.
+  function lagsFor(m) { var L = [], p = m > 1 ? Math.min(m, 13) : 6; for (var i = 1; i <= p; i++) L.push(i); if (m > 13) L.push(m); return L; }
+  function mlDesign(y, m) {
+    var d = [], t; for (t = 1; t < y.length; t++) d.push(y[t] - y[t - 1]);
+    var L = lagsFor(m), maxL = L[L.length - 1], ss = 0;
+    for (t = 0; t < d.length; t++) ss += d[t] * d[t];
+    var sd = Math.sqrt(ss / d.length) || 1, z = d.map(function (v) { return v / sd; }), X = [], Y = [];
+    for (t = maxL; t < z.length; t++) { X.push(L.map(function (l) { return z[t - l]; })); Y.push(z[t]); }
+    return { z: z, X: X, Y: Y, L: L, sd: sd };
+  }
+  function mlForecast(y, h, D, predict) {
+    var z = D.z.slice(), last = y[y.length - 1], o = [];
+    for (var k = 0; k < h; k++) {
+      var x = D.L.map(function (l) { return z[z.length - l]; }), dz = predict(x);
+      z.push(dz); last += dz * D.sd; o.push(last);
+    }
+    return o;
+  }
+  function ridgeFit(X, Y, lam) {
+    var p = X[0].length + 1, A = [], b = [], i, a, c;
+    for (i = 0; i < p; i++) { A.push(new Array(p).fill(0)); b.push(0); }
+    for (i = 0; i < X.length; i++) {
+      var x = [1].concat(X[i]);
+      for (a = 0; a < p; a++) { b[a] += x[a] * Y[i]; for (c = 0; c < p; c++) A[a][c] += x[a] * x[c]; }
+    }
+    for (a = 1; a < p; a++) A[a][a] += lam;
+    return solve(A, b);
+  }
+  function ridgePredict(w, x) { var s = w[0]; for (var j = 0; j < x.length; j++) s += w[j + 1] * x[j]; return s; }
+  // Ridge regression (Hoerl & Kennard, 1970): a linear autoregression with shrinkage; the
+  // penalty is chosen on the last 20% of the training rows.
+  function ridge(y, h, m) {
+    var D = mlDesign(y, m), N = D.X.length;
+    if (N < 10) return naive(y, h);
+    var nv = Math.max(4, Math.floor(N * 0.2)), Xt = D.X.slice(0, N - nv), Yt = D.Y.slice(0, N - nv), bestL = 1, bestE = null;
+    [0.1, 1, 10, 100].forEach(function (lam) {
+      var w = ridgeFit(Xt, Yt, lam), e = 0;
+      for (var i = N - nv; i < N; i++) { var r = ridgePredict(w, D.X[i]) - D.Y[i]; e += r * r; }
+      if (bestE === null || e < bestE) { bestE = e; bestL = lam; }
+    });
+    var w = ridgeFit(D.X, D.Y, bestL);
+    return { f: mlForecast(y, h, D, function (x) { return ridgePredict(w, x); }), params: { lambda: bestL } };
+  }
+  // Gradient-boosted regression trees (Friedman, 2001): 150 depth-2 trees, learning rate 0.05,
+  // squared loss, minimum leaf size max(3, n/20). Exhaustive, deterministic splits.
+  function gbm(y, h, m) {
+    var D = mlDesign(y, m), X = D.X, Y = D.Y, n = X.length;
+    if (n < 10) return naive(y, h);
+    var p = X[0].length, T = 150, lr = 0.05, minLeaf = Math.max(3, Math.floor(n / 20)), i, j, k;
+    var base = mean(Y), pred = new Array(n).fill(base), trees = [], order = [];
+    for (j = 0; j < p; j++) {
+      var ix = []; for (i = 0; i < n; i++) ix.push(i);
+      (function (jj) { ix.sort(function (a, b) { return (X[a][jj] - X[b][jj]) || (a - b); }); })(j);
+      order.push(ix);
+    }
+    function split(set, r) {
+      var best = null, inSet = new Uint8Array(n), tot = 0, N = set.length;
+      for (var q = 0; q < N; q++) { inSet[set[q]] = 1; tot += r[set[q]]; }
+      for (var jj = 0; jj < p; jj++) {
+        var ord = order[jj].filter(function (v) { return inSet[v] === 1; }), sl = 0, nl = 0;
+        for (var kk = 0; kk < ord.length - 1; kk++) {
+          sl += r[ord[kk]]; nl++;
+          if (nl < minLeaf || N - nl < minLeaf) continue;
+          if (X[ord[kk]][jj] === X[ord[kk + 1]][jj]) continue;
+          var gain = sl * sl / nl + (tot - sl) * (tot - sl) / (N - nl);
+          if (best === null || gain > best.gain) best = { gain: gain, j: jj, thr: (X[ord[kk]][jj] + X[ord[kk + 1]][jj]) / 2 };
+        }
+      }
+      return best;
+    }
+    function leaf(set, r) { if (!set.length) return 0; var s = 0; for (var q = 0; q < set.length; q++) s += r[set[q]]; return s / set.length; }
+    var all = []; for (i = 0; i < n; i++) all.push(i);
+    for (var t = 0; t < T; t++) {
+      var r = Y.map(function (v, q) { return v - pred[q]; }), s0 = split(all, r);
+      if (s0 === null) break;
+      var L = all.filter(function (q) { return X[q][s0.j] <= s0.thr; }), R = all.filter(function (q) { return X[q][s0.j] > s0.thr; });
+      var kids = [L, R].map(function (set) {
+        var s = split(set, r);
+        if (s === null) return { v: leaf(set, r) };
+        return { j: s.j, thr: s.thr, l: leaf(set.filter(function (q) { return X[q][s.j] <= s.thr; }), r), r: leaf(set.filter(function (q) { return X[q][s.j] > s.thr; }), r) };
+      });
+      var tree = { j: s0.j, thr: s0.thr, kids: kids };
+      trees.push(tree);
+      for (i = 0; i < n; i++) pred[i] += lr * treeEval(tree, X[i]);
+    }
+    return { f: mlForecast(y, h, D, function (x) { var s = base; for (k = 0; k < trees.length; k++) s += lr * treeEval(trees[k], x); return s; }), params: { trees: trees.length } };
+  }
+  function treeEval(tr, x) { var kd = tr.kids[x[tr.j] <= tr.thr ? 0 : 1]; return "v" in kd ? kd.v : (x[kd.j] <= kd.thr ? kd.l : kd.r); }
+
+  // ---- Diebold-Mariano test (Diebold & Mariano, 1995) with the Harvey, Leybourne &
+  // Newbold (1997) small-sample correction. Loss = per-origin mean absolute scaled error.
+  // Returns the two-sided p-value for "equal accuracy".
+  function betacf(a, b, x) {
+    var qab = a + b, qap = a + 1, qam = a - 1, c = 1, d = 1 - qab * x / qap, h, m, m2, aa, del;
+    if (Math.abs(d) < 1e-300) d = 1e-300; d = 1 / d; h = d;
+    for (m = 1; m <= 300; m++) {
+      m2 = 2 * m; aa = m * (b - m) * x / ((qam + m2) * (a + m2));
+      d = 1 + aa * d; if (Math.abs(d) < 1e-300) d = 1e-300; c = 1 + aa / c; if (Math.abs(c) < 1e-300) c = 1e-300; d = 1 / d; h *= d * c;
+      aa = -(a + m) * (qab + m) * x / ((a + m2) * (qap + m2));
+      d = 1 + aa * d; if (Math.abs(d) < 1e-300) d = 1e-300; c = 1 + aa / c; if (Math.abs(c) < 1e-300) c = 1e-300; d = 1 / d; del = d * c; h *= del;
+      if (Math.abs(del - 1) < 3e-16) break;
+    }
+    return h;
+  }
+  function lgamma(x) { // Lanczos
+    var g = [76.18009172947146, -86.50532032941677, 24.01409824083091, -1.231739572450155, 0.1208650973866179e-2, -0.5395239384953e-5];
+    var y = x, tmp = x + 5.5; tmp -= (x + 0.5) * Math.log(tmp); var ser = 1.000000000190015;
+    for (var j = 0; j < 6; j++) ser += g[j] / ++y;
+    return -tmp + Math.log(2.5066282746310005 * ser / x);
+  }
+  function ibeta(a, b, x) {
+    if (x <= 0) return 0; if (x >= 1) return 1;
+    var bt = Math.exp(lgamma(a + b) - lgamma(a) - lgamma(b) + a * Math.log(x) + b * Math.log(1 - x));
+    return x < (a + 1) / (a + b + 2) ? bt * betacf(a, b, x) / a : 1 - bt * betacf(b, a, 1 - x) / b;
+  }
+  function tTwoSided(t, df) { return ibeta(df / 2, 0.5, df / (df + t * t)); }
+  function dmTest(l1, l2, h) {
+    var T = l1.length, d = [], mu = 0, i, k;
+    for (i = 0; i < T; i++) { d.push(l1[i] - l2[i]); mu += d[i]; }
+    mu /= T;
+    var hh = Math.max(1, Math.min(h, Math.floor((T - 1) / 2))), g = [];
+    for (k = 0; k < hh; k++) { var s = 0; for (i = k; i < T; i++) s += (d[i] - mu) * (d[i - k] - mu); g.push(s / T); }
+    if (g[0] === 0) return { p: 1, stat: 0, mean: mu };
+    var v = g[0]; for (k = 1; k < hh; k++) v += 2 * g[k]; v /= T;
+    if (v <= 0) v = g[0] / T;
+    var stat = mu / Math.sqrt(v) * Math.sqrt((T + 1 - 2 * hh + hh * (hh - 1) / T) / T);
+    return { p: tTwoSided(stat, T - 1), stat: stat, mean: mu };
+  }
+
   // ---- equal-weight combinations (Bates & Granger, 1969) ------------------
   function combo(fns) {
     return function (y, h, m) {
@@ -223,6 +403,9 @@
     { id: "damped", name: "Damped trend", seasonal: false, fn: damped, ref: "Gardner & McKenzie (1985); FPP3 §8.2", note: "Holt with the trend flattening out by φ each period." },
     { id: "hw", name: "Holt-Winters additive", seasonal: true, fn: hw, ref: "Winters (1960); FPP3 §8.3", note: "Level, trend and a repeating seasonal pattern; weights and starting values fitted together." },
     { id: "sarima", name: "Seasonal ARIMA", seasonal: true, fn: sarima, ref: "Box & Jenkins (1970); FPP3 §9.9", note: "ARIMA(0,1,1)(0,1,1)m: differences out trend and season, models what is left." },
+    { id: "theta", name: "Theta method", seasonal: false, fn: theta, ref: "Assimakopoulos & Nikolopoulos (2000); Hyndman & Billah (2003)", note: "Smoothed level plus half the long-run trend; seasonally adjusted when a test finds seasonality. M3 competition winner." },
+    { id: "ridge", name: "ML: ridge regression", seasonal: false, ml: true, fn: ridge, ref: "Hoerl & Kennard (1970); FPP3 §9.3", note: "Machine learning: linear model of the next change from recent changes, with shrinkage. Handles exponential growth well." },
+    { id: "gbm", name: "ML: boosted trees", seasonal: false, ml: true, fn: gbm, ref: "Friedman (2001); Makridakis et al. (2022)", note: "Machine learning: 150 small decision trees on recent changes; can capture non-linear patterns. The family that won the M5 competition." },
     { id: "tslm", name: "Regression: trend + season", seasonal: false, fn: tslm, ref: "FPP3 §7.4", note: "Least-squares line plus a dummy for each month." },
     { id: "combS", name: "Combination: HW + ARIMA", seasonal: true, fn: combo([hw, sarima]), parts: ["hw", "sarima"], ref: "Bates & Granger (1969); Makridakis et al. (2020)", note: "Average of Holt-Winters and seasonal ARIMA." },
     { id: "combN", name: "Combination: SES + Holt + damped", seasonal: false, nonseasonalOnly: true, fn: combo([ses, holt, damped]), parts: ["ses", "holt", "damped"], ref: "M4 benchmark; Makridakis et al. (2020)", note: "Average of the three smoothing methods." }
@@ -290,10 +473,16 @@
           if (idx < n) rec.push({ origin: T, k: k, idx: idx, y: y[idx], f: f[k - 1], e: y[idx] - f[k - 1] });
         }
       }
+      var loss = [];
+      for (var T2 = first; T2 < n; T2++) {
+        var s2 = 0, c2 = 0;
+        for (var q = 0; q < rec.length; q++) if (rec[q].origin === T2) { s2 += Math.abs(rec[q].e); c2++; }
+        loss.push(s2 / c2 / scale);
+      }
       var byH = [];
       for (var k2 = 1; k2 <= h; k2++) byH.push(metrics(rec.filter(function (r) { return r.k === k2; }), scale).MAE);
       out.push({ id: d.id, name: d.id === "tslm" && m === 1 ? "Regression: linear trend" : d.name, ref: d.ref, note: d.note, metrics: metrics(rec, scale),
-        maeByH: byH, future: P.fut[d.id].f, params: P.fut[d.id].params || null, records: rec });
+        maeByH: byH, loss: loss, future: P.fut[d.id].f, params: P.fut[d.id].params || null, records: rec });
     });
     return { scale: scale, first: first, results: out };
   }
@@ -314,6 +503,6 @@
     });
   }
 
-  var api = { METHODS: METHODS, activeMethods: activeMethods, backtest: backtest, prepare: prepare, score: score, stability: stability, WINDOWS: WINDOWS, MAXH: MAXH, metrics: metrics, rank: rank, minTrain: minTrain, GRID: GRID, PHI: PHI };
+  var api = { dmTest: dmTest, tTwoSided: tTwoSided, SIMPLE_ORDER: ["naive", "snaive", "drift", "ses", "ma3", "theta", "holt", "damped", "tslm", "ridge", "hw", "sarima", "gbm", "combN", "combS"], METHODS: METHODS, activeMethods: activeMethods, backtest: backtest, prepare: prepare, score: score, stability: stability, WINDOWS: WINDOWS, MAXH: MAXH, metrics: metrics, rank: rank, minTrain: minTrain, GRID: GRID, PHI: PHI };
   if (typeof module !== "undefined" && module.exports) module.exports = api; else root.FCEngine = api;
 })(this);
