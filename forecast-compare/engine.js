@@ -303,9 +303,12 @@
   }
   function treeEval(tr, x) { var kd = tr.kids[x[tr.j] <= tr.thr ? 0 : 1]; return "v" in kd ? kd.v : (x[kd.j] <= kd.thr ? kd.l : kd.r); }
 
-  // ---- Diebold-Mariano test (Diebold & Mariano, 1995) with the Harvey, Leybourne &
-  // Newbold (1997) small-sample correction. Loss = per-origin mean absolute scaled error.
-  // Returns the two-sided p-value for "equal accuracy".
+  // ---- Diebold-Mariano test (Diebold & Mariano, 1995) -------------------------------------
+  // Loss = per-origin mean absolute scaled error. The long-run variance is the equal-weighted
+  // cosine (EWC) estimator with B = floor(0.4 T^(2/3)) and the p-value comes from Student's t
+  // with B degrees of freedom (fixed-b; Lazarus, Lewis, Stock & Watson, 2018; Coroneo & Iacone,
+  // 2020). With the 7 to 35 origins used here this keeps the false-alarm rate near 5%, where the
+  // Harvey-Leybourne-Newbold version used before rejected up to 15% of the time.
   function betacf(a, b, x) {
     var qab = a + b, qap = a + 1, qam = a - 1, c = 1, d = 1 - qab * x / qap, h, m, m2, aa, del;
     if (Math.abs(d) < 1e-300) d = 1e-300; d = 1 / d; h = d;
@@ -330,17 +333,32 @@
     return x < (a + 1) / (a + b + 2) ? bt * betacf(a, b, x) / a : 1 - bt * betacf(b, a, 1 - x) / b;
   }
   function tTwoSided(t, df) { return ibeta(df / 2, 0.5, df / (df + t * t)); }
-  function dmTest(l1, l2, h) {
-    var T = l1.length, d = [], mu = 0, i, k;
+  // Returns the two-sided p-value for "equal accuracy"; NaN when it cannot be tested.
+  function dmTest(l1, l2) {
+    var T = l1.length, d = [], mu = 0, spread = 0, i, j;
     for (i = 0; i < T; i++) { d.push(l1[i] - l2[i]); mu += d[i]; }
     mu /= T;
-    var hh = Math.max(1, Math.min(h, Math.floor((T - 1) / 2))), g = [];
-    for (k = 0; k < hh; k++) { var s = 0; for (i = k; i < T; i++) s += (d[i] - mu) * (d[i - k] - mu); g.push(s / T); }
-    if (g[0] === 0) return { p: 1, stat: 0, mean: mu };
-    var v = g[0]; for (k = 1; k < hh; k++) v += 2 * g[k]; v /= T;
-    if (v <= 0) v = g[0] / T;
-    var stat = mu / Math.sqrt(v) * Math.sqrt((T + 1 - 2 * hh + hh * (hh - 1) / T) / T);
-    return { p: tTwoSided(stat, T - 1), stat: stat, mean: mu };
+    for (i = 0; i < T; i++) spread = Math.max(spread, Math.abs(d[i] - mu));
+    if (T < 2 || spread <= 1e-12 * Math.abs(mu)) return { p: mu === 0 ? 1 : NaN, stat: NaN, mean: mu, B: 0 };
+    var B = Math.max(1, Math.floor(0.4 * Math.pow(T, 2 / 3))), om = 0;
+    for (j = 1; j <= B; j++) {
+      var L = 0;
+      for (i = 0; i < T; i++) L += Math.cos(Math.PI * j * (i + 0.5) / T) * (d[i] - mu);
+      L *= Math.sqrt(2 / T); om += L * L;
+    }
+    om /= B;
+    if (!(om > 0)) return { p: NaN, stat: NaN, mean: mu, B: B };
+    var stat = Math.sqrt(T) * mu / Math.sqrt(om);
+    return { p: tTwoSided(stat, B), stat: stat, mean: mu, B: B };
+  }
+  // Holm (1979) step-down adjustment for a family of tests. NaN p-values are left out of the
+  // family and stay NaN.
+  function holm(ps) {
+    var idx = [], out = ps.map(function () { return NaN; }), run = 0, i;
+    for (i = 0; i < ps.length; i++) if (isFinite(ps[i])) idx.push(i);
+    idx.sort(function (a, b) { return ps[a] - ps[b] || a - b; });
+    idx.forEach(function (ix, r) { run = Math.max(run, Math.min(1, (idx.length - r) * ps[ix])); out[ix] = run; });
+    return out;
   }
 
   // ---- equal-weight combinations (Bates & Granger, 1969) ------------------
@@ -431,62 +449,121 @@
   }
 
   /* Rolling-origin evaluation (Tashman 2000; FPP3 §5.10).
-   * For each origin T = n-test .. n-1 every method is re-fitted on y[0..T-1]
-   * and forecasts 1..h steps ahead; forecasts that land inside the data are
-   * scored. MASE scale = in-sample MAE of the seasonal naive (m=1: naive)
-   * forecast on the training data before the first origin.
-   * prepare() fits every origin once (longest window, 12 steps); a k-step
-   * forecast does not depend on how many steps were requested, so every
-   * horizon/window setting is then scored from the same forecasts. */
+   * At each origin T every method is re-fitted on y[0..T-1] and forecasts 1..h steps ahead.
+   * Only complete origins are scored: those whose whole h-step path lands inside the data, so
+   * every step ahead is scored the same number of times. With a backtest window of N periods
+   * the targets are the last N values and the origins run from n-N to n-h.
+   * MASE scale = in-sample MAE of the seasonal naive (m = 1: naive) forecast on the data
+   * before the first origin.
+   * prepare() fits each origin once (12 steps); a k-step forecast does not depend on how many
+   * steps were requested, so every horizon/window setting is scored from the same forecasts.
+   * It fits twice the window: the older half lets the page test its own choice (see below). */
   var MAXH = 12, WINDOWS = [12, 24, 36];
   function maxWindow(n, m) { var w = 0; WINDOWS.forEach(function (x) { if (n - x >= minTrain(m)) w = x; }); return w; }
   // skip: indices of values that were filled in (interpolated gaps). They are used for fitting
   // but never scored as targets, so a method is not judged against a made-up number.
-  function prepare(y, m, onProgress, skip) {
+  // want: how many origins to fit (default: twice the longest window the series allows).
+  function prepare(y, m, onProgress, skip, want) {
     var n = y.length, W = maxWindow(n, m), sk = {};
     for (var i0 = 0; i0 < n; i0++) if (typeof y[i0] !== "number" || !isFinite(y[i0])) throw new Error("Value " + (i0 + 1) + " of the series is not a number. Remove or fill it and try again.");
     (skip || []).forEach(function (i) { sk[i] = true; });
     if (!W) throw new Error("Need at least " + (minTrain(m) + 12) + " observations for this seasonality setting (have " + n + ").");
-    var meths = activeMethods(m), fc = {}, fut = {};
-    function avg(arrs) { var o = []; for (var k = 0; k < MAXH; k++) { var s = 0; for (var i = 0; i < arrs.length; i++) s += arrs[i][k]; o.push(s / arrs.length); } return o; }
-    meths.forEach(function (d) {
-      fc[d.id] = {};
-      if (d.parts) { // a combination: average the component forecasts already computed (same numbers as refitting)
-        for (var T0 = n - W; T0 < n; T0++) fc[d.id][T0] = avg(d.parts.map(function (p) { return fc[p][T0]; }));
-        fut[d.id] = { f: avg(d.parts.map(function (p) { return fut[p].f; })) };
-      } else {
-        for (var T = n - W; T < n; T++) fc[d.id][T] = d.fn(y.slice(0, T), MAXH, m).f;
-        fut[d.id] = d.fn(y, MAXH, m);
-      }
+    var P = { y: y, m: m, W: W, meths: activeMethods(m), fc: {}, fut: {}, skip: sk, nSkip: (skip || []).length, lo: n };
+    P.meths.forEach(function (d) { P.fc[d.id] = {}; });
+    ensure(P, want || 2 * W, onProgress);
+    P.meths.forEach(function (d) {
+      P.fut[d.id] = d.parts ? { f: avg(d.parts.map(function (p) { return P.fut[p].f; })) } : d.fn(y, MAXH, m);
+    });
+    return P;
+  }
+  function avg(arrs) { var o = []; for (var k = 0; k < arrs[0].length; k++) { var s = 0; for (var i = 0; i < arrs.length; i++) s += arrs[i][k]; o.push(s / arrs.length); } return o; }
+  // Fit more (older) origins so that at least `want` origins exist, as far as the data allows.
+  // Returns true when it had to fit anything.
+  function ensure(P, want, onProgress) {
+    var y = P.y, n = y.length, m = P.m, lo = Math.max(n - Math.max(want, P.W), minTrain(m));
+    if (lo >= P.lo) return false;
+    P.meths.forEach(function (d) {
+      for (var T = lo; T < P.lo; T++) // a combination averages the component forecasts already computed (same numbers as refitting)
+        P.fc[d.id][T] = d.parts ? avg(d.parts.map(function (p) { return P.fc[p][T]; })) : d.fn(y.slice(0, T), MAXH, m).f;
       if (onProgress) onProgress(d.id);
     });
-    return { y: y, m: m, W: W, meths: meths, fc: fc, fut: fut, skip: sk, nSkip: (skip || []).length };
+    P.lo = lo;
+    return true;
   }
+  // Ranking used everywhere on the page: lowest MAE (equivalently MASE) first, then lowest
+  // RMSE, then method order. Anything not finite goes last.
+  function cmpNum(x, y) { x = isFinite(x) ? x : Infinity; y = isFinite(y) ? y : Infinity; return x < y ? -1 : x > y ? 1 : 0; }
+
+  /* score(): the table (each method over the window) plus two procedures that test the page's
+   * own advice. At each scored origin T the procedures rank every method on the errors already
+   * known at T (the N periods before T, complete origins only, exactly as the table ranks them
+   * at the end of the data), then forecast with the top method ("pick") or the equal-weight
+   * average of the top three ("pool"; Kourentzes, Barrow & Petropoulos, 2019). They are scored
+   * on the same targets as the methods, so their numbers are free of the selection bias that
+   * flatters the table's winner (Cawley & Talbot, 2010). */
   function score(P, opt) {
-    var y = P.y, n = y.length, h = opt.h, m = P.m, test = opt.test, first = n - test;
+    var y = P.y, n = y.length, h = opt.h, m = P.m, test = opt.test, first = n - test, last = n - h;
     if (test > P.W) throw new Error("Backtest window of " + test + " needs " + (minTrain(m) + test) + " observations (have " + n + ").");
-    var S = trainScale(y, m, first), scale = S.scale, sk = P.skip || {}, out = [];
-    P.meths.forEach(function (d) {
+    if (test < 2 * h) throw new Error("A backtest window of " + test + " is too short for " + h + " steps ahead; use at least " + 2 * h + ".");
+    var S = trainScale(y, m, first), scale = S.scale, sk = P.skip || {}, ids = P.meths.map(function (d) { return d.id; });
+    function recordsOf(fcAt) {
       var rec = [];
-      for (var T = first; T < n; T++) {
-        var f = P.fc[d.id][T];
-        for (var k = 1; k <= h; k++) {
-          var idx = T + k - 1;
-          if (idx < n && !sk[idx]) rec.push({ origin: T, k: k, idx: idx, y: y[idx], f: f[k - 1], e: y[idx] - f[k - 1] });
-        }
+      for (var T = first; T <= last; T++) {
+        var f = fcAt(T);
+        for (var k = 1; k <= h; k++) { var idx = T + k - 1; if (!sk[idx]) rec.push({ origin: T, k: k, idx: idx, y: y[idx], f: f[k - 1], e: y[idx] - f[k - 1] }); }
       }
-      var loss = [];
-      for (var T2 = first; T2 < n; T2++) {
+      return rec;
+    }
+    function summary(rec) {
+      var loss = [], q = 0;
+      for (var T = first; T <= last; T++) {
         var s2 = 0, c2 = 0;
-        for (var q = 0; q < rec.length; q++) if (rec[q].origin === T2) { s2 += Math.abs(rec[q].e); c2++; }
+        for (; q < rec.length && rec[q].origin === T; q++) { s2 += Math.abs(rec[q].e); c2++; }
         if (c2) loss.push(s2 / c2 / scale); // an origin whose only targets were filled-in values has no loss
       }
       var byH = [];
       for (var k2 = 1; k2 <= h; k2++) byH.push(metrics(rec.filter(function (r) { return r.k === k2; }), scale).MAE);
-      out.push({ id: d.id, name: d.id === "tslm" && m === 1 ? "Regression: linear trend" : d.name, ref: d.ref, note: d.note, metrics: metrics(rec, scale),
-        maeByH: byH, loss: loss, future: P.fut[d.id].f, params: P.fut[d.id].params || null, records: rec });
+      return { metrics: metrics(rec, scale), maeByH: byH, loss: loss, records: rec };
+    }
+    var out = P.meths.map(function (d) {
+      var r = summary(recordsOf(function (T) { return P.fc[d.id][T]; }));
+      r.id = d.id; r.name = d.id === "tslm" && m === 1 ? "Regression: linear trend" : d.name; r.ref = d.ref; r.note = d.note;
+      r.future = P.fut[d.id].f; r.params = P.fut[d.id].params || null;
+      return r;
     });
-    return { scale: scale, scaleBase: S.base, first: first, results: out };
+    var ranked = rank(out), top = ranked.slice(0, 3).map(function (r) { return r.id; });
+    function poolAt(T, members) { return avg(members.map(function (id) { return P.fc[id][T]; })); }
+    var res = { scale: scale, scaleBase: S.base, first: first, last: last, origins: last - first + 1, h: h, test: test, results: out, members: top,
+      needN: minTrain(m) + 2 * test, pool: null, pick: null, picks: null };
+    // the pool with today's members over the whole window: used only when the history is too
+    // short to test the choice, and labelled as optimistic there
+    res.hindsight = summary(recordsOf(function (T) { return poolAt(T, top); }));
+    res.hindsight.future = avg(top.map(function (id) { return P.fut[id].f; }));
+    if (first - test < P.lo) return res;
+    // per-origin absolute and squared error sums over the h steps, for ranking
+    var sa = {}, sq = {}, T, k;
+    ids.forEach(function (id) {
+      sa[id] = {}; sq[id] = {};
+      for (T = first - test; T <= last; T++) {
+        var a = 0, b = 0, f = P.fc[id][T];
+        for (k = 1; k <= h; k++) { var idx = T + k - 1; if (sk[idx]) continue; var e = y[idx] - f[k - 1]; a += Math.abs(e); b += e * e; }
+        sa[id][T] = a; sq[id][T] = b;
+      }
+    });
+    var picks = {};
+    for (T = first; T <= last; T++) {
+      var A = {}, Q = {};
+      ids.forEach(function (id) { var a = 0, b = 0; for (var t = T - test; t <= T - h; t++) { a += sa[id][t]; b += sq[id][t]; } A[id] = a; Q[id] = b; });
+      picks[T] = ids.map(function (id, i) { return { id: id, i: i }; }).sort(function (u, v) {
+        return cmpNum(A[u.id], A[v.id]) || cmpNum(Q[u.id], Q[v.id]) || u.i - v.i;
+      }).slice(0, 3).map(function (u) { return u.id; });
+    }
+    res.pool = summary(recordsOf(function (T) { return poolAt(T, picks[T]); }));
+    res.pool.future = res.hindsight.future;
+    res.pick = summary(recordsOf(function (T) { return P.fc[picks[T][0]][T]; }));
+    res.pick.future = P.fut[top[0]].f;
+    res.picks = picks;
+    return res;
   }
   /* MASE scale: in-sample MAE of the seasonal naive forecast (naive when m = 1) on the data
    * before the first origin (Hyndman & Koehler, 2006). When that is zero, as for a flat or
@@ -502,22 +579,12 @@
   }
   function backtest(y, opt) { return score(prepare(y, opt.m), opt); }
 
-  // Does the winner hold up when the backtest window changes?
-  function stability(P, h) {
-    var rows = WINDOWS.filter(function (w) { return w <= P.W; }).map(function (w) {
-      var r = rank(score(P, { h: h, test: w }).results);
-      return { test: w, winner: r[0].id, name: r[0].name, top3: r.slice(0, 3).map(function (x) { return x.id; }) };
-    });
-    return rows;
+  function rank(results) { // lowest MASE wins; RMSE breaks ties; then method order; anything not finite goes last
+    return results.map(function (r, i) { return { r: r, i: i }; }).sort(function (a, b) {
+      return cmpNum(a.r.metrics.MASE, b.r.metrics.MASE) || cmpNum(a.r.metrics.RMSE, b.r.metrics.RMSE) || a.i - b.i;
+    }).map(function (o) { return o.r; });
   }
 
-  function rank(results) { // lowest MASE wins; RMSE breaks ties; anything not finite goes last
-    function cmp(x, y) { x = isFinite(x) ? x : Infinity; y = isFinite(y) ? y : Infinity; return x < y ? -1 : x > y ? 1 : 0; }
-    return results.slice().sort(function (a, b) {
-      return cmp(a.metrics.MASE, b.metrics.MASE) || cmp(a.metrics.RMSE, b.metrics.RMSE);
-    });
-  }
-
-  var api = { dmTest: dmTest, tTwoSided: tTwoSided, SIMPLE_ORDER: ["naive", "snaive", "drift", "ses", "ma3", "theta", "holt", "damped", "tslm", "ridge", "hw", "sarima", "gbm", "combN", "combS"], METHODS: METHODS, activeMethods: activeMethods, backtest: backtest, prepare: prepare, score: score, stability: stability, WINDOWS: WINDOWS, MAXH: MAXH, metrics: metrics, rank: rank, minTrain: minTrain, GRID: GRID, PHI: PHI };
+  var api = { dmTest: dmTest, holm: holm, tTwoSided: tTwoSided, ensure: ensure, METHODS: METHODS, activeMethods: activeMethods, backtest: backtest, prepare: prepare, score: score, WINDOWS: WINDOWS, MAXH: MAXH, metrics: metrics, rank: rank, minTrain: minTrain, GRID: GRID, PHI: PHI };
   if (typeof module !== "undefined" && module.exports) module.exports = api; else root.FCEngine = api;
 })(this);
