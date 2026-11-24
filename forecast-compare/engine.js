@@ -405,7 +405,7 @@
     { id: "sarima", name: "Seasonal ARIMA", seasonal: true, fn: sarima, ref: "Box & Jenkins (1970); FPP3 §9.9", note: "ARIMA(0,1,1)(0,1,1)m: differences out trend and season, models what is left." },
     { id: "theta", name: "Theta method", seasonal: false, fn: theta, ref: "Assimakopoulos & Nikolopoulos (2000); Hyndman & Billah (2003)", note: "Smoothed level plus half the long-run trend; seasonally adjusted when a test finds seasonality. M3 competition winner." },
     { id: "ridge", name: "ML: ridge regression", seasonal: false, ml: true, fn: ridge, ref: "Hoerl & Kennard (1970); FPP3 §9.3", note: "Machine learning: linear model of the next change from recent changes, with shrinkage. Handles exponential growth well." },
-    { id: "gbm", name: "ML: boosted trees", seasonal: false, ml: true, fn: gbm, ref: "Friedman (2001); Makridakis et al. (2022)", note: "Machine learning: 150 small decision trees on recent changes; can capture non-linear patterns. The family that won the M5 competition." },
+    { id: "gbm", name: "ML: boosted trees", seasonal: false, ml: true, fn: gbm, ref: "Friedman (2001); Makridakis et al. (2022)", note: "Machine learning: 150 small decision trees on recent changes; can capture non-linear patterns. The same model family won the M5 competition, but there it learned from thousands of related series; here it sees only this one." },
     { id: "tslm", name: "Regression: trend + season", seasonal: false, fn: tslm, ref: "FPP3 §7.4", note: "Least-squares line plus a dummy for each month." },
     { id: "combS", name: "Combination: HW + ARIMA", seasonal: true, fn: combo([hw, sarima]), parts: ["hw", "sarima"], ref: "Bates & Granger (1969); Makridakis et al. (2020)", note: "Average of Holt-Winters and seasonal ARIMA." },
     { id: "combN", name: "Combination: SES + Holt + damped", seasonal: false, nonseasonalOnly: true, fn: combo([ses, holt, damped]), parts: ["ses", "holt", "damped"], ref: "M4 benchmark; Makridakis et al. (2020)", note: "Average of the three smoothing methods." }
@@ -440,8 +440,12 @@
    * horizon/window setting is then scored from the same forecasts. */
   var MAXH = 12, WINDOWS = [12, 24, 36];
   function maxWindow(n, m) { var w = 0; WINDOWS.forEach(function (x) { if (n - x >= minTrain(m)) w = x; }); return w; }
-  function prepare(y, m, onProgress) {
-    var n = y.length, W = maxWindow(n, m);
+  // skip: indices of values that were filled in (interpolated gaps). They are used for fitting
+  // but never scored as targets, so a method is not judged against a made-up number.
+  function prepare(y, m, onProgress, skip) {
+    var n = y.length, W = maxWindow(n, m), sk = {};
+    for (var i0 = 0; i0 < n; i0++) if (typeof y[i0] !== "number" || !isFinite(y[i0])) throw new Error("Value " + (i0 + 1) + " of the series is not a number. Remove or fill it and try again.");
+    (skip || []).forEach(function (i) { sk[i] = true; });
     if (!W) throw new Error("Need at least " + (minTrain(m) + 12) + " observations for this seasonality setting (have " + n + ").");
     var meths = activeMethods(m), fc = {}, fut = {};
     function avg(arrs) { var o = []; for (var k = 0; k < MAXH; k++) { var s = 0; for (var i = 0; i < arrs.length; i++) s += arrs[i][k]; o.push(s / arrs.length); } return o; }
@@ -456,35 +460,45 @@
       }
       if (onProgress) onProgress(d.id);
     });
-    return { y: y, m: m, W: W, meths: meths, fc: fc, fut: fut };
+    return { y: y, m: m, W: W, meths: meths, fc: fc, fut: fut, skip: sk, nSkip: (skip || []).length };
   }
   function score(P, opt) {
     var y = P.y, n = y.length, h = opt.h, m = P.m, test = opt.test, first = n - test;
     if (test > P.W) throw new Error("Backtest window of " + test + " needs " + (minTrain(m) + test) + " observations (have " + n + ").");
-    var sc = 0, cnt = 0;
-    for (var t = m; t < first; t++) { sc += Math.abs(y[t] - y[t - m]); cnt++; }
-    var scale = sc / cnt, out = [];
+    var S = trainScale(y, m, first), scale = S.scale, sk = P.skip || {}, out = [];
     P.meths.forEach(function (d) {
       var rec = [];
       for (var T = first; T < n; T++) {
         var f = P.fc[d.id][T];
         for (var k = 1; k <= h; k++) {
           var idx = T + k - 1;
-          if (idx < n) rec.push({ origin: T, k: k, idx: idx, y: y[idx], f: f[k - 1], e: y[idx] - f[k - 1] });
+          if (idx < n && !sk[idx]) rec.push({ origin: T, k: k, idx: idx, y: y[idx], f: f[k - 1], e: y[idx] - f[k - 1] });
         }
       }
       var loss = [];
       for (var T2 = first; T2 < n; T2++) {
         var s2 = 0, c2 = 0;
         for (var q = 0; q < rec.length; q++) if (rec[q].origin === T2) { s2 += Math.abs(rec[q].e); c2++; }
-        loss.push(s2 / c2 / scale);
+        if (c2) loss.push(s2 / c2 / scale); // an origin whose only targets were filled-in values has no loss
       }
       var byH = [];
       for (var k2 = 1; k2 <= h; k2++) byH.push(metrics(rec.filter(function (r) { return r.k === k2; }), scale).MAE);
       out.push({ id: d.id, name: d.id === "tslm" && m === 1 ? "Regression: linear trend" : d.name, ref: d.ref, note: d.note, metrics: metrics(rec, scale),
         maeByH: byH, loss: loss, future: P.fut[d.id].f, params: P.fut[d.id].params || null, records: rec });
     });
-    return { scale: scale, first: first, results: out };
+    return { scale: scale, scaleBase: S.base, first: first, results: out };
+  }
+  /* MASE scale: in-sample MAE of the seasonal naive forecast (naive when m = 1) on the data
+   * before the first origin (Hyndman & Koehler, 2006). When that is zero, as for a flat or
+   * exactly repeating history, MASE is undefined, so fall back to the naive MAE and then to
+   * the mean absolute level (Kolassa & Schütz, 2007). Rankings within a series do not change. */
+  function trainScale(y, m, first) {
+    function lagMAE(L) { var s = 0, c = 0; for (var t = L; t < first; t++) { s += Math.abs(y[t] - y[t - L]); c++; } return c ? s / c : 0; }
+    var lvl = 0; for (var t = 0; t < first; t++) lvl += Math.abs(y[t]); lvl /= first;
+    var tiny = 1e-12 * (lvl || 1), sc = lagMAE(m);
+    if (sc > tiny) return { scale: sc, base: m > 1 ? "snaive" : "naive" };
+    if (m > 1) { sc = lagMAE(1); if (sc > tiny) return { scale: sc, base: "naive" }; }
+    return lvl > 0 ? { scale: lvl, base: "level" } : { scale: 1, base: "none" };
   }
   function backtest(y, opt) { return score(prepare(y, opt.m), opt); }
 
@@ -497,9 +511,10 @@
     return rows;
   }
 
-  function rank(results) { // lowest MASE wins; RMSE breaks ties
+  function rank(results) { // lowest MASE wins; RMSE breaks ties; anything not finite goes last
+    function cmp(x, y) { x = isFinite(x) ? x : Infinity; y = isFinite(y) ? y : Infinity; return x < y ? -1 : x > y ? 1 : 0; }
     return results.slice().sort(function (a, b) {
-      return (a.metrics.MASE - b.metrics.MASE) || (a.metrics.RMSE - b.metrics.RMSE);
+      return cmp(a.metrics.MASE, b.metrics.MASE) || cmp(a.metrics.RMSE, b.metrics.RMSE);
     });
   }
 

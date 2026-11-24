@@ -5,32 +5,25 @@
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <title>Forecast Method Comparison</title>
 <meta name="description" content="Backtest up to fourteen forecasting methods on a procurement series and compare MAE, MSE, RMSE, MAPE, sMAPE and MASE.">
+<link rel="icon" href="/favicon.svg" type="image/svg+xml">
+<meta property="og:type" content="website">
+<meta property="og:site_name" content="Dawson Wilhelmi">
+<meta property="og:title" content="Forecast Method Comparison">
+<meta property="og:description" content="Backtest up to fourteen forecasting methods on a procurement series and compare MAE, MSE, RMSE, MAPE, sMAPE and MASE.">
+<meta property="og:url" content="https://dawsonwilhelmi.com/forecast-compare/">
+<meta property="og:image" content="https://dawsonwilhelmi.com/og.png">
+<meta property="og:image:width" content="1200">
+<meta property="og:image:height" content="630">
+<meta name="twitter:card" content="summary_large_image">
 <style>
 :root {
-  --bg: #f6f5f2; --surface: #fcfcfb; --border: #e3e1db; --grid: #ebe9e4;
-  --text: #0b0b0b; --text-2: #52514e; --text-3: #6f6e69;
-  --accent: #2a78d6; --accent-soft: rgba(42,120,214,.10);
-  --s1: #2a78d6; --s2: #eb6834; --band: rgba(42,120,214,.07);
-  --warn-ink: #8a5a00; --warn-soft: rgba(250,178,25,.18); --crit-ink: #a52222;
-  --font: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
-  color-scheme: light;
-}
-@media (prefers-color-scheme: dark) {
-  :root:not([data-theme="light"]) {
-    --bg: #121211; --surface: #1a1a19; --border: #33332f; --grid: #2a2a27;
-    --text: #f0efec; --text-2: #c3c2b7; --text-3: #9a998f;
-    --accent: #5a9cec; --accent-soft: rgba(90,156,236,.14);
-    --s1: #3987e5; --s2: #d95926; --band: rgba(90,156,236,.09);
-    --warn-ink: #f0c060; --warn-soft: rgba(250,178,25,.16); --crit-ink: #e66767;
-    color-scheme: dark;
-  }
-}
-:root[data-theme="dark"] {
-  --bg: #121211; --surface: #1a1a19; --border: #33332f; --grid: #2a2a27;
-  --text: #f0efec; --text-2: #c3c2b7; --text-3: #9a998f;
-  --accent: #5a9cec; --accent-soft: rgba(90,156,236,.14);
-  --s1: #3987e5; --s2: #d95926; --band: rgba(90,156,236,.09);
+  /* dark only, same palette as the rest of dawsonwilhelmi.com */
+  --bg: #0b0c0e; --surface: #141518; --border: #26282d; --grid: #1e2024;
+  --text: #ecedef; --text-2: #b4b7bd; --text-3: #959aa2;
+  --accent: #4c9aff; --accent-soft: rgba(76,154,255,.14);
+  --s1: #4c9aff; --s2: #e07a45; --band: rgba(76,154,255,.09);
   --warn-ink: #f0c060; --warn-soft: rgba(250,178,25,.16); --crit-ink: #e66767;
+  --font: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
   color-scheme: dark;
 }
 * { box-sizing: border-box; }
@@ -38,8 +31,9 @@ html { -webkit-text-size-adjust: 100%; }
 body { margin: 0; background: var(--bg); color: var(--text); font: 15px/1.5 var(--font); }
 .wrap { max-width: 1240px; margin: 0 auto; padding: 20px 16px 48px; }
 a { color: var(--accent); }
-.crumb { font-size: 13px; margin-bottom: 8px; }
-.crumb a { text-decoration: none; }
+.home { margin-bottom: 16px; }
+.home a { font-weight: 700; font-size: 15px; color: var(--text); text-decoration: none; }
+.home a:hover { color: var(--accent); }
 h1 { font-size: 28px; line-height: 1.2; margin: 0 0 6px; letter-spacing: -.01em; }
 .lede { color: var(--text-2); margin: 0 0 18px; max-width: 760px; }
 h2 { font-size: 18px; margin: 0 0 10px; }
@@ -108,9 +102,9 @@ footer { font-size: 12px; color: var(--text-3); margin-top: 24px; }
 </head>
 <body>
 <div class="wrap">
-  <div class="crumb"><a href="/">← dawsonwilhelmi.com</a></div>
+  <nav class="home"><a href="/">Dawson Wilhelmi</a></nav>
   <h1>Forecast Method Comparison</h1>
-  <p class="lede">Which forecasting method should a buyer trust for this series? Up to fourteen methods, from simple benchmarks to machine learning, are re-fitted and tested period by period on data they have not seen, then scored on six error metrics. Pick any of the 100 price, wage, freight and currency series from the <a href="/market-watch/">Industry Market Watch</a>, or upload your own.</p>
+  <p class="lede">This page tests which forecasting method to trust for a series. Up to fourteen methods, from simple benchmarks to machine learning, are re-fitted and tested period by period on data they have not seen, then scored on six error measures plus bias. Pick any of the 100 price, wage, freight and currency series from the <a href="/market-watch/">Industry Market Watch</a>, or upload your own.</p>
 
   <div class="card">
     <div class="controls">
@@ -125,7 +119,7 @@ footer { font-size: 12px; color: var(--text-3); margin-top: 24px; }
     <div id="err" class="err" hidden></div>
     <div id="mwnote" class="upnote" hidden></div>
     <div id="upnote" class="upnote" hidden></div>
-    <div class="hint">CSV or Excel (.xlsx): a column of numbers, plus a column of dates or periods if you have one. Most date formats and any time unit (hours to years) work. Files are read in your browser and never uploaded.</div>
+    <div class="hint">CSV or Excel (.xlsx): a column of numbers, plus a column of dates or periods if you have one. Most date formats and any time unit (hours to years) work. Missing periods are filled by a straight line and not scored. Files are read in your browser and never uploaded.</div>
   </div>
 
   <div class="kpis" id="kpis"></div>
@@ -180,7 +174,7 @@ footer { font-size: 12px; color: var(--text-3); margin-top: 24px; }
   </div>
 
   <div class="card doc">
-    <h2>Does machine learning win? An honest test</h2>
+    <h2>Machine learning vs statistical methods</h2>
     <p>Before adding the two machine-learning methods (ridge regression and gradient-boosted trees on recent changes), all candidates were backtested on 80 real monthly price, wage, freight and currency series from FRED, plus six series with other time units. Theta, ridge and seasonal ARIMA had the lowest median error (MASE 0.31). But when the method was picked from an older window and scored on the newest 12 months, adding the new methods cut average error only from 0.490 to 0.486, which is <b>not statistically significant</b> (Wilcoxon p = 0.42). A small neural network was also tested and dropped: it ranked worst and was six times slower.</p>
     <p>That matches the research. On short single series, statistical methods usually match or beat machine learning (Makridakis, Spiliotis &amp; Assimakopoulos, 2018). Machine learning won the M5 competition because it learned from tens of thousands of related series plus prices and promotions (Makridakis et al., 2022). So the ML methods are here as candidates, and they win only when your data says so: ridge, for example, handles fast exponential growth that the smoothing methods miss.</p>
   </div>
@@ -211,7 +205,7 @@ footer { font-size: 12px; color: var(--text-3); margin-top: 24px; }
     <ul>
       <li><b>Market Watch series</b> (100) are loaded when you pick one, from the <a href="/market-watch/">Industry Market Watch</a>, which refreshes them every day. The monthly series come from FRED (Federal Reserve Bank of St. Louis) and are credited to their original publishers: the U.S. Bureau of Labor Statistics (producer and consumer prices, hourly earnings), the International Monetary Fund (commodity prices), the U.S. Energy Information Administration, the Federal Reserve Board (exchange rates) and Cass Information Systems (freight). History starts in January 2004, or when the series starts. Series that FRED publishes daily or weekly are monthly averages.</li>
       <li><b>Recent spot prices</b> cover about the last year, daily or weekly as published: U.S. Energy Information Administration Open Data, and USDA Agricultural Marketing Service market news.</li>
-      <li>A month or day the publisher skipped (for example October 2025 for some BLS consumer price series) is filled by a straight line between its neighbours, as on Market Watch, and the page says so when it happens.</li>
+      <li>A month or day the publisher skipped (for example October 2025 for some BLS consumer price series) is filled by a straight line between its neighbours, as on Market Watch, and the page says so when it happens. Filled values help fit the methods but are never scored as test targets.</li>
       <li><b>Sample demand (units)</b> is synthetic: trend + seasonality + random noise, generated with a fixed seed for demonstration. It is not real company data.</li>
     </ul>
   </div>
@@ -626,7 +620,7 @@ footer { font-size: 12px; color: var(--text-3); margin-top: 24px; }
     { id: "sarima", name: "Seasonal ARIMA", seasonal: true, fn: sarima, ref: "Box & Jenkins (1970); FPP3 §9.9", note: "ARIMA(0,1,1)(0,1,1)m: differences out trend and season, models what is left." },
     { id: "theta", name: "Theta method", seasonal: false, fn: theta, ref: "Assimakopoulos & Nikolopoulos (2000); Hyndman & Billah (2003)", note: "Smoothed level plus half the long-run trend; seasonally adjusted when a test finds seasonality. M3 competition winner." },
     { id: "ridge", name: "ML: ridge regression", seasonal: false, ml: true, fn: ridge, ref: "Hoerl & Kennard (1970); FPP3 §9.3", note: "Machine learning: linear model of the next change from recent changes, with shrinkage. Handles exponential growth well." },
-    { id: "gbm", name: "ML: boosted trees", seasonal: false, ml: true, fn: gbm, ref: "Friedman (2001); Makridakis et al. (2022)", note: "Machine learning: 150 small decision trees on recent changes; can capture non-linear patterns. The family that won the M5 competition." },
+    { id: "gbm", name: "ML: boosted trees", seasonal: false, ml: true, fn: gbm, ref: "Friedman (2001); Makridakis et al. (2022)", note: "Machine learning: 150 small decision trees on recent changes; can capture non-linear patterns. The same model family won the M5 competition, but there it learned from thousands of related series; here it sees only this one." },
     { id: "tslm", name: "Regression: trend + season", seasonal: false, fn: tslm, ref: "FPP3 §7.4", note: "Least-squares line plus a dummy for each month." },
     { id: "combS", name: "Combination: HW + ARIMA", seasonal: true, fn: combo([hw, sarima]), parts: ["hw", "sarima"], ref: "Bates & Granger (1969); Makridakis et al. (2020)", note: "Average of Holt-Winters and seasonal ARIMA." },
     { id: "combN", name: "Combination: SES + Holt + damped", seasonal: false, nonseasonalOnly: true, fn: combo([ses, holt, damped]), parts: ["ses", "holt", "damped"], ref: "M4 benchmark; Makridakis et al. (2020)", note: "Average of the three smoothing methods." }
@@ -661,8 +655,12 @@ footer { font-size: 12px; color: var(--text-3); margin-top: 24px; }
    * horizon/window setting is then scored from the same forecasts. */
   var MAXH = 12, WINDOWS = [12, 24, 36];
   function maxWindow(n, m) { var w = 0; WINDOWS.forEach(function (x) { if (n - x >= minTrain(m)) w = x; }); return w; }
-  function prepare(y, m, onProgress) {
-    var n = y.length, W = maxWindow(n, m);
+  // skip: indices of values that were filled in (interpolated gaps). They are used for fitting
+  // but never scored as targets, so a method is not judged against a made-up number.
+  function prepare(y, m, onProgress, skip) {
+    var n = y.length, W = maxWindow(n, m), sk = {};
+    for (var i0 = 0; i0 < n; i0++) if (typeof y[i0] !== "number" || !isFinite(y[i0])) throw new Error("Value " + (i0 + 1) + " of the series is not a number. Remove or fill it and try again.");
+    (skip || []).forEach(function (i) { sk[i] = true; });
     if (!W) throw new Error("Need at least " + (minTrain(m) + 12) + " observations for this seasonality setting (have " + n + ").");
     var meths = activeMethods(m), fc = {}, fut = {};
     function avg(arrs) { var o = []; for (var k = 0; k < MAXH; k++) { var s = 0; for (var i = 0; i < arrs.length; i++) s += arrs[i][k]; o.push(s / arrs.length); } return o; }
@@ -677,35 +675,45 @@ footer { font-size: 12px; color: var(--text-3); margin-top: 24px; }
       }
       if (onProgress) onProgress(d.id);
     });
-    return { y: y, m: m, W: W, meths: meths, fc: fc, fut: fut };
+    return { y: y, m: m, W: W, meths: meths, fc: fc, fut: fut, skip: sk, nSkip: (skip || []).length };
   }
   function score(P, opt) {
     var y = P.y, n = y.length, h = opt.h, m = P.m, test = opt.test, first = n - test;
     if (test > P.W) throw new Error("Backtest window of " + test + " needs " + (minTrain(m) + test) + " observations (have " + n + ").");
-    var sc = 0, cnt = 0;
-    for (var t = m; t < first; t++) { sc += Math.abs(y[t] - y[t - m]); cnt++; }
-    var scale = sc / cnt, out = [];
+    var S = trainScale(y, m, first), scale = S.scale, sk = P.skip || {}, out = [];
     P.meths.forEach(function (d) {
       var rec = [];
       for (var T = first; T < n; T++) {
         var f = P.fc[d.id][T];
         for (var k = 1; k <= h; k++) {
           var idx = T + k - 1;
-          if (idx < n) rec.push({ origin: T, k: k, idx: idx, y: y[idx], f: f[k - 1], e: y[idx] - f[k - 1] });
+          if (idx < n && !sk[idx]) rec.push({ origin: T, k: k, idx: idx, y: y[idx], f: f[k - 1], e: y[idx] - f[k - 1] });
         }
       }
       var loss = [];
       for (var T2 = first; T2 < n; T2++) {
         var s2 = 0, c2 = 0;
         for (var q = 0; q < rec.length; q++) if (rec[q].origin === T2) { s2 += Math.abs(rec[q].e); c2++; }
-        loss.push(s2 / c2 / scale);
+        if (c2) loss.push(s2 / c2 / scale); // an origin whose only targets were filled-in values has no loss
       }
       var byH = [];
       for (var k2 = 1; k2 <= h; k2++) byH.push(metrics(rec.filter(function (r) { return r.k === k2; }), scale).MAE);
       out.push({ id: d.id, name: d.id === "tslm" && m === 1 ? "Regression: linear trend" : d.name, ref: d.ref, note: d.note, metrics: metrics(rec, scale),
         maeByH: byH, loss: loss, future: P.fut[d.id].f, params: P.fut[d.id].params || null, records: rec });
     });
-    return { scale: scale, first: first, results: out };
+    return { scale: scale, scaleBase: S.base, first: first, results: out };
+  }
+  /* MASE scale: in-sample MAE of the seasonal naive forecast (naive when m = 1) on the data
+   * before the first origin (Hyndman & Koehler, 2006). When that is zero, as for a flat or
+   * exactly repeating history, MASE is undefined, so fall back to the naive MAE and then to
+   * the mean absolute level (Kolassa & Schütz, 2007). Rankings within a series do not change. */
+  function trainScale(y, m, first) {
+    function lagMAE(L) { var s = 0, c = 0; for (var t = L; t < first; t++) { s += Math.abs(y[t] - y[t - L]); c++; } return c ? s / c : 0; }
+    var lvl = 0; for (var t = 0; t < first; t++) lvl += Math.abs(y[t]); lvl /= first;
+    var tiny = 1e-12 * (lvl || 1), sc = lagMAE(m);
+    if (sc > tiny) return { scale: sc, base: m > 1 ? "snaive" : "naive" };
+    if (m > 1) { sc = lagMAE(1); if (sc > tiny) return { scale: sc, base: "naive" }; }
+    return lvl > 0 ? { scale: lvl, base: "level" } : { scale: 1, base: "none" };
   }
   function backtest(y, opt) { return score(prepare(y, opt.m), opt); }
 
@@ -718,9 +726,10 @@ footer { font-size: 12px; color: var(--text-3); margin-top: 24px; }
     return rows;
   }
 
-  function rank(results) { // lowest MASE wins; RMSE breaks ties
+  function rank(results) { // lowest MASE wins; RMSE breaks ties; anything not finite goes last
+    function cmp(x, y) { x = isFinite(x) ? x : Infinity; y = isFinite(y) ? y : Infinity; return x < y ? -1 : x > y ? 1 : 0; }
     return results.slice().sort(function (a, b) {
-      return (a.metrics.MASE - b.metrics.MASE) || (a.metrics.RMSE - b.metrics.RMSE);
+      return cmp(a.metrics.MASE, b.metrics.MASE) || cmp(a.metrics.RMSE, b.metrics.RMSE);
     });
   }
 
@@ -808,9 +817,9 @@ footer { font-size: 12px; color: var(--text-3); margin-top: 24px; }
   // ---------------------------------------------------------------- dates
   var MONTHS = { jan: 1, feb: 2, mar: 3, apr: 4, may: 5, jun: 6, jul: 7, aug: 8, sep: 9, sept: 9, oct: 10, nov: 11, dec: 12,
     january: 1, february: 2, march: 3, april: 4, june: 6, july: 7, august: 8, september: 9, october: 10, november: 11, december: 12 };
-  function y2(y) { return y < 100 ? (y < 70 ? 2000 + y : 1900 + y) : y; }
+  function y2(y) { return y < 100 ? (y < 30 ? 2000 + y : 1900 + y) : y; } // Excel's rule: 00-29 -> 2000s, 30-99 -> 1900s
   function serialToParts(n, date1904) {
-    var ms = Math.round((n + (date1904 ? 24107 : 0) - 25569) * 86400000), d = new Date(ms);
+    var ms = Math.round((n + (date1904 ? 1462 : 0) - 25569) * 86400000), d = new Date(ms); // 1904 system: day 0 is 1 Jan 1904 (serial 1462 in the 1900 system)
     return { y: d.getUTCFullYear(), mo: d.getUTCMonth() + 1, d: d.getUTCDate(), h: d.getUTCHours(), mi: d.getUTCMinutes(), s: d.getUTCSeconds(), g: (n % 1) ? "time" : "day" };
   }
   function timeOf(s) { // "13:45", "1:45 PM", "13:45:10"
@@ -874,7 +883,10 @@ footer { font-size: 12px; color: var(--text-3); margin-top: 24px; }
   }
 
   function toMs(p) { return Date.UTC(p.y, p.mo - 1, p.d, p.h || 0, p.mi || 0, p.s || 0); }
-  function valid(p) { return p.mo >= 1 && p.mo <= 12 && p.d >= 1 && p.d <= 31; }
+  function valid(p) { // a real calendar date: 30 Feb or 31 Apr is rejected instead of rolling into the next month
+    if (!(p.mo >= 1 && p.mo <= 12 && p.d >= 1 && p.d <= 31)) return false;
+    return p.y === null || p.y === undefined || new Date(Date.UTC(p.y, p.mo - 1, p.d)).getUTCDate() === p.d;
+  }
 
   // Decide month/day vs day/month for the whole column.
   function resolveOrder(parts, force) {
@@ -958,6 +970,38 @@ footer { font-size: 12px; color: var(--text-3); margin-top: 24px; }
     return ms + k * gapSec * 1000;
   }
 
+  /* Put dated rows on a regular calendar and fill missing periods by a straight line between
+   * neighbours, the rule mw.js uses for Market Watch, so seasonal lags stay aligned.
+   * Returns null when the dates are irregular or the unit has no fixed calendar (business
+   * days, plain periods), and { tooMany } when more than 10% of the periods are missing. */
+  function fillGaps(rows, u, gapSec) {
+    if (rows.length < 3 || u === "bday" || u === "period") return null;
+    var p0 = rows[0].p, ms0 = rows[0].ms, span = gapSec * 1000, cal = u === "month" || u === "quarter" || u === "year", i, k;
+    function slot(x) {
+      if (u === "month") return (x.p.y - p0.y) * 12 + (x.p.mo - p0.mo);
+      if (u === "quarter") return (x.p.y - p0.y) * 4 + Math.floor((x.p.mo - 1) / 3) - Math.floor((p0.mo - 1) / 3);
+      if (u === "year") return x.p.y - p0.y;
+      var j = Math.round((x.ms - ms0) / span);
+      return Math.abs(x.ms - ms0 - j * span) <= 0.25 * span ? j : NaN;
+    }
+    var idx = rows.map(slot);
+    if (idx[0] !== 0) return null;
+    for (i = 1; i < idx.length; i++) if (!(idx[i] > idx[i - 1])) return null; // irregular dates: leave as they are
+    var total = idx[idx.length - 1] + 1, missing = total - rows.length;
+    if (!missing) return { rows: rows, added: 0 };
+    if (missing > 0.1 * total) return { tooMany: true, missing: missing, total: total };
+    var out = [];
+    for (i = 0; i < rows.length; i++) {
+      out.push(rows[i]);
+      if (i + 1 < rows.length) for (k = idx[i] + 1; k < idx[i + 1]; k++) {
+        var w = (k - idx[i]) / (idx[i + 1] - idx[i]);
+        out.push({ v: rows[i].v + w * (rows[i + 1].v - rows[i].v), raw: null, p: null, filled: true,
+          ms: cal ? step(ms0, u, k, gapSec) : ms0 + k * span });
+      }
+    }
+    return { rows: out, added: missing };
+  }
+
   // ---------------------------------------------------------------- table -> series
   /* table: array of rows, each an array of cells (string, number or {serial}).
    * opts: { valueCol, order: "MDY"|"DMY", date1904, sheet } */
@@ -1000,12 +1044,15 @@ footer { font-size: 12px; color: var(--text-3); margin-top: 24px; }
     var name = null;
     for (var h = first - 1; h >= 0 && name === null; h--) { var hv = table[h][vc]; if (hv !== undefined && String(hv).trim() && !/^[`'"\s]*$/.test(String(hv))) name = String(hv).trim(); }
     // collect rows
-    var rows = [], skipped = 0;
+    var rows = [], skipped = 0, commaSeen = false;
     for (var i = first; i < table.length; i++) {
       var r = table[i], v = toNumber(r[vc], dec);
+      if (dec && v !== null && /\d,\d/.test(String(r[vc]))) commaSeen = true;
       if (v === null) { if (r.some(function (x) { return x !== undefined && String(typeof x === "object" ? "x" : x).trim() !== ""; })) skipped++; continue; }
       rows.push({ v: v, raw: dc !== null ? r[dc] : periodCol !== null ? r[periodCol] : null, p: dc !== null ? parseDate(r[dc], opts.date1904) : null });
     }
+    if (opts.prefilled && opts.prefilled.length) rows.forEach(function (x) { if (opts.prefilled.indexOf(String(x.raw)) >= 0) x.filled = true; });
+    if (dec && commaSeen) notes.push("Commas in the numbers were read as decimal marks (1.234,5 = 1234.5).");
     if (skipped) warns.push(skipped + " row" + (skipped > 1 ? "s" : "") + " without a number in the value column " + (skipped > 1 ? "were" : "was") + " skipped.");
     var u = "period", ms = null, noYear = false, orderInfo = { order: null, ambiguous: false }, gapSec = 0;
     if (dc !== null) {
@@ -1037,7 +1084,8 @@ footer { font-size: 12px; color: var(--text-3); margin-top: 24px; }
         for (var base = 2001; base <= 2004; base++) if (assign(base)) break;
         notes.push("Dates have no year, so years are counted from the first row.");
       }
-      rows = rows.filter(function (x) { return valid(x.p); });
+      var nBad = rows.length; rows = rows.filter(function (x) { return valid(x.p); }); nBad -= rows.length;
+      if (nBad) warns.push(nBad + " row" + (nBad > 1 ? "s" : "") + " had a date that does not exist (like 30 February) and " + (nBad > 1 ? "were" : "was") + " dropped.");
       rows.forEach(function (x) { x.ms = toMs(x.p); });
       if (rows.length > 1 && rows[0].ms > rows[rows.length - 1].ms) { rows.reverse(); notes.push("Rows were newest-first, so they were put in date order."); }
       var unsorted = rows.some(function (x, k) { return k && x.ms < rows[k - 1].ms; });
@@ -1049,15 +1097,25 @@ footer { font-size: 12px; color: var(--text-3); margin-top: 24px; }
       var gaps = []; for (var j = 1; j < ms.length; j++) gaps.push((ms[j] - ms[j - 1]) / 1000);
       gaps.sort(function (a, b) { return a - b; });
       gapSec = gaps[Math.floor(gaps.length / 2)] || 86400;
-      var missing = 0;
-      for (var k2 = 1; k2 < ms.length; k2++) { var g = (ms[k2] - ms[k2 - 1]) / 1000; if (g > gapSec * 1.6 && !(u === "bday" && g <= 4 * 86400) && !(u === "month" || u === "quarter" || u === "year") || ((u === "month" && g > 45 * 86400) || (u === "quarter" && g > 120 * 86400) || (u === "year" && g > 400 * 86400))) missing++; }
-      if (missing) warns.push(missing + " gap" + (missing > 1 ? "s" : "") + " in the dates (missing " + unit(u).many + "). Methods treat the series as evenly spaced, so results around the gaps are less reliable.");
+      var fill = fillGaps(rows, u, gapSec);
+      if (fill && fill.added) {
+        rows = fill.rows; ms = rows.map(function (x) { return x.ms; });
+        var fl = rows.filter(function (x) { return x.filled; }).map(function (x) { return fmt(x.ms, u, noYear); });
+        warns.push(fl.length + " missing " + (fl.length > 1 ? unit(u).many : unit(u).one) + " (" + fl.slice(0, 5).join(", ") + (fl.length > 5 ? ", …" : "") +
+          ") " + (fl.length > 1 ? "were" : "was") + " filled by a straight line between neighbouring values. Filled values help fit the methods but are not scored.");
+      } else if (fill && fill.tooMany) {
+        warns.push(fill.missing + " of " + fill.total + " " + unit(u).many + " are missing, too many to fill reliably. Methods treat the series as evenly spaced, so seasonal patterns will be out of step. Fill or total the gaps and upload again for reliable results.");
+      } else if (!fill) {
+        var missing = 0;
+        for (var k2 = 1; k2 < ms.length; k2++) { var g = (ms[k2] - ms[k2 - 1]) / 1000; if (g > gapSec * 1.6 && !(u === "bday" && g <= 4 * 86400) && !(u === "month" || u === "quarter" || u === "year") || ((u === "month" && g > 45 * 86400) || (u === "quarter" && g > 120 * 86400) || (u === "year" && g > 400 * 86400))) missing++; }
+        if (missing) warns.push(missing + " gap" + (missing > 1 ? "s" : "") + " in the dates (missing " + unit(u).many + "). Methods treat the series as evenly spaced, so results around the gaps are less reliable.");
+      }
     } else if (periodCol !== null) notes.push("No dates found; the period numbers in the file are used.");
     else notes.push("No dates found; rows are treated as periods 1, 2, 3, … in file order.");
     var U = unit(u);
     var labels = ms ? ms.map(function (x) { return fmt(x, u, noYear); }) : rows.map(function (x, k) { return "Period " + (x.raw !== null && x.raw !== undefined && String(x.raw).trim() ? String(x.raw).trim() : k + 1); });
     return {
-      values: rows.map(function (x) { return x.v; }), dates: labels, ms: ms, unit: u, unitOne: U.one, unitMany: U.many, gapSec: gapSec, noYear: noYear,
+      values: rows.map(function (x) { return x.v; }), filledIdx: rows.map(function (x, k) { return x.filled ? k : -1; }).filter(function (k) { return k >= 0; }), dates: labels, ms: ms, unit: u, unitOne: U.one, unitMany: U.many, gapSec: gapSec, noYear: noYear,
       suggestedM: U.m, name: name, valueCol: vc, numericCols: numericCols.filter(function (s) { return s.c !== dc && s.c !== periodCol; }).map(function (s) { return { c: s.c, label: headerFor(table, s.c, first) }; }),
       dateCol: dc, order: orderInfo.order, orderAmbiguous: orderInfo.ambiguous, orderHow: orderInfo.how, notes: notes, warnings: warns,
       future: function (k) {
@@ -1132,10 +1190,12 @@ footer { font-size: 12px; color: var(--text-3); margin-top: 24px; }
       return Promise.all(sheets.map(function (s) { return get(s.path); })).then(function (texts) {
         return sheets.map(function (s, i) {
           var table = [];
+          var noCache = 0;
           if (texts[i]) byTag(xml(texts[i]), "row").forEach(function (row) {
             var rn = +row.getAttribute("r") - 1, arr = [];
             byTag(row, "c").forEach(function (c, ci) {
               var ref = c.getAttribute("r"), col = ref ? colIndex(ref) : ci, t = c.getAttribute("t"), v = byTag(c, "v")[0], val = null;
+              if (!v && byTag(c, "f")[0] && t !== "inlineStr") noCache++;
               if (t === "s") val = v ? sst[+v.textContent] : "";
               else if (t === "inlineStr") val = byTag(c, "t").map(function (x) { return x.textContent; }).join("");
               else if (t === "str" || t === "e") val = v ? v.textContent : "";
@@ -1146,10 +1206,61 @@ footer { font-size: 12px; color: var(--text-3); margin-top: 24px; }
             });
             table[isNaN(rn) ? table.length : rn] = arr;
           });
-          return { name: s.name, table: table.filter(Boolean).map(function (r) { for (var j = 0; j < r.length; j++) if (r[j] === undefined) r[j] = ""; return r; }), date1904: date1904 };
+          return { name: s.name, table: table.filter(Boolean).map(function (r) { for (var j = 0; j < r.length; j++) if (r[j] === undefined) r[j] = ""; return r; }), date1904: date1904, noCache: noCache };
         });
       });
     });
+  }
+
+  // ---------------------------------------------------------------- text-file checks
+  /* Decimal mark for a text file, judged from the number cells only (dates such as 01.02.2020
+   * are skipped). "1.234,5" or "1234,500" say comma; "1,234.5" or "1234.500" say point; a cell
+   * like "234,500" or "1.234" could be either, so it only counts when nothing else decides.
+   * A comma-separated file always uses the point. */
+  function decimalSignal(rows, delim) {
+    var sig = { comma: 0, dot: 0, ambComma: 0 };
+    rows.forEach(function (r) { r.forEach(function (c) {
+      if (typeof c !== "string") return;
+      var x = c.replace(/[\s\u00a0'’"=]/g, "").replace(/^\((.*)\)$/, "$1").replace(/[$€£¥₹%]/g, "").replace(/(USD|EUR|GBP)$/i, "");
+      if (!/^[-+]?[\d.,]*\d$/.test(x) || !/[.,]/.test(x) || parseDate(c)) return;
+      if (/^[-+]?[\d.]*\d,\d+$/.test(x)) { if (/^[-+]?\d{1,3},\d{3}$/.test(x)) sig.ambComma++; else sig.comma++; }
+      else if (/^[-+]?[\d,]*\d\.\d+$/.test(x)) { if (!/^[-+]?\d{1,3}\.\d{3}$/.test(x)) sig.dot++; }
+    }); });
+    sig.decimalComma = delim !== "," && (sig.comma > sig.dot || (sig.comma === sig.dot && sig.ambComma > 0));
+    sig.ask = delim !== "," && sig.comma + sig.ambComma > 0;
+    return sig;
+  }
+  // One number per line with a decimal comma ("10,5"): a comma-separated reading would split
+  // every value in two. Lines whose first parts count 1, 2, 3, … are period numbers instead.
+  function oneColumnDecimalComma(text) {
+    if (/[;\t|]/.test(text)) return null;
+    var lines = text.replace(/\r\n?/g, "\n").split("\n").map(function (l) { return l.trim(); }).filter(Boolean);
+    var data = lines.filter(function (l) { return /^"?-?\d+,\d{1,2}"?$/.test(l); });
+    if (data.length < 5 || data.length < lines.length - 1) return null;
+    var firsts = data.map(function (l) { return parseInt(l.replace(/^"/, ""), 10); });
+    if (firsts.every(function (x, i) { return i === 0 || x === firsts[i - 1] + 1; })) return null;
+    return lines.map(function (l) { return [l.replace(/^"|"$/g, "")]; });
+  }
+  /* Rows with more cells than the rest usually hold a number like 1,210.5 that was not quoted,
+   * so a comma-separated reading split it in two. Where the split parts are unmistakably one
+   * number ("1" + "210.5", "12" + "345" + "678"), they are joined back; other extra cells are
+   * reported. Returns the 1-based row numbers fixed and left as they are. */
+  function extraCellRows(rows, delim) {
+    var counts = {}, mode = 0, best = 0, fixed = [], odd = [];
+    rows.forEach(function (r) { counts[r.length] = (counts[r.length] || 0) + 1; });
+    Object.keys(counts).forEach(function (k) { if (counts[k] > best) { best = counts[k]; mode = +k; } });
+    rows.forEach(function (r, i) {
+      if (r.length <= mode || !r.slice(mode).some(function (x) { return String(x).trim() !== ""; })) return;
+      if (delim === ",") {
+        for (var j = 0; j + 1 < r.length && r.length > mode; ) {
+          if (/^\s*-?\d{1,3}(,\d{3})*\s*$/.test(r[j]) && /^\d{3}(\.\d+)?\s*$/.test(r[j + 1])) r.splice(j, 2, r[j].trim() + "," + r[j + 1].trim());
+          else j++;
+        }
+        if (r.length === mode) { fixed.push(i + 1); return; }
+      }
+      odd.push(i + 1);
+    });
+    return { fixed: fixed, odd: odd };
   }
 
   // ---------------------------------------------------------------- entry point
@@ -1166,18 +1277,31 @@ footer { font-size: 12px; color: var(--text-3); margin-top: 24px; }
             if (sheets.length > 1) res.notes.unshift("Used sheet “" + sheets[i].name + "”.");
             if (/\.csv$/i.test(fileName)) res.notes.unshift("This file is an Excel workbook saved with a .csv name; it was read as a workbook.");
             res.table = sheets[i].table; res.date1904 = sheets[i].date1904; res.source = "Excel workbook";
+            if (sheets[i].noCache) res.warnings.unshift(sheets[i].noCache + " cell" + (sheets[i].noCache > 1 ? "s hold formulas whose results were" : " holds a formula whose result was") + " never saved (common with files made by scripts), so " + (sheets[i].noCache > 1 ? "they read" : "it reads") + " as empty. Open the file in Excel, save it, and upload it again.");
             return res;
           } catch (e) { errors.push(sheets[i].name); }
         }
+        if (sheets.some(function (sh) { return sh.noCache > 0; }))
+          throw new Error("This workbook has formulas whose results were never saved (common with files made by scripts). Open it in Excel, save it, and upload it again.");
         throw new Error("No sheet in this workbook has a column of numbers (checked " + errors.join(", ") + ").");
       });
     }
     if (b[0] === 0xD0 && b[1] === 0xCF && b[2] === 0x11 && b[3] === 0xE0)
       return Promise.reject(new Error("This is an older Excel .xls file. In Excel, use File › Save As › Excel Workbook (.xlsx) or CSV, then upload that."));
     return new Promise(function (resolve) {
-      var text = decode(buf), p = parseDelimited(text);
-      var res = build(p.rows, { valueCol: opts.valueCol, order: opts.order, decimalComma: p.delim === ";" && /\d,\d/.test(text) && !/\d\.\d/.test(text) });
-      res.table = p.rows; res.decimalComma = p.delim === ";" && /\d,\d/.test(text) && !/\d\.\d/.test(text); res.source = "text file";
+      var text = decode(buf), p = parseDelimited(text), readNotes = [], readWarns = [];
+      var one = oneColumnDecimalComma(text);
+      if (one) p = { rows: one, delim: "\n" }; // build() notes that commas were read as decimal marks
+      var sig = decimalSignal(p.rows, p.delim), dc = one ? true : opts.decimalComma !== undefined ? opts.decimalComma : sig.decimalComma;
+      var ex = extraCellRows(p.rows, p.delim), odd = ex.odd, fx = ex.fixed;
+      if (fx.length) readWarns.push(fx.length + " row" + (fx.length > 1 ? "s" : "") + " had a number with an unquoted comma, like 1,210.5, that split into two cells (row " + fx.slice(0, 3).join(", ") + (fx.length > 3 ? ", …" : "") +
+        "). The parts were joined back into one number. Check those values.");
+      if (odd.length) readWarns.push(odd.length + " row" + (odd.length > 1 ? "s have" : " has") + " more cells than the rest (row " + odd.slice(0, 3).join(", ") + (odd.length > 3 ? ", …" : "") +
+        "). A number with a comma inside, like 1,210.5, splits into two cells unless it is in quotes. Check those values.");
+      var res = build(p.rows, { valueCol: opts.valueCol, order: opts.order, decimalComma: dc });
+      res.table = p.rows; res.decimalComma = dc; res.decimalAsk = !one && sig.ask; res.source = "text file";
+      res.readNotes = readNotes; res.readWarns = readWarns;
+      res.notes = readNotes.concat(res.notes); res.warnings = readWarns.concat(res.warnings);
       resolve(res);
     });
   }
@@ -1201,10 +1325,16 @@ footer { font-size: 12px; color: var(--text-3); margin-top: 24px; }
     var urls = local ? [REL + path, ABS + path] : [ABS + path];
     function attempt(i, lastErr) {
       if (i >= urls.length) return Promise.reject(lastErr);
-      return fetch(urls[i]).then(function (r) {
+      // give up after 15 s so a stalled request cannot leave "Loading…" on screen forever
+      var ac = typeof AbortController !== "undefined" ? new AbortController() : null;
+      var timer = ac ? setTimeout(function () { ac.abort(); }, 15000) : null;
+      return fetch(urls[i], ac ? { signal: ac.signal } : undefined).then(function (r) {
         if (!r.ok) throw new Error("HTTP " + r.status);
         return r.text();
-      }).catch(function (e) { return attempt(i + 1, e); });
+      }).then(function (t) { clearTimeout(timer); return t; }, function (e) {
+        clearTimeout(timer);
+        return attempt(i + 1, e && e.name === "AbortError" ? new Error("no answer after 15 seconds") : e);
+      });
     }
     return attempt(0);
   }
@@ -1380,7 +1510,7 @@ footer { font-size: 12px; color: var(--text-3); margin-top: 24px; }
     if (cache[key]) return render(s, cache[key]);
     $("busy").innerHTML = "<b>Fitting every method at each backtest origin…</b>"; $("busy").hidden = false;
     setTimeout(function () {
-      try { cache[key] = E.prepare(s.values, state.m); }
+      try { cache[key] = E.prepare(s.values, state.m, null, s.skip || []); }
       catch (e) { $("busy").hidden = true; err.textContent = e.message; err.hidden = false; return; }
       $("busy").hidden = true;
       render(s, cache[key]);
@@ -1397,8 +1527,9 @@ footer { font-size: 12px; color: var(--text-3); margin-top: 24px; }
     var res;
     try { res = E.score(P, { h: state.h, test: state.test }); }
     catch (e) { err.textContent = e.message; err.hidden = false; return; }
-    var ranked = E.rank(res.results);
-    last = { s: s, res: res, ranked: ranked, stab: E.stability(P, state.h) };
+    var ranked = E.rank(relabel(res.results, s));
+    var stab = E.stability(P, state.h); stab.forEach(function (r) { r.name = displayName(r.winner, r.name, s); });
+    last = { s: s, res: res, ranked: ranked, stab: stab };
     var best = ranked[0], nv = res.results.filter(function (r) { return r.id === "naive"; })[0];
     var ref = s.values[s.values.length - 1];
 
@@ -1407,7 +1538,7 @@ footer { font-size: 12px; color: var(--text-3); margin-top: 24px; }
     var gain = 100 * (1 - best.metrics.MAE / nv.metrics.MAE);
     $("kpis").innerHTML =
       kpi("Best method", best.name, "lowest MASE of " + ranked.length) +
-      kpi("Best MASE", fmt(best.metrics.MASE, 3), (best.metrics.MASE < 1 ? "beats" : "worse than") + " in-sample " + (state.m > 1 ? "seasonal naive" : "naive") + " (1-step)") +
+      kpi("Best MASE", fmt(best.metrics.MASE, 3), scaleText(res.scaleBase, best.metrics.MASE)) +
       kpi("MAE vs naive", best.id === "naive" ? "0%" : (gain >= 0 ? "−" : "+") + fmt(Math.abs(gain), 1) + "%", best.id === "naive" ? "naive is the winner" : "error " + (gain >= 0 ? "lower" : "higher") + " than naive") +
       kpi("Forecasts scored", best.metrics.n, state.test + " origins × up to " + state.h + " " + (state.h > 1 ? many(s) : one(s)) + " ahead");
 
@@ -1416,7 +1547,7 @@ footer { font-size: 12px; color: var(--text-3); margin-top: 24px; }
 
     // compare picker
     $("cmp").innerHTML = meths.filter(function (d) { return d.id !== best.id; }).map(function (d) {
-      return '<option value="' + d.id + '"' + (d.id === state.compare ? " selected" : "") + ">" + esc(d.name) + "</option>";
+      return '<option value="' + d.id + '"' + (d.id === state.compare ? " selected" : "") + ">" + esc(displayName(d.id, d.name, s)) + "</option>";
     }).join("");
     if (state.compare === best.id) state.compare = $("cmp").value;
     var cmp = res.results.filter(function (r) { return r.id === state.compare; })[0];
@@ -1453,7 +1584,25 @@ footer { font-size: 12px; color: var(--text-3); margin-top: 24px; }
     $("meta").innerHTML = esc(s.name) + (s.unit ? " · " + esc(s.unit) : "") + " · " + n + " " + many(s) + ", " + label(s.dates[0]) + " to " + label(s.dates[n - 1]) + " · Source: " + (s.sourceHtml || esc(s.source));
   }
 
+  // Method names and notes that mention months are reworded for other time units.
+  function displayName(id, name, s) { return id === "ma3" && one(s) !== "month" ? "3-" + one(s) + " moving average" : name; }
+  function relabel(results, s) {
+    results.forEach(function (r) {
+      r.name = displayName(r.id, r.name, s);
+      if (one(s) === "month") return;
+      if (r.id === "snaive") r.note = "Next value = the value one seasonal cycle earlier.";
+      if (r.id === "ma3") r.note = "Flat forecast at the average of the last 3 " + many(s) + ".";
+    });
+    return results;
+  }
+
   function kpi(t, v, sub) { return '<div class="kpi"><div class="kt">' + esc(t) + '</div><div class="kv">' + esc(v) + '</div><div class="ks">' + esc(sub) + "</div></div>"; }
+
+  function scaleText(base, v) {
+    var nm = { snaive: "seasonal naive", naive: "naive" }[base];
+    if (nm) return (v < 1 ? "beats" : "worse than") + " in-sample " + nm + " (1-step)";
+    return "scaled by the average level, because the history before the backtest is flat";
+  }
 
   function recommend(s, ranked, nv, ref) {
     var best = ranked[0], second = ranked[1];
@@ -1469,14 +1618,16 @@ footer { font-size: 12px; color: var(--text-3); margin-top: 24px; }
     var pf = function (p) { return p < 0.001 ? "p < 0.001" : "p = " + fmt(p, 3); };
     if (best.id !== "naive") {
       var dn = E.dmTest(best.loss, nv.loss, state.h).p;
-      out += dn < 0.05 ? "<li>The edge over naive is <b>statistically significant</b> (Diebold-Mariano test, " + pf(dn) + "), so it is unlikely to be luck.</li>"
+      out += !isFinite(dn) ? "<li>Whether the edge over naive is real cannot be tested here: the backtest errors do not vary enough.</li>"
+        : dn < 0.05 ? "<li>The edge over naive is <b>statistically significant</b> (Diebold-Mariano test, " + pf(dn) + "), so it is unlikely to be luck.</li>"
         : "<li>The edge over naive is <b>not statistically significant</b> (Diebold-Mariano test, " + pf(dn) + "): it could be luck, so naive is a defensible choice too.</li>";
     }
     var d2 = E.dmTest(best.loss, second.loss, state.h).p;
     var simpler = function (a2, b2) { return E.SIMPLE_ORDER.indexOf(a2.id) < E.SIMPLE_ORDER.indexOf(b2.id); };
     var alt = ranked.filter(function (r) { return r.id !== best.id && simpler(r, best) && E.dmTest(best.loss, r.loss, state.h).p >= 0.05; })
       .sort(function (x, y) { return E.SIMPLE_ORDER.indexOf(x.id) - E.SIMPLE_ORDER.indexOf(y.id); })[0];
-    if (d2 >= 0.05) out += "<li>The runner-up, " + esc(second.name) + ", is not significantly worse (" + pf(d2) + ")." +
+    if (!isFinite(d2)) { /* not testable: say nothing about the runner-up */ }
+    else if (d2 >= 0.05) out += "<li>The runner-up, " + esc(second.name) + ", is not significantly worse (" + pf(d2) + ")." +
       (alt ? " The simplest method that is not significantly worse is <b>" + esc(alt.name) + "</b>; if you value simplicity, it is a sound alternative." : "") + "</li>";
     else out += "<li>It is significantly better than the runner-up, " + esc(second.name) + " (" + pf(d2) + ").</li>";
     var winners = {};
@@ -1593,16 +1744,18 @@ footer { font-size: 12px; color: var(--text-3); margin-top: 24px; }
   function loadSeries(it) {
     if (it.k.indexOf("mw:") === 0) {
       return MK.monthly(it.id).then(function (c) {
-        return { key: it.k, name: it.n, unit: it.u, short: it.s, sample: false, dates: c.dates, values: c.values, m: 12, c: c, it: it };
+        return { key: it.k, name: it.n, unit: it.u, short: it.s, sample: false, dates: c.dates, values: c.values, m: 12, c: c, it: it,
+          skip: c.filled.map(function (d) { return c.dates.indexOf(d); }), filledLabels: c.filled.map(label) };
       });
     }
     return MK.spot(it.id).then(function (c) {
-      var res = window.FCUpload.build([["Date", it.n]].concat(c.dates.map(function (d, i) { return [d, String(c.values[i])]; })), {});
+      var res = window.FCUpload.build([["Date", it.n]].concat(c.dates.map(function (d, i) { return [d, String(c.values[i])]; })), { prefilled: c.filled });
       var m = res.suggestedM, mNote = "";
       if (m > 1 && res.values.length < E.minTrain(m) + 12) { mNote = "A " + m + "-" + res.unitOne + " seasonal cycle needs more history than this, so seasonality is set to None."; m = 1; }
       else if (m > 1) mNote = "Seasonality is set to " + m + " (" + cycleName(m, res.unit) + "); change it above if you like.";
       return { key: it.k, name: it.n, unit: it.u, short: it.s, sample: false, dates: res.dates, values: res.values, future: res.future,
-        unitOne: res.unitOne, unitMany: res.unitMany, m: m, c: c, it: it, mNote: mNote };
+        unitOne: res.unitOne, unitMany: res.unitMany, m: m, c: c, it: it, mNote: mNote,
+        skip: res.filledIdx, filledLabels: res.filledIdx.map(function (i) { return res.dates[i]; }) };
     });
   }
   function mwNote(s) {
@@ -1612,8 +1765,9 @@ footer { font-size: 12px; color: var(--text-3); margin-top: 24px; }
       (it.k.indexOf("mw:") === 0 ? ", via FRED (" + esc(it.id) + ")" : "") + ".</div>";
     if (it.ind.length) h += '<div class="upinfo">Tracked for: ' + esc(it.ind.join(", ")) + ".</div>";
     if (it.avg) h += '<div class="upinfo">Published daily or weekly; shown as monthly averages.</div>';
-    if (c.filled.length) h += '<div class="upwarn">⚠ ' + esc(c.filled.map(label).join(", ")) + (c.filled.length > 1 ? " were" : " was") +
-      " missing at the source and " + (c.filled.length > 1 ? "are" : "is") + " filled by a straight line between neighbouring values, as on Market Watch.</div>";
+    var fl = s.filledLabels || [];
+    if (fl.length) h += '<div class="upwarn">⚠ ' + esc(fl.slice(0, 6).join(", ") + (fl.length > 6 ? ", …" : "")) + (fl.length > 1 ? " were" : " was") +
+      " missing at the source and " + (fl.length > 1 ? "are" : "is") + " filled by a straight line between neighbouring values, as on Market Watch. Filled values help fit the methods but are not scored.</div>";
     if (s.mNote) h += '<div class="upinfo">' + esc(s.mNote) + "</div>";
     return h;
   }
@@ -1670,7 +1824,8 @@ footer { font-size: 12px; color: var(--text-3); margin-top: 24px; }
     }
     var s = { key: "upload", uid: ++uid, name: res.name || fname.replace(/\.[^.]+$/, ""), unit: "", short: "", sample: false,
       source: "your file (" + fname + "), read in your browser", dates: dates, values: vals, future: res.future,
-      unitOne: res.unitOne, unitMany: res.unitMany, res: res, fname: fname, m: keepM && state.upload ? state.upload.m : res.suggestedM };
+      unitOne: res.unitOne, unitMany: res.unitMany, res: res, fname: fname, m: keepM && state.upload ? state.upload.m : res.suggestedM,
+      skip: (res.filledIdx || []).map(function (i) { return i - (res.values.length - vals.length); }).filter(function (i) { return i >= 0; }) };
     var mNote = "";
     if (!keepM) {
       var n = vals.length, want = res.suggestedM;
@@ -1693,18 +1848,23 @@ footer { font-size: 12px; color: var(--text-3); margin-top: 24px; }
     var pick = "";
     if (res.numericCols.length > 1) pick += '<label class="ctl">Value column<select id="upcol">' + res.numericCols.map(function (c) {
       return '<option value="' + c.c + '"' + (c.c === res.valueCol ? " selected" : "") + ">" + esc(c.label) + "</option>"; }).join("") + "</select></label>";
+    if (res.decimalAsk) pick += '<label class="ctl">Decimal mark<select id="updec"><option value="comma"' + (res.decimalComma ? " selected" : "") + '>Comma (1.234,5)</option><option value="point"' + (res.decimalComma ? "" : " selected") + ">Point (1,234.5)</option></select></label>";
     if (res.order) pick += '<label class="ctl">Date order<select id="uporder"><option value="MDY"' + (res.order === "MDY" ? " selected" : "") + '>Month/day (US)</option><option value="DMY"' + (res.order === "DMY" ? " selected" : "") + ">Day/month</option></select></label>";
     if (pick) h += '<div class="controls" style="margin-top:8px">' + pick + "</div>";
     $("upnote").innerHTML = h; $("upnote").hidden = false;
     function rebuild() {
       try {
-        var r2 = window.FCUpload.build(res.table, { valueCol: $("upcol") ? +$("upcol").value : res.valueCol, order: $("uporder") ? $("uporder").value : undefined, date1904: res.date1904, decimalComma: res.decimalComma });
-        r2.table = res.table; r2.date1904 = res.date1904; r2.decimalComma = res.decimalComma; r2.notes = res.notes.filter(function (x) { return /sheet|workbook/i.test(x); }).concat(r2.notes);
+        var dc = $("updec") ? $("updec").value === "comma" : res.decimalComma;
+        var r2 = window.FCUpload.build(res.table, { valueCol: $("upcol") ? +$("upcol").value : res.valueCol, order: $("uporder") ? $("uporder").value : undefined, date1904: res.date1904, decimalComma: dc });
+        r2.table = res.table; r2.date1904 = res.date1904; r2.decimalComma = dc; r2.decimalAsk = res.decimalAsk; r2.readWarns = res.readWarns;
+        r2.notes = res.notes.filter(function (x) { return /sheet|workbook/i.test(x); }).concat(r2.notes);
+        r2.warnings = (res.readWarns || []).concat(r2.warnings);
         applyUpload(r2, fname, true);
       } catch (er) { $("err").textContent = er.message; $("err").hidden = false; }
     }
     if ($("upcol")) $("upcol").addEventListener("change", rebuild);
     if ($("uporder")) $("uporder").addEventListener("change", rebuild);
+    if ($("updec")) $("updec").addEventListener("change", rebuild);
     $("busy").hidden = true;
     run();
   }
