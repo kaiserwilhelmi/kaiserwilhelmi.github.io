@@ -353,9 +353,20 @@ def run_all(y, m, max_test, max_h, future):
     return fc
 
 
+def train_scale(y, m, first):
+    """MASE scale (Hyndman & Koehler 2006) with the fallbacks for a flat history:
+    seasonal-naive MAE, then naive MAE, then the mean absolute level, then 1."""
+    lag_mae = lambda L: float(np.mean([abs(y[t] - y[t - L]) for t in range(L, first)])) if first > L else 0.0
+    lvl = float(np.mean(np.abs(y[:first]))); tiny = 1e-12 * (lvl or 1.0)
+    sc = lag_mae(m)
+    if sc > tiny: return sc
+    if m > 1 and lag_mae(1) > tiny: return lag_mae(1)
+    return lvl if lvl > 0 else 1.0
+
+
 def evaluate(y, fc, m, test, h):
     n = len(y); first = n - test
-    scale = float(np.mean([abs(y[t] - y[t - m]) for t in range(m, first)]))
+    scale = train_scale(y, m, first)
     out = {}
     for mid in fc:
         rec = [(T, k, y[T + k - 1], fc[mid][T][k - 1]) for T in range(first, n) for k in range(1, h + 1) if T + k - 1 < n]

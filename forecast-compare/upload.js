@@ -78,9 +78,9 @@
   // ---------------------------------------------------------------- dates
   var MONTHS = { jan: 1, feb: 2, mar: 3, apr: 4, may: 5, jun: 6, jul: 7, aug: 8, sep: 9, sept: 9, oct: 10, nov: 11, dec: 12,
     january: 1, february: 2, march: 3, april: 4, june: 6, july: 7, august: 8, september: 9, october: 10, november: 11, december: 12 };
-  function y2(y) { return y < 100 ? (y < 70 ? 2000 + y : 1900 + y) : y; }
+  function y2(y) { return y < 100 ? (y < 30 ? 2000 + y : 1900 + y) : y; } // Excel's rule: 00-29 -> 2000s, 30-99 -> 1900s
   function serialToParts(n, date1904) {
-    var ms = Math.round((n + (date1904 ? 24107 : 0) - 25569) * 86400000), d = new Date(ms);
+    var ms = Math.round((n + (date1904 ? 1462 : 0) - 25569) * 86400000), d = new Date(ms); // 1904 system: day 0 is 1 Jan 1904 (serial 1462 in the 1900 system)
     return { y: d.getUTCFullYear(), mo: d.getUTCMonth() + 1, d: d.getUTCDate(), h: d.getUTCHours(), mi: d.getUTCMinutes(), s: d.getUTCSeconds(), g: (n % 1) ? "time" : "day" };
   }
   function timeOf(s) { // "13:45", "1:45 PM", "13:45:10"
@@ -144,7 +144,10 @@
   }
 
   function toMs(p) { return Date.UTC(p.y, p.mo - 1, p.d, p.h || 0, p.mi || 0, p.s || 0); }
-  function valid(p) { return p.mo >= 1 && p.mo <= 12 && p.d >= 1 && p.d <= 31; }
+  function valid(p) { // a real calendar date: 30 Feb or 31 Apr is rejected instead of rolling into the next month
+    if (!(p.mo >= 1 && p.mo <= 12 && p.d >= 1 && p.d <= 31)) return false;
+    return p.y === null || p.y === undefined || new Date(Date.UTC(p.y, p.mo - 1, p.d)).getUTCDate() === p.d;
+  }
 
   // Decide month/day vs day/month for the whole column.
   function resolveOrder(parts, force) {
@@ -228,6 +231,38 @@
     return ms + k * gapSec * 1000;
   }
 
+  /* Put dated rows on a regular calendar and fill missing periods by a straight line between
+   * neighbours, the rule mw.js uses for Market Watch, so seasonal lags stay aligned.
+   * Returns null when the dates are irregular or the unit has no fixed calendar (business
+   * days, plain periods), and { tooMany } when more than 10% of the periods are missing. */
+  function fillGaps(rows, u, gapSec) {
+    if (rows.length < 3 || u === "bday" || u === "period") return null;
+    var p0 = rows[0].p, ms0 = rows[0].ms, span = gapSec * 1000, cal = u === "month" || u === "quarter" || u === "year", i, k;
+    function slot(x) {
+      if (u === "month") return (x.p.y - p0.y) * 12 + (x.p.mo - p0.mo);
+      if (u === "quarter") return (x.p.y - p0.y) * 4 + Math.floor((x.p.mo - 1) / 3) - Math.floor((p0.mo - 1) / 3);
+      if (u === "year") return x.p.y - p0.y;
+      var j = Math.round((x.ms - ms0) / span);
+      return Math.abs(x.ms - ms0 - j * span) <= 0.25 * span ? j : NaN;
+    }
+    var idx = rows.map(slot);
+    if (idx[0] !== 0) return null;
+    for (i = 1; i < idx.length; i++) if (!(idx[i] > idx[i - 1])) return null; // irregular dates: leave as they are
+    var total = idx[idx.length - 1] + 1, missing = total - rows.length;
+    if (!missing) return { rows: rows, added: 0 };
+    if (missing > 0.1 * total) return { tooMany: true, missing: missing, total: total };
+    var out = [];
+    for (i = 0; i < rows.length; i++) {
+      out.push(rows[i]);
+      if (i + 1 < rows.length) for (k = idx[i] + 1; k < idx[i + 1]; k++) {
+        var w = (k - idx[i]) / (idx[i + 1] - idx[i]);
+        out.push({ v: rows[i].v + w * (rows[i + 1].v - rows[i].v), raw: null, p: null, filled: true,
+          ms: cal ? step(ms0, u, k, gapSec) : ms0 + k * span });
+      }
+    }
+    return { rows: out, added: missing };
+  }
+
   // ---------------------------------------------------------------- table -> series
   /* table: array of rows, each an array of cells (string, number or {serial}).
    * opts: { valueCol, order: "MDY"|"DMY", date1904, sheet } */
@@ -270,12 +305,15 @@
     var name = null;
     for (var h = first - 1; h >= 0 && name === null; h--) { var hv = table[h][vc]; if (hv !== undefined && String(hv).trim() && !/^[`'"\s]*$/.test(String(hv))) name = String(hv).trim(); }
     // collect rows
-    var rows = [], skipped = 0;
+    var rows = [], skipped = 0, commaSeen = false;
     for (var i = first; i < table.length; i++) {
       var r = table[i], v = toNumber(r[vc], dec);
+      if (dec && v !== null && /\d,\d/.test(String(r[vc]))) commaSeen = true;
       if (v === null) { if (r.some(function (x) { return x !== undefined && String(typeof x === "object" ? "x" : x).trim() !== ""; })) skipped++; continue; }
       rows.push({ v: v, raw: dc !== null ? r[dc] : periodCol !== null ? r[periodCol] : null, p: dc !== null ? parseDate(r[dc], opts.date1904) : null });
     }
+    if (opts.prefilled && opts.prefilled.length) rows.forEach(function (x) { if (opts.prefilled.indexOf(String(x.raw)) >= 0) x.filled = true; });
+    if (dec && commaSeen) notes.push("Commas in the numbers were read as decimal marks (1.234,5 = 1234.5).");
     if (skipped) warns.push(skipped + " row" + (skipped > 1 ? "s" : "") + " without a number in the value column " + (skipped > 1 ? "were" : "was") + " skipped.");
     var u = "period", ms = null, noYear = false, orderInfo = { order: null, ambiguous: false }, gapSec = 0;
     if (dc !== null) {
@@ -307,7 +345,8 @@
         for (var base = 2001; base <= 2004; base++) if (assign(base)) break;
         notes.push("Dates have no year, so years are counted from the first row.");
       }
-      rows = rows.filter(function (x) { return valid(x.p); });
+      var nBad = rows.length; rows = rows.filter(function (x) { return valid(x.p); }); nBad -= rows.length;
+      if (nBad) warns.push(nBad + " row" + (nBad > 1 ? "s" : "") + " had a date that does not exist (like 30 February) and " + (nBad > 1 ? "were" : "was") + " dropped.");
       rows.forEach(function (x) { x.ms = toMs(x.p); });
       if (rows.length > 1 && rows[0].ms > rows[rows.length - 1].ms) { rows.reverse(); notes.push("Rows were newest-first, so they were put in date order."); }
       var unsorted = rows.some(function (x, k) { return k && x.ms < rows[k - 1].ms; });
@@ -319,15 +358,25 @@
       var gaps = []; for (var j = 1; j < ms.length; j++) gaps.push((ms[j] - ms[j - 1]) / 1000);
       gaps.sort(function (a, b) { return a - b; });
       gapSec = gaps[Math.floor(gaps.length / 2)] || 86400;
-      var missing = 0;
-      for (var k2 = 1; k2 < ms.length; k2++) { var g = (ms[k2] - ms[k2 - 1]) / 1000; if (g > gapSec * 1.6 && !(u === "bday" && g <= 4 * 86400) && !(u === "month" || u === "quarter" || u === "year") || ((u === "month" && g > 45 * 86400) || (u === "quarter" && g > 120 * 86400) || (u === "year" && g > 400 * 86400))) missing++; }
-      if (missing) warns.push(missing + " gap" + (missing > 1 ? "s" : "") + " in the dates (missing " + unit(u).many + "). Methods treat the series as evenly spaced, so results around the gaps are less reliable.");
+      var fill = fillGaps(rows, u, gapSec);
+      if (fill && fill.added) {
+        rows = fill.rows; ms = rows.map(function (x) { return x.ms; });
+        var fl = rows.filter(function (x) { return x.filled; }).map(function (x) { return fmt(x.ms, u, noYear); });
+        warns.push(fl.length + " missing " + (fl.length > 1 ? unit(u).many : unit(u).one) + " (" + fl.slice(0, 5).join(", ") + (fl.length > 5 ? ", …" : "") +
+          ") " + (fl.length > 1 ? "were" : "was") + " filled by a straight line between neighbouring values. Filled values help fit the methods but are not scored.");
+      } else if (fill && fill.tooMany) {
+        warns.push(fill.missing + " of " + fill.total + " " + unit(u).many + " are missing, too many to fill reliably. Methods treat the series as evenly spaced, so seasonal patterns will be out of step. Fill or total the gaps and upload again for reliable results.");
+      } else if (!fill) {
+        var missing = 0;
+        for (var k2 = 1; k2 < ms.length; k2++) { var g = (ms[k2] - ms[k2 - 1]) / 1000; if (g > gapSec * 1.6 && !(u === "bday" && g <= 4 * 86400) && !(u === "month" || u === "quarter" || u === "year") || ((u === "month" && g > 45 * 86400) || (u === "quarter" && g > 120 * 86400) || (u === "year" && g > 400 * 86400))) missing++; }
+        if (missing) warns.push(missing + " gap" + (missing > 1 ? "s" : "") + " in the dates (missing " + unit(u).many + "). Methods treat the series as evenly spaced, so results around the gaps are less reliable.");
+      }
     } else if (periodCol !== null) notes.push("No dates found; the period numbers in the file are used.");
     else notes.push("No dates found; rows are treated as periods 1, 2, 3, … in file order.");
     var U = unit(u);
     var labels = ms ? ms.map(function (x) { return fmt(x, u, noYear); }) : rows.map(function (x, k) { return "Period " + (x.raw !== null && x.raw !== undefined && String(x.raw).trim() ? String(x.raw).trim() : k + 1); });
     return {
-      values: rows.map(function (x) { return x.v; }), dates: labels, ms: ms, unit: u, unitOne: U.one, unitMany: U.many, gapSec: gapSec, noYear: noYear,
+      values: rows.map(function (x) { return x.v; }), filledIdx: rows.map(function (x, k) { return x.filled ? k : -1; }).filter(function (k) { return k >= 0; }), dates: labels, ms: ms, unit: u, unitOne: U.one, unitMany: U.many, gapSec: gapSec, noYear: noYear,
       suggestedM: U.m, name: name, valueCol: vc, numericCols: numericCols.filter(function (s) { return s.c !== dc && s.c !== periodCol; }).map(function (s) { return { c: s.c, label: headerFor(table, s.c, first) }; }),
       dateCol: dc, order: orderInfo.order, orderAmbiguous: orderInfo.ambiguous, orderHow: orderInfo.how, notes: notes, warnings: warns,
       future: function (k) {
@@ -402,10 +451,12 @@
       return Promise.all(sheets.map(function (s) { return get(s.path); })).then(function (texts) {
         return sheets.map(function (s, i) {
           var table = [];
+          var noCache = 0;
           if (texts[i]) byTag(xml(texts[i]), "row").forEach(function (row) {
             var rn = +row.getAttribute("r") - 1, arr = [];
             byTag(row, "c").forEach(function (c, ci) {
               var ref = c.getAttribute("r"), col = ref ? colIndex(ref) : ci, t = c.getAttribute("t"), v = byTag(c, "v")[0], val = null;
+              if (!v && byTag(c, "f")[0] && t !== "inlineStr") noCache++;
               if (t === "s") val = v ? sst[+v.textContent] : "";
               else if (t === "inlineStr") val = byTag(c, "t").map(function (x) { return x.textContent; }).join("");
               else if (t === "str" || t === "e") val = v ? v.textContent : "";
@@ -416,10 +467,61 @@
             });
             table[isNaN(rn) ? table.length : rn] = arr;
           });
-          return { name: s.name, table: table.filter(Boolean).map(function (r) { for (var j = 0; j < r.length; j++) if (r[j] === undefined) r[j] = ""; return r; }), date1904: date1904 };
+          return { name: s.name, table: table.filter(Boolean).map(function (r) { for (var j = 0; j < r.length; j++) if (r[j] === undefined) r[j] = ""; return r; }), date1904: date1904, noCache: noCache };
         });
       });
     });
+  }
+
+  // ---------------------------------------------------------------- text-file checks
+  /* Decimal mark for a text file, judged from the number cells only (dates such as 01.02.2020
+   * are skipped). "1.234,5" or "1234,500" say comma; "1,234.5" or "1234.500" say point; a cell
+   * like "234,500" or "1.234" could be either, so it only counts when nothing else decides.
+   * A comma-separated file always uses the point. */
+  function decimalSignal(rows, delim) {
+    var sig = { comma: 0, dot: 0, ambComma: 0 };
+    rows.forEach(function (r) { r.forEach(function (c) {
+      if (typeof c !== "string") return;
+      var x = c.replace(/[\s\u00a0'’"=]/g, "").replace(/^\((.*)\)$/, "$1").replace(/[$€£¥₹%]/g, "").replace(/(USD|EUR|GBP)$/i, "");
+      if (!/^[-+]?[\d.,]*\d$/.test(x) || !/[.,]/.test(x) || parseDate(c)) return;
+      if (/^[-+]?[\d.]*\d,\d+$/.test(x)) { if (/^[-+]?\d{1,3},\d{3}$/.test(x)) sig.ambComma++; else sig.comma++; }
+      else if (/^[-+]?[\d,]*\d\.\d+$/.test(x)) { if (!/^[-+]?\d{1,3}\.\d{3}$/.test(x)) sig.dot++; }
+    }); });
+    sig.decimalComma = delim !== "," && (sig.comma > sig.dot || (sig.comma === sig.dot && sig.ambComma > 0));
+    sig.ask = delim !== "," && sig.comma + sig.ambComma > 0;
+    return sig;
+  }
+  // One number per line with a decimal comma ("10,5"): a comma-separated reading would split
+  // every value in two. Lines whose first parts count 1, 2, 3, … are period numbers instead.
+  function oneColumnDecimalComma(text) {
+    if (/[;\t|]/.test(text)) return null;
+    var lines = text.replace(/\r\n?/g, "\n").split("\n").map(function (l) { return l.trim(); }).filter(Boolean);
+    var data = lines.filter(function (l) { return /^"?-?\d+,\d{1,2}"?$/.test(l); });
+    if (data.length < 5 || data.length < lines.length - 1) return null;
+    var firsts = data.map(function (l) { return parseInt(l.replace(/^"/, ""), 10); });
+    if (firsts.every(function (x, i) { return i === 0 || x === firsts[i - 1] + 1; })) return null;
+    return lines.map(function (l) { return [l.replace(/^"|"$/g, "")]; });
+  }
+  /* Rows with more cells than the rest usually hold a number like 1,210.5 that was not quoted,
+   * so a comma-separated reading split it in two. Where the split parts are unmistakably one
+   * number ("1" + "210.5", "12" + "345" + "678"), they are joined back; other extra cells are
+   * reported. Returns the 1-based row numbers fixed and left as they are. */
+  function extraCellRows(rows, delim) {
+    var counts = {}, mode = 0, best = 0, fixed = [], odd = [];
+    rows.forEach(function (r) { counts[r.length] = (counts[r.length] || 0) + 1; });
+    Object.keys(counts).forEach(function (k) { if (counts[k] > best) { best = counts[k]; mode = +k; } });
+    rows.forEach(function (r, i) {
+      if (r.length <= mode || !r.slice(mode).some(function (x) { return String(x).trim() !== ""; })) return;
+      if (delim === ",") {
+        for (var j = 0; j + 1 < r.length && r.length > mode; ) {
+          if (/^\s*-?\d{1,3}(,\d{3})*\s*$/.test(r[j]) && /^\d{3}(\.\d+)?\s*$/.test(r[j + 1])) r.splice(j, 2, r[j].trim() + "," + r[j + 1].trim());
+          else j++;
+        }
+        if (r.length === mode) { fixed.push(i + 1); return; }
+      }
+      odd.push(i + 1);
+    });
+    return { fixed: fixed, odd: odd };
   }
 
   // ---------------------------------------------------------------- entry point
@@ -436,18 +538,31 @@
             if (sheets.length > 1) res.notes.unshift("Used sheet “" + sheets[i].name + "”.");
             if (/\.csv$/i.test(fileName)) res.notes.unshift("This file is an Excel workbook saved with a .csv name; it was read as a workbook.");
             res.table = sheets[i].table; res.date1904 = sheets[i].date1904; res.source = "Excel workbook";
+            if (sheets[i].noCache) res.warnings.unshift(sheets[i].noCache + " cell" + (sheets[i].noCache > 1 ? "s hold formulas whose results were" : " holds a formula whose result was") + " never saved (common with files made by scripts), so " + (sheets[i].noCache > 1 ? "they read" : "it reads") + " as empty. Open the file in Excel, save it, and upload it again.");
             return res;
           } catch (e) { errors.push(sheets[i].name); }
         }
+        if (sheets.some(function (sh) { return sh.noCache > 0; }))
+          throw new Error("This workbook has formulas whose results were never saved (common with files made by scripts). Open it in Excel, save it, and upload it again.");
         throw new Error("No sheet in this workbook has a column of numbers (checked " + errors.join(", ") + ").");
       });
     }
     if (b[0] === 0xD0 && b[1] === 0xCF && b[2] === 0x11 && b[3] === 0xE0)
       return Promise.reject(new Error("This is an older Excel .xls file. In Excel, use File › Save As › Excel Workbook (.xlsx) or CSV, then upload that."));
     return new Promise(function (resolve) {
-      var text = decode(buf), p = parseDelimited(text);
-      var res = build(p.rows, { valueCol: opts.valueCol, order: opts.order, decimalComma: p.delim === ";" && /\d,\d/.test(text) && !/\d\.\d/.test(text) });
-      res.table = p.rows; res.decimalComma = p.delim === ";" && /\d,\d/.test(text) && !/\d\.\d/.test(text); res.source = "text file";
+      var text = decode(buf), p = parseDelimited(text), readNotes = [], readWarns = [];
+      var one = oneColumnDecimalComma(text);
+      if (one) p = { rows: one, delim: "\n" }; // build() notes that commas were read as decimal marks
+      var sig = decimalSignal(p.rows, p.delim), dc = one ? true : opts.decimalComma !== undefined ? opts.decimalComma : sig.decimalComma;
+      var ex = extraCellRows(p.rows, p.delim), odd = ex.odd, fx = ex.fixed;
+      if (fx.length) readWarns.push(fx.length + " row" + (fx.length > 1 ? "s" : "") + " had a number with an unquoted comma, like 1,210.5, that split into two cells (row " + fx.slice(0, 3).join(", ") + (fx.length > 3 ? ", …" : "") +
+        "). The parts were joined back into one number. Check those values.");
+      if (odd.length) readWarns.push(odd.length + " row" + (odd.length > 1 ? "s have" : " has") + " more cells than the rest (row " + odd.slice(0, 3).join(", ") + (odd.length > 3 ? ", …" : "") +
+        "). A number with a comma inside, like 1,210.5, splits into two cells unless it is in quotes. Check those values.");
+      var res = build(p.rows, { valueCol: opts.valueCol, order: opts.order, decimalComma: dc });
+      res.table = p.rows; res.decimalComma = dc; res.decimalAsk = !one && sig.ask; res.source = "text file";
+      res.readNotes = readNotes; res.readWarns = readWarns;
+      res.notes = readNotes.concat(res.notes); res.warnings = readWarns.concat(res.warnings);
       resolve(res);
     });
   }

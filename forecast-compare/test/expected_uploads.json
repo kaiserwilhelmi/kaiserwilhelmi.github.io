@@ -1,0 +1,326 @@
+{
+ "AA_one_col_decimal_comma.csv": {
+  "n": 40,
+  "first": "Period 1",
+  "last": "Period 40",
+  "v0": 10,
+  "vLast": 10.7,
+  "unit": "period",
+  "filled": [],
+  "noteHas": [
+   "read as decimal marks"
+  ],
+  "regression": "one column of decimal-comma numbers was split in two"
+ },
+ "AB_unquoted_thousands.csv": {
+  "n": 40,
+  "first": "Jan 2020",
+  "last": "Apr 2023",
+  "v0": 900,
+  "vLast": 939,
+  "unit": "month",
+  "filled": [],
+  "warnHas": [
+   "joined back into one number"
+  ],
+  "regression": "an unquoted 1,210.5 was read as 1",
+  "at": {
+   "12": 1210.5
+  }
+ },
+ "AC_formulas_nocache.xlsx": {
+  "n": 30,
+  "first": "Period 1",
+  "last": "Period 30",
+  "v0": 1,
+  "vLast": 30,
+  "unit": "period",
+  "filled": [],
+  "warnHas": [
+   "never saved"
+  ],
+  "regression": "formulas without saved results read as empty with no explanation"
+ },
+ "AD_flat_history.csv": {
+  "n": 60,
+  "first": "Jan 2020",
+  "last": "Dec 2024",
+  "v0": 100,
+  "vLast": 160,
+  "unit": "month",
+  "filled": [],
+  "regression": "a flat history made every MASE n/a"
+ },
+ "AE_two_digit_years.csv": {
+  "n": 36,
+  "first": "Jan 1958",
+  "last": "Dec 1960",
+  "v0": 80,
+  "vLast": 115,
+  "unit": "month",
+  "filled": [],
+  "noteHas": [
+   "two-digit year"
+  ],
+  "regression": "two-digit years 30-69 were read as 2030-2069; Excel reads 1930-1969"
+ },
+ "A_excel_ansi.csv": {
+  "n": 120,
+  "first": "22 Jan",
+  "last": "20 May",
+  "v0": 1,
+  "vLast": 222355,
+  "unit": "day",
+  "filled": []
+ },
+ "B_excel_utf8bom.csv": {
+  "n": 120,
+  "first": "22 Jan",
+  "last": "20 May",
+  "v0": 1,
+  "vLast": 222355,
+  "unit": "day",
+  "filled": []
+ },
+ "C_unicode_text.csv": {
+  "n": 120,
+  "first": "22 Jan",
+  "last": "20 May",
+  "v0": 1,
+  "vLast": 222355,
+  "unit": "day",
+  "filled": []
+ },
+ "D_xlsx_named_csv.csv": {
+  "n": 120,
+  "first": "22 Jan 2020",
+  "last": "20 May 2020",
+  "v0": 1,
+  "vLast": 222355,
+  "unit": "day",
+  "filled": []
+ },
+ "E_mac_cr.csv": {
+  "n": 120,
+  "first": "22 Jan",
+  "last": "20 May",
+  "v0": 1,
+  "vLast": 222355,
+  "unit": "day",
+  "filled": []
+ },
+ "F_semicolon.csv": {
+  "n": 120,
+  "first": "22 Jan 2020",
+  "last": "20 May 2020",
+  "v0": 1,
+  "vLast": 222355,
+  "unit": "day",
+  "filled": []
+ },
+ "G_quoted_thousands.csv": {
+  "n": 120,
+  "first": "22 Jan 2020",
+  "last": "20 May 2020",
+  "v0": 1,
+  "vLast": 222355,
+  "unit": "day",
+  "filled": []
+ },
+ "H_mdy_full.csv": {
+  "n": 120,
+  "first": "22 Jan 2020",
+  "last": "20 May 2020",
+  "v0": 1,
+  "vLast": 222355,
+  "unit": "day",
+  "filled": []
+ },
+ "I_workbook.xlsx": {
+  "n": 120,
+  "first": "22 Jan 2020",
+  "last": "20 May 2020",
+  "v0": 1,
+  "vLast": 222355,
+  "unit": "day",
+  "filled": []
+ },
+ "J_workbook_sheet2.xlsx": {
+  "n": 60,
+  "first": "Jan 2020",
+  "last": "Dec 2024",
+  "v0": 1000,
+  "vLast": 1515,
+  "unit": "month",
+  "filled": []
+ },
+ "K_quarterly.csv": {
+  "n": 56,
+  "first": "2010 Q1",
+  "last": "2023 Q4",
+  "v0": 1000,
+  "vLast": 1616,
+  "unit": "quarter",
+  "filled": []
+ },
+ "L_weekly.csv": {
+  "n": 160,
+  "first": "4 Jan 2021",
+  "last": "22 Jan 2024",
+  "v0": 473,
+  "vLast": 555,
+  "unit": "week",
+  "filled": []
+ },
+ "M_hourly.csv": {
+  "n": 504,
+  "first": "1 Mar 2024 00:00",
+  "last": "21 Mar 2024 23:00",
+  "v0": 247,
+  "vLast": 241,
+  "unit": "hour",
+  "filled": []
+ },
+ "N_periods.csv": {
+  "n": 60,
+  "first": "Period 1",
+  "last": "Period 60",
+  "v0": 205,
+  "vLast": 322,
+  "unit": "period",
+  "filled": []
+ },
+ "O_dmy_monthly.csv": {
+  "n": 48,
+  "first": "Jan 2018",
+  "last": "Dec 2021",
+  "v0": 900,
+  "vLast": 1088,
+  "unit": "month",
+  "filled": []
+ },
+ "P_newest_first_money.csv": {
+  "n": 60,
+  "first": "Jan 2019",
+  "last": "Dec 2023",
+  "v0": 25779,
+  "vLast": 34305,
+  "unit": "month",
+  "filled": [],
+  "noteHas": [
+   "newest-first"
+  ]
+ },
+ "Q_yearly.csv": {
+  "n": 35,
+  "first": "1990",
+  "last": "2024",
+  "v0": 51.1,
+  "vLast": 101.7,
+  "unit": "year",
+  "filled": []
+ },
+ "R_numbers_only.csv": {
+  "n": 40,
+  "first": "Period 1",
+  "last": "Period 40",
+  "v0": 97,
+  "vLast": 139,
+  "unit": "period",
+  "filled": []
+ },
+ "S_business_days.csv": {
+  "n": 200,
+  "first": "2 Jan 2023",
+  "last": "6 Oct 2023",
+  "v0": 80.13,
+  "vLast": 90.57,
+  "unit": "bday",
+  "filled": []
+ },
+ "T_old.xls": {
+  "error": "This is an older Excel .xls file. In Excel, use File › Save As › Excel Workbook (.xlsx) or CSV, then upload that."
+ },
+ "U_multicol.csv": {
+  "n": 36,
+  "first": "Jan 2022",
+  "last": "Dec 2024",
+  "v0": 100,
+  "vLast": 135,
+  "unit": "month",
+  "filled": [],
+  "warnHas": [
+   "without a number in the value column was skipped"
+  ]
+ },
+ "V_mmm_yy.csv": {
+  "n": 40,
+  "first": "Jan 2019",
+  "last": "Apr 2022",
+  "v0": 300,
+  "vLast": 417,
+  "unit": "month",
+  "filled": []
+ },
+ "W_eu_semicolon_3dec.csv": {
+  "n": 40,
+  "first": "Jan 2020",
+  "last": "Apr 2023",
+  "v0": 1234,
+  "vLast": 1351.875,
+  "unit": "month",
+  "filled": [],
+  "noteHas": [
+   "read as decimal marks"
+  ],
+  "regression": "European file: dd.mm.yyyy dates and three decimals were read 1,000 times too large",
+  "at": {
+   "1": 1237.125
+  }
+ },
+ "X_date1904.xlsx": {
+  "n": 36,
+  "first": "Jan 2020",
+  "last": "Dec 2022",
+  "v0": 500,
+  "vLast": 850,
+  "unit": "month",
+  "filled": [],
+  "regression": "Excel 1904 date system was shifted 62 years"
+ },
+ "Y_missing_month.csv": {
+  "n": 48,
+  "first": "Jan 2020",
+  "last": "Dec 2023",
+  "v0": 200,
+  "vLast": 272,
+  "unit": "month",
+  "filled": [
+   "Aug 2020",
+   "Apr 2021",
+   "Jul 2022",
+   "May 2023"
+  ],
+  "warnHas": [
+   "4 missing months",
+   "not scored"
+  ],
+  "regression": "missing months, a blank and an NA were deleted, shifting the seasonal pattern",
+  "at": {
+   "7": 207
+  }
+ },
+ "Z_feb30.csv": {
+  "n": 60,
+  "first": "1 Jan 2024",
+  "last": "29 Feb 2024",
+  "v0": 50,
+  "vLast": 53,
+  "unit": "day",
+  "filled": [],
+  "warnHas": [
+   "does not exist (like 30 February)"
+  ],
+  "regression": "30 February rolled silently into March"
+ }
+}

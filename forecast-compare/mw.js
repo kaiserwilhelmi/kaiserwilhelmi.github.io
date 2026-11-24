@@ -13,10 +13,16 @@
     var urls = local ? [REL + path, ABS + path] : [ABS + path];
     function attempt(i, lastErr) {
       if (i >= urls.length) return Promise.reject(lastErr);
-      return fetch(urls[i]).then(function (r) {
+      // give up after 15 s so a stalled request cannot leave "Loading…" on screen forever
+      var ac = typeof AbortController !== "undefined" ? new AbortController() : null;
+      var timer = ac ? setTimeout(function () { ac.abort(); }, 15000) : null;
+      return fetch(urls[i], ac ? { signal: ac.signal } : undefined).then(function (r) {
         if (!r.ok) throw new Error("HTTP " + r.status);
         return r.text();
-      }).catch(function (e) { return attempt(i + 1, e); });
+      }).then(function (t) { clearTimeout(timer); return t; }, function (e) {
+        clearTimeout(timer);
+        return attempt(i + 1, e && e.name === "AbortError" ? new Error("no answer after 15 seconds") : e);
+      });
     }
     return attempt(0);
   }

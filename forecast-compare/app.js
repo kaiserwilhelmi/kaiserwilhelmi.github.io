@@ -110,7 +110,7 @@
     if (cache[key]) return render(s, cache[key]);
     $("busy").innerHTML = "<b>Fitting every method at each backtest origin…</b>"; $("busy").hidden = false;
     setTimeout(function () {
-      try { cache[key] = E.prepare(s.values, state.m); }
+      try { cache[key] = E.prepare(s.values, state.m, null, s.skip || []); }
       catch (e) { $("busy").hidden = true; err.textContent = e.message; err.hidden = false; return; }
       $("busy").hidden = true;
       render(s, cache[key]);
@@ -127,8 +127,9 @@
     var res;
     try { res = E.score(P, { h: state.h, test: state.test }); }
     catch (e) { err.textContent = e.message; err.hidden = false; return; }
-    var ranked = E.rank(res.results);
-    last = { s: s, res: res, ranked: ranked, stab: E.stability(P, state.h) };
+    var ranked = E.rank(relabel(res.results, s));
+    var stab = E.stability(P, state.h); stab.forEach(function (r) { r.name = displayName(r.winner, r.name, s); });
+    last = { s: s, res: res, ranked: ranked, stab: stab };
     var best = ranked[0], nv = res.results.filter(function (r) { return r.id === "naive"; })[0];
     var ref = s.values[s.values.length - 1];
 
@@ -137,7 +138,7 @@
     var gain = 100 * (1 - best.metrics.MAE / nv.metrics.MAE);
     $("kpis").innerHTML =
       kpi("Best method", best.name, "lowest MASE of " + ranked.length) +
-      kpi("Best MASE", fmt(best.metrics.MASE, 3), (best.metrics.MASE < 1 ? "beats" : "worse than") + " in-sample " + (state.m > 1 ? "seasonal naive" : "naive") + " (1-step)") +
+      kpi("Best MASE", fmt(best.metrics.MASE, 3), scaleText(res.scaleBase, best.metrics.MASE)) +
       kpi("MAE vs naive", best.id === "naive" ? "0%" : (gain >= 0 ? "−" : "+") + fmt(Math.abs(gain), 1) + "%", best.id === "naive" ? "naive is the winner" : "error " + (gain >= 0 ? "lower" : "higher") + " than naive") +
       kpi("Forecasts scored", best.metrics.n, state.test + " origins × up to " + state.h + " " + (state.h > 1 ? many(s) : one(s)) + " ahead");
 
@@ -146,7 +147,7 @@
 
     // compare picker
     $("cmp").innerHTML = meths.filter(function (d) { return d.id !== best.id; }).map(function (d) {
-      return '<option value="' + d.id + '"' + (d.id === state.compare ? " selected" : "") + ">" + esc(d.name) + "</option>";
+      return '<option value="' + d.id + '"' + (d.id === state.compare ? " selected" : "") + ">" + esc(displayName(d.id, d.name, s)) + "</option>";
     }).join("");
     if (state.compare === best.id) state.compare = $("cmp").value;
     var cmp = res.results.filter(function (r) { return r.id === state.compare; })[0];
@@ -183,7 +184,25 @@
     $("meta").innerHTML = esc(s.name) + (s.unit ? " · " + esc(s.unit) : "") + " · " + n + " " + many(s) + ", " + label(s.dates[0]) + " to " + label(s.dates[n - 1]) + " · Source: " + (s.sourceHtml || esc(s.source));
   }
 
+  // Method names and notes that mention months are reworded for other time units.
+  function displayName(id, name, s) { return id === "ma3" && one(s) !== "month" ? "3-" + one(s) + " moving average" : name; }
+  function relabel(results, s) {
+    results.forEach(function (r) {
+      r.name = displayName(r.id, r.name, s);
+      if (one(s) === "month") return;
+      if (r.id === "snaive") r.note = "Next value = the value one seasonal cycle earlier.";
+      if (r.id === "ma3") r.note = "Flat forecast at the average of the last 3 " + many(s) + ".";
+    });
+    return results;
+  }
+
   function kpi(t, v, sub) { return '<div class="kpi"><div class="kt">' + esc(t) + '</div><div class="kv">' + esc(v) + '</div><div class="ks">' + esc(sub) + "</div></div>"; }
+
+  function scaleText(base, v) {
+    var nm = { snaive: "seasonal naive", naive: "naive" }[base];
+    if (nm) return (v < 1 ? "beats" : "worse than") + " in-sample " + nm + " (1-step)";
+    return "scaled by the average level, because the history before the backtest is flat";
+  }
 
   function recommend(s, ranked, nv, ref) {
     var best = ranked[0], second = ranked[1];
@@ -199,14 +218,16 @@
     var pf = function (p) { return p < 0.001 ? "p < 0.001" : "p = " + fmt(p, 3); };
     if (best.id !== "naive") {
       var dn = E.dmTest(best.loss, nv.loss, state.h).p;
-      out += dn < 0.05 ? "<li>The edge over naive is <b>statistically significant</b> (Diebold-Mariano test, " + pf(dn) + "), so it is unlikely to be luck.</li>"
+      out += !isFinite(dn) ? "<li>Whether the edge over naive is real cannot be tested here: the backtest errors do not vary enough.</li>"
+        : dn < 0.05 ? "<li>The edge over naive is <b>statistically significant</b> (Diebold-Mariano test, " + pf(dn) + "), so it is unlikely to be luck.</li>"
         : "<li>The edge over naive is <b>not statistically significant</b> (Diebold-Mariano test, " + pf(dn) + "): it could be luck, so naive is a defensible choice too.</li>";
     }
     var d2 = E.dmTest(best.loss, second.loss, state.h).p;
     var simpler = function (a2, b2) { return E.SIMPLE_ORDER.indexOf(a2.id) < E.SIMPLE_ORDER.indexOf(b2.id); };
     var alt = ranked.filter(function (r) { return r.id !== best.id && simpler(r, best) && E.dmTest(best.loss, r.loss, state.h).p >= 0.05; })
       .sort(function (x, y) { return E.SIMPLE_ORDER.indexOf(x.id) - E.SIMPLE_ORDER.indexOf(y.id); })[0];
-    if (d2 >= 0.05) out += "<li>The runner-up, " + esc(second.name) + ", is not significantly worse (" + pf(d2) + ")." +
+    if (!isFinite(d2)) { /* not testable: say nothing about the runner-up */ }
+    else if (d2 >= 0.05) out += "<li>The runner-up, " + esc(second.name) + ", is not significantly worse (" + pf(d2) + ")." +
       (alt ? " The simplest method that is not significantly worse is <b>" + esc(alt.name) + "</b>; if you value simplicity, it is a sound alternative." : "") + "</li>";
     else out += "<li>It is significantly better than the runner-up, " + esc(second.name) + " (" + pf(d2) + ").</li>";
     var winners = {};
@@ -323,16 +344,18 @@
   function loadSeries(it) {
     if (it.k.indexOf("mw:") === 0) {
       return MK.monthly(it.id).then(function (c) {
-        return { key: it.k, name: it.n, unit: it.u, short: it.s, sample: false, dates: c.dates, values: c.values, m: 12, c: c, it: it };
+        return { key: it.k, name: it.n, unit: it.u, short: it.s, sample: false, dates: c.dates, values: c.values, m: 12, c: c, it: it,
+          skip: c.filled.map(function (d) { return c.dates.indexOf(d); }), filledLabels: c.filled.map(label) };
       });
     }
     return MK.spot(it.id).then(function (c) {
-      var res = window.FCUpload.build([["Date", it.n]].concat(c.dates.map(function (d, i) { return [d, String(c.values[i])]; })), {});
+      var res = window.FCUpload.build([["Date", it.n]].concat(c.dates.map(function (d, i) { return [d, String(c.values[i])]; })), { prefilled: c.filled });
       var m = res.suggestedM, mNote = "";
       if (m > 1 && res.values.length < E.minTrain(m) + 12) { mNote = "A " + m + "-" + res.unitOne + " seasonal cycle needs more history than this, so seasonality is set to None."; m = 1; }
       else if (m > 1) mNote = "Seasonality is set to " + m + " (" + cycleName(m, res.unit) + "); change it above if you like.";
       return { key: it.k, name: it.n, unit: it.u, short: it.s, sample: false, dates: res.dates, values: res.values, future: res.future,
-        unitOne: res.unitOne, unitMany: res.unitMany, m: m, c: c, it: it, mNote: mNote };
+        unitOne: res.unitOne, unitMany: res.unitMany, m: m, c: c, it: it, mNote: mNote,
+        skip: res.filledIdx, filledLabels: res.filledIdx.map(function (i) { return res.dates[i]; }) };
     });
   }
   function mwNote(s) {
@@ -342,8 +365,9 @@
       (it.k.indexOf("mw:") === 0 ? ", via FRED (" + esc(it.id) + ")" : "") + ".</div>";
     if (it.ind.length) h += '<div class="upinfo">Tracked for: ' + esc(it.ind.join(", ")) + ".</div>";
     if (it.avg) h += '<div class="upinfo">Published daily or weekly; shown as monthly averages.</div>';
-    if (c.filled.length) h += '<div class="upwarn">⚠ ' + esc(c.filled.map(label).join(", ")) + (c.filled.length > 1 ? " were" : " was") +
-      " missing at the source and " + (c.filled.length > 1 ? "are" : "is") + " filled by a straight line between neighbouring values, as on Market Watch.</div>";
+    var fl = s.filledLabels || [];
+    if (fl.length) h += '<div class="upwarn">⚠ ' + esc(fl.slice(0, 6).join(", ") + (fl.length > 6 ? ", …" : "")) + (fl.length > 1 ? " were" : " was") +
+      " missing at the source and " + (fl.length > 1 ? "are" : "is") + " filled by a straight line between neighbouring values, as on Market Watch. Filled values help fit the methods but are not scored.</div>";
     if (s.mNote) h += '<div class="upinfo">' + esc(s.mNote) + "</div>";
     return h;
   }
@@ -400,7 +424,8 @@
     }
     var s = { key: "upload", uid: ++uid, name: res.name || fname.replace(/\.[^.]+$/, ""), unit: "", short: "", sample: false,
       source: "your file (" + fname + "), read in your browser", dates: dates, values: vals, future: res.future,
-      unitOne: res.unitOne, unitMany: res.unitMany, res: res, fname: fname, m: keepM && state.upload ? state.upload.m : res.suggestedM };
+      unitOne: res.unitOne, unitMany: res.unitMany, res: res, fname: fname, m: keepM && state.upload ? state.upload.m : res.suggestedM,
+      skip: (res.filledIdx || []).map(function (i) { return i - (res.values.length - vals.length); }).filter(function (i) { return i >= 0; }) };
     var mNote = "";
     if (!keepM) {
       var n = vals.length, want = res.suggestedM;
@@ -423,18 +448,23 @@
     var pick = "";
     if (res.numericCols.length > 1) pick += '<label class="ctl">Value column<select id="upcol">' + res.numericCols.map(function (c) {
       return '<option value="' + c.c + '"' + (c.c === res.valueCol ? " selected" : "") + ">" + esc(c.label) + "</option>"; }).join("") + "</select></label>";
+    if (res.decimalAsk) pick += '<label class="ctl">Decimal mark<select id="updec"><option value="comma"' + (res.decimalComma ? " selected" : "") + '>Comma (1.234,5)</option><option value="point"' + (res.decimalComma ? "" : " selected") + ">Point (1,234.5)</option></select></label>";
     if (res.order) pick += '<label class="ctl">Date order<select id="uporder"><option value="MDY"' + (res.order === "MDY" ? " selected" : "") + '>Month/day (US)</option><option value="DMY"' + (res.order === "DMY" ? " selected" : "") + ">Day/month</option></select></label>";
     if (pick) h += '<div class="controls" style="margin-top:8px">' + pick + "</div>";
     $("upnote").innerHTML = h; $("upnote").hidden = false;
     function rebuild() {
       try {
-        var r2 = window.FCUpload.build(res.table, { valueCol: $("upcol") ? +$("upcol").value : res.valueCol, order: $("uporder") ? $("uporder").value : undefined, date1904: res.date1904, decimalComma: res.decimalComma });
-        r2.table = res.table; r2.date1904 = res.date1904; r2.decimalComma = res.decimalComma; r2.notes = res.notes.filter(function (x) { return /sheet|workbook/i.test(x); }).concat(r2.notes);
+        var dc = $("updec") ? $("updec").value === "comma" : res.decimalComma;
+        var r2 = window.FCUpload.build(res.table, { valueCol: $("upcol") ? +$("upcol").value : res.valueCol, order: $("uporder") ? $("uporder").value : undefined, date1904: res.date1904, decimalComma: dc });
+        r2.table = res.table; r2.date1904 = res.date1904; r2.decimalComma = dc; r2.decimalAsk = res.decimalAsk; r2.readWarns = res.readWarns;
+        r2.notes = res.notes.filter(function (x) { return /sheet|workbook/i.test(x); }).concat(r2.notes);
+        r2.warnings = (res.readWarns || []).concat(r2.warnings);
         applyUpload(r2, fname, true);
       } catch (er) { $("err").textContent = er.message; $("err").hidden = false; }
     }
     if ($("upcol")) $("upcol").addEventListener("change", rebuild);
     if ($("uporder")) $("uporder").addEventListener("change", rebuild);
+    if ($("updec")) $("updec").addEventListener("change", rebuild);
     $("busy").hidden = true;
     run();
   }
