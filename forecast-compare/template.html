@@ -36,6 +36,7 @@ body { margin: 0; background: var(--bg); color: var(--text); font: 16px/1.55 var
 a { color: var(--accent); }
 h1 { font-family: var(--head); font-weight: 600; font-size: clamp(28px, 3.4vw, 34px); line-height: 1.2; margin: 0 0 6px; }
 .lede { color: var(--text-2); margin: 0 0 18px; max-width: 760px; }
+.lede.uni { margin-top: -8px; border-left: 3px solid var(--border); padding-left: 12px; }
 h2 { font-family: var(--head); font-weight: 600; font-size: 21px; margin: 0 0 10px; }
 h3 { font-size: 15px; margin: 0 0 6px; }
 .card { background: var(--surface); border: 1px solid var(--border); border-radius: 10px; padding: 16px; margin-bottom: 16px; }
@@ -134,7 +135,8 @@ main:focus { outline: none; }
 </header>
 <main id="main" tabindex="-1">
   <h1>Forecast Method Comparison</h1>
-  <p class="lede">Pick one of the /*__COUNT__*/ price, wage, freight and currency series from the <a href="/market-watch/">Industry Market Watch</a>, or upload your own. The page tests up to fourteen forecasting methods on the series' own past, recommends the approach that held up best, and gives a range to plan around.</p>
+  <p class="lede">This page compares forecasting methods on one series at a time. Pick one of nine published test series, one of the /*__COUNT__*/ price, wage, freight and currency series from the <a href="/market-watch/">Industry Market Watch</a>, or upload your own. It tests up to fourteen methods on the series' own past, recommends the approach that held up best, and gives a range to plan around.</p>
+  <p class="lede uni"><b>Univariate forecasting.</b> Every forecast here is built from the series' own history and nothing else. No prices, promotions, weather, lead indicators or order books go in. That works when past patterns keep repeating, and it can't see a change coming from something the history has never shown. <a href="#univariate">When it fits and when it doesn't</a>.</p>
 
   <div class="card">
     <div class="controls">
@@ -198,6 +200,14 @@ main:focus { outline: none; }
     <div class="hint" id="hzh">MAE at each step ahead. A method that wins at 1 step can lose at 6; match the horizon to your purchasing lead time.</div>
   </div>
 
+  <details class="card doc big fold" id="univariate">
+    <summary><h2>One series, its own history</h2></summary>
+    <p>A univariate method learns from a single column of numbers: its level, trend, seasonal pattern and the usual size of its swings. It assumes those carry on. That makes a simple, strong baseline, and on single series it is hard to beat with more complex models (Makridakis, Spiliotis &amp; Assimakopoulos, 2018).</p>
+    <p><b>Where it fits.</b> Demand or prices with a steady pattern. A baseline for many items at once, where building a separate driver model for each one isn't practical. Cases where the drivers are unknown, or can't be known far enough ahead to help.</p>
+    <p><b>Where it doesn't.</b> Anything the history hasn't seen: a planned promotion or price change, a new customer or contract, a product launch or phase-out, a supplier outage, a tariff. The forecast misses these until they show up in the data, and then it lags behind them. The Victoria electricity series shows the limit: summer heat drives its peaks, and no method here knows the temperature. When a known driver moves the number and you have its value ahead of time, a regression or dynamic regression on that driver usually does better (Hyndman &amp; Athanasopoulos, 2021, ch. 7 and 10). The driver usually has to be forecast as well, though, and errors in that forecast cut into the gain (same, §7.6).</p>
+    <p><b>How I'd use it.</b> As the statistical baseline, then adjusted by hand for events I know are coming. In a study of four supply-chain companies, adjustments helped mainly when they were large and based on information the model didn't have, such as a promotion, while small tweaks mostly added error (Fildes, Goodwin, Lawrence &amp; Nikolopoulos, 2009).</p>
+  </details>
+
   <div class="grid2">
     <details class="card doc big fold">
       <summary><h2>How the test works</h2></summary>
@@ -234,6 +244,7 @@ main:focus { outline: none; }
   <details class="card doc big fold">
     <summary><h2>References</h2></summary>
     <ol class="refs">
+      <li>Hyndman, R. J., &amp; Athanasopoulos, G. (2018). <i>Forecasting: Principles and Practice</i> (2nd ed.). OTexts; data in the fpp2 R package. <a href="https://otexts.com/fpp2/">otexts.com/fpp2</a></li>
       <li>Hyndman, R. J., &amp; Athanasopoulos, G. (2021). <i>Forecasting: Principles and Practice</i> (3rd ed.). OTexts. <a href="https://otexts.com/fpp3/">otexts.com/fpp3</a></li>
       <li>Hyndman, R. J., &amp; Koehler, A. B. (2006). Another look at measures of forecast accuracy. <i>International Journal of Forecasting, 22</i>(4), 679–688. <a href="https://doi.org/10.1016/j.ijforecast.2006.03.001">doi:10.1016/j.ijforecast.2006.03.001</a></li>
       <li>Tashman, L. J. (2000). Out-of-sample tests of forecasting accuracy: An analysis and review. <i>International Journal of Forecasting, 16</i>(4), 437–450. <a href="https://doi.org/10.1016/S0169-2070(00)00065-0">doi:10.1016/S0169-2070(00)00065-0</a></li>
@@ -257,6 +268,7 @@ main:focus { outline: none; }
       <li>Davydenko, A., &amp; Fildes, R. (2013). Measuring forecasting accuracy: The case of judgmental adjustments to SKU-level demand forecasts. <i>International Journal of Forecasting, 29</i>(3), 510–522. <a href="https://doi.org/10.1016/j.ijforecast.2012.09.002">doi:10.1016/j.ijforecast.2012.09.002</a></li>
       <li>Kolassa, S. (2020). Why the "best" point forecast depends on the error or accuracy measure. <i>International Journal of Forecasting, 36</i>(1), 208–211. <a href="https://eprints.lancs.ac.uk/id/eprint/213526">eprints.lancs.ac.uk/id/eprint/213526</a></li>
       <li>Harvey, D., Leybourne, S., &amp; Newbold, P. (1997). Testing the equality of prediction mean squared errors. <i>International Journal of Forecasting, 13</i>(2), 281–291. <a href="https://doi.org/10.1016/S0169-2070(96)00719-4">doi:10.1016/S0169-2070(96)00719-4</a></li>
+      <li>Fildes, R., Goodwin, P., Lawrence, M., &amp; Nikolopoulos, K. (2009). Effective forecasting and judgmental adjustments: An empirical evaluation and strategies for improvement in supply-chain planning. <i>International Journal of Forecasting, 25</i>(1), 3–23. <a href="https://ideas.repec.org/a/eee/intfor/v25y2009i1p3-23.html">ideas.repec.org record</a></li>
       <li>Makridakis, S., Spiliotis, E., &amp; Assimakopoulos, V. (2018). Statistical and machine learning forecasting methods: Concerns and ways forward. <i>PLOS ONE, 13</i>(3), e0194889. <a href="https://doi.org/10.1371/journal.pone.0194889">doi:10.1371/journal.pone.0194889</a></li>
       <li>Makridakis, S., Spiliotis, E., &amp; Assimakopoulos, V. (2022). M5 accuracy competition: Results, findings, and conclusions. <i>International Journal of Forecasting, 38</i>(4), 1346–1364. <a href="https://doi.org/10.1016/j.ijforecast.2021.11.013">doi:10.1016/j.ijforecast.2021.11.013</a></li>
       <li>Williams, W. H., &amp; Goodman, M. L. (1971). A simple method for the construction of empirical confidence limits for economic forecasts. <i>Journal of the American Statistical Association, 66</i>(336), 752–754. <a href="https://scilit.com/publications/b4637cd6fa9f222073f61bbf49414a48">scilit.com record</a></li>
@@ -277,12 +289,25 @@ main:focus { outline: none; }
     </ol>
     <h2 style="margin-top:14px">Data</h2>
     <ul>
-      <li><b>Market Watch series</b> (/*__COUNT__*/) are loaded when you pick one, from the <a href="/market-watch/">Industry Market Watch</a>, which refreshes them every day. The monthly series come from FRED (Federal Reserve Bank of St. Louis) and are credited to their original publishers: the U.S. Bureau of Labor Statistics (producer and consumer prices, hourly earnings), the International Monetary Fund (commodity prices), the U.S. Energy Information Administration, the Federal Reserve Board (exchange rates) and Cass Information Systems (freight). History starts in January 2004, or when the series starts. Series that FRED publishes daily or weekly are monthly averages.</li>
+      <li><b>Published test series</b> (nine) are built into the page. Each is a well-known series from forecasting textbooks and studies, picked to cover a different pattern, and each is credited to its original publisher:
+        <ul>
+          <li>US retail sales, not seasonally adjusted (Jan 2010 to Sep 2026): U.S. Census Bureau, Advance Monthly Retail Trade Survey, series RSXFSN, retrieved from FRED on 25 Nov 2026. The October 2026 advance estimate is left out because it will be revised.</li>
+          <li>International airline passengers (1949 to 1960): Box, G. E. P., &amp; Jenkins, G. M. (1976). <i>Time Series Analysis: Forecasting and Control</i>, series G. Copy from R's datasets package (AirPassengers).</li>
+          <li>Antidiabetic drug sales, Australia (Jul 1991 to Jun 2008): Australian Pharmaceutical Benefits Scheme, Medicare Australia. Copy from the fpp2 package (a10), Hyndman &amp; Athanasopoulos (2018).</li>
+          <li>Beer production, Australia (1956 Q1 to 2010 Q2): Australian Bureau of Statistics, CC BY 4.0. Copy from fpp2 (ausbeer).</li>
+          <li>US gasoline product supplied (weekly, Feb 1991 to Jan 2017): U.S. Energy Information Administration. Copy from fpp2 (gasoline).</li>
+          <li>Electricity demand, Victoria (daily, 2014): Australian Energy Market Operator, half-hourly demand as distributed in fpp2 (elecdemand), averaged to days by me. AEMO allows use of its material with attribution.</li>
+          <li>One Walmart item, daily unit sales (HOBBIES_1_006, store CA_1, Apr 2012 to May 2016, from its first sale): M5 competition data (Makridakis, Spiliotis &amp; Assimakopoulos, 2022), CC BY 4.0 (<a href="https://doi.org/10.5281/zenodo.12636070">Zenodo record</a>). The item was picked by a fixed rule: the first hobbies item with an average gap between sales of 2 to 3 days and more than 1,400 days of history.</li>
+          <li>Canadian dollars per US dollar (Jan 2010 to Oct 2026): Board of Governors of the Federal Reserve System, G.5 release, series EXCAUS, retrieved from FRED on 25 Nov 2026.</li>
+          <li>Nile river flow at Aswan (1871 to 1970): Cobb, G. W. (1978). The problem of the Nile. <i>Biometrika, 65</i>(2), 243–251; used in Durbin, J., &amp; Koopman, S. J. (2012). <i>Time Series Analysis by State Space Methods</i> (2nd ed.). Copy from R's datasets package (Nile).</li>
+        </ul>
+        I checked every value against a second copy of its source (R's own source files, the fpp2 package files, FRED and the raw M5 file). All match.</li>
+      <li><b>Market Watch series</b> (/*__COUNT__*/) are loaded when you pick one, from the <a href="/market-watch/">Industry Market Watch</a>, which refreshes them every day from their original publishers: the U.S. Bureau of Labor Statistics (producer and consumer prices, hourly earnings), the U.S. Energy Information Administration, the World Bank (commodity prices), the Federal Reserve Board (exchange rates) and the U.S. Bureau of Transportation Statistics (freight). History starts in January 2004, or when the series starts. Series published daily or weekly are monthly averages.</li>
       <li><b>Recent spot prices</b> cover about the last year, daily or weekly as published: U.S. Energy Information Administration Open Data, and USDA Agricultural Marketing Service market news.</li>
       <li>A month or day the publisher skipped (for example October 2025 for some BLS consumer price series) is filled by a straight line between its neighbours, as on Market Watch, and the page says so when it happens. Filled values help fit the methods but are never scored as test targets.</li>
       <li><b>Sample demand (units)</b> is synthetic: trend + seasonality + random noise, generated with a fixed seed for demonstration. It is not real company data.</li>
       <li><b>Sample spare-part demand</b> is synthetic too: an order in about 4 of every 10 months, sizes of 1 to about 15, with orders thinning out in the last two years. It is not real company data.</li>
-      <li>The tests of the intermittent-demand handling used Walmart unit sales from the M5 competition (Makridakis, Spiliotis &amp; Assimakopoulos, 2022). That data is not part of this page.</li>
+      <li>The tests of the intermittent-demand handling used 500 Walmart item series from the M5 competition (Makridakis, Spiliotis &amp; Assimakopoulos, 2022). Only the one item above is part of this page.</li>
     </ul>
   </details>
 
