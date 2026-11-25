@@ -1805,7 +1805,7 @@ self.onmessage = function (ev) {
       if (!rows) { tip.hidden = true; return; }
       tip.innerHTML = '<div class="tt">' + esc(cfg.xfmt(cfg.labels[i])) + "</div>" + rows;
       tip.hidden = false;
-      var left = X(i) * r.width / W; tip.style.left = Math.min(left + 12, r.width - tip.offsetWidth - 4) + "px"; tip.style.top = "8px";
+      var left = X(i) * r.width / W; tip.style.left = Math.min(left + 12, r.width - tip.offsetWidth - 4) + "px"; tip.style.top = -(tip.offsetHeight + 6) + "px"; // sits above the plot so it never hides the lines
     }
     svg.addEventListener("pointermove", move);
     svg.addEventListener("pointerleave", function () { tip.hidden = true; xh.setAttribute("visibility", "hidden"); });
