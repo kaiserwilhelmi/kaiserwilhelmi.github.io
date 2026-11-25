@@ -1,4 +1,8 @@
-"""Build the home page (../index.html) from template.html.
+"""Build the site's two pages, ../index.html (Projects) and ../about/index.html (About), from template.html.
+
+They are one page with two views. A click on About or Projects switches the view in place (see space.src.js),
+so nothing reloads. about/index.html is the same page opened on the About view, with its own title and address,
+for people who land on /about/ directly. Edit the About text in template.html, inside <div id="v-about">.
 
 The page carries a copy of the numbers it shows so it is complete on first paint:
   - Market Watch: home_summary.summary() of analytics.json, from a clone of kaiserwilhelmi/market-watch
@@ -51,9 +55,26 @@ D["fc"] = json.loads((HERE / "fc.json").read_text())
 blob = json.dumps(D, separators=(",", ":")).replace("</", "<\\/")
 page = (HERE / "template.html").read_text()
 assert page.count("/*__DATA__*/null") == 1
-(HERE.parent / "index.html").write_text(page.replace("/*__DATA__*/null", blob))
+page = page.replace("/*__DATA__*/null", blob)
+(HERE.parent / "index.html").write_text(page)
+
+# the same page, opened on the About view
+ABOUT_DESC = "About Dawson Wilhelmi: controller and supply chain student focused on procurement analytics."
+HOME_DESC = ("Procurement and supply chain analytics projects by Dawson Wilhelmi: forecast method comparison, "
+             "industry input-cost tracking and supplier scorecard.")
+swaps = [('<html lang="en" data-view="hero">', '<html lang="en" data-view="about">', 1),
+         ("<title>Dawson Wilhelmi · Projects</title>", "<title>Dawson Wilhelmi · About</title>", 1),
+         ('<meta property="og:title" content="Dawson Wilhelmi · Projects">', '<meta property="og:title" content="Dawson Wilhelmi · About">', 1),
+         (f'content="{HOME_DESC}"', f'content="{ABOUT_DESC}"', 2),
+         ('<meta property="og:url" content="https://dawsonwilhelmi.com/">', '<meta property="og:url" content="https://dawsonwilhelmi.com/about/">', 1),
+         ('<link rel="canonical" href="https://dawsonwilhelmi.com/">', '<link rel="canonical" href="https://dawsonwilhelmi.com/about/">', 1)]
+about = page
+for old, new, n in swaps:
+    assert about.count(old) == n, old
+    about = about.replace(old, new)
+(HERE.parent / "about" / "index.html").write_text(about)
 space = (HERE / "space.src.js").read_text()
 assert space.count("/*__LAND__*/null") == 1
 (HERE.parent / "space.js").write_text(space.replace("/*__LAND__*/null", (HERE / "land.json").read_text().strip()))
-print(f"index.html written ({len(page) + len(blob):,} bytes; Market Watch data built {D['built']}, "
+print(f"index.html and about/index.html written ({len(page):,} bytes each; Market Watch data built {D['built']}, "
       f"{len(D['series'])} series, {len(D['ind'])} industries)")

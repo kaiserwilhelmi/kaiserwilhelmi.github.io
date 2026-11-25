@@ -2,7 +2,7 @@
 
 Source for my portfolio site of purchasing and supply chain tools, served by GitHub Pages.
 
-- `index.html`: the Projects page, built from `home/template.html` by `home/build.py` (see the note at the top of that file). `about/`: the About page. `space.js`: the night sky and Earth graphic both pages share, built from `home/space.src.js` by the same script. `404.html`: the page shown for a wrong address.
+- `index.html` (Projects) and `about/index.html` (About): one page with two views, both built from `home/template.html` by `home/build.py` (see the note at the top of that file). Edit the About text in the template, not in `about/index.html`. `space.js`: the night sky and Earth graphic both pages share, built from `home/space.src.js` by the same script. `404.html`: the page shown for a wrong address.
 - `forecast-compare/`: Forecast Method Comparison (its README covers the build and tests).
 - `loot-ledger/`: Loot Ledger, a side project for the game Tibia.
 - `fonts/`: the site's fonts, served from here instead of Google Fonts.

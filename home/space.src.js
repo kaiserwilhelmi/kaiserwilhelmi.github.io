@@ -1,9 +1,10 @@
 /* Night-sky backdrop and Earth graphic shared by the home and About pages.
    This file is home/space.src.js; home/build.py adds the land grid and writes /space.js.
 
-   A page needs: <div class="page"> holding <canvas id="sky"> and <canvas id="globe">, a header.site and a section.intro
-   with a <p>. Call DWSpace.init({ mode: "hero" }) on the home page and DWSpace.init({ mode: "about" }) on About.
-   On the home page a click on the About link flies the Earth in to San Diego before the About page opens.
+   The page needs: <div class="page"> holding <canvas id="sky"> and <canvas id="globe">, a header.site and, in each view,
+   a section.intro with a <p>. <html data-view> says which view is showing: "hero" (Projects) or "about".
+   A link with data-go="about" flies the Earth in to San Diego and then fades the About view in, without loading a page;
+   data-go="hero" does the reverse. The address bar and the Back button follow along.
    The land is a half-degree grid from Natural Earth (public domain). The arcs between ports are decoration, not data. */
 (function () {
 "use strict";
@@ -185,24 +186,52 @@ function wire() {
     const dx = e.clientX - G.drag.x, dy = e.clientY - G.drag.y; G.drag = { x: e.clientX, y: e.clientY }; G.lon -= dx / geo.R; G.vel = -dx / geo.R; G.tilt = clamp(G.tilt + dy / geo.R, -0.5, 0.9); G.dirty = true; });
   const end = () => { if (G.drag) { G.drag = null; pageEl.style.cursor = ""; } }; pageEl.addEventListener("pointerup", end); pageEl.addEventListener("pointercancel", end);
   if ("IntersectionObserver" in window) new IntersectionObserver(es => { G.on = es[0].isIntersecting; }).observe(c);
-  // About link: fly in to San Diego first, then open the page. Projects link from About: the home page flies back out.
-  document.addEventListener("click", e => { const a = e.target.closest && e.target.closest("a[href]"); if (!a || e.defaultPrevented || e.button !== 0 || e.metaKey || e.ctrlKey || e.shiftKey || e.altKey || a.target) return;
-    const to = a.getAttribute("data-view") || (a.pathname === "/about/" ? "about" : a.pathname === "/" && !a.hash ? "hero" : null); if (!to || to === G.mode || G.fly || a.origin !== location.origin && !a.hasAttribute("data-view")) return;
-    if (api.go) { e.preventDefault(); api.go(to, a); return; }
-    if (to === "about" && !reduce) { e.preventDefault(); pageEl.classList.add("leaving"); scrollTo({ top: 0, behavior: "smooth" });
-      fly("about", FLY_MS).then(() => setTimeout(() => { location.href = a.href; }, 450)); }
-    else if (to === "hero") { try { sessionStorage.setItem("dw-zoom-out", "1"); } catch (err) {} } });
-  addEventListener("pageshow", e => { if (e.persisted && pageEl.classList.contains("leaving")) { pageEl.classList.remove("leaving"); fly("hero", 0); } });
   let rt, lastW = innerWidth; addEventListener("resize", () => { if (innerWidth === lastW) return; lastW = innerWidth; clearTimeout(rt); rt = setTimeout(() => { sky(); if (layout()) paint(0); }, 150); });
 }
 
+/* ---------- switching between the Projects view and the About view ---------- */
+const root = document.documentElement, TITLE = { hero: "Dawson Wilhelmi · Projects", about: "Dawson Wilhelmi · About" };
+const view = () => root.dataset.view === "about" ? "about" : "hero";
+const want = () => /^\/about\/?$/.test(location.pathname) ? "about" : "hero";
+const wait = ms => new Promise(r => setTimeout(r, ms));
+let busy = false;
+function show(v) {       // swap which view is in the page; the caller handles the fading
+  root.dataset.view = v; document.title = TITLE[v];
+  document.querySelectorAll("a[data-go]").forEach(a => { if (a.dataset.go === v && a.closest("nav")) a.setAttribute("aria-current", "page"); else a.removeAttribute("aria-current"); });
+  scrollTo(0, 0); if (api.onview) api.onview(v); if (geo && layout()) paint(performance.now());
+}
+async function go(to, push) {
+  if (to !== "about") to = "hero";
+  if (busy || to === view()) return;
+  busy = true;
+  if (push && !api.noHistory) { try { history.pushState({ view: to }, "", to === "about" ? "/about/" : "/"); } catch (err) {} }
+  const hasGlobe = !!geo, quick = reduce || !hasGlobe;
+  if (pageEl) pageEl.classList.add("leaving");                      // the showing view fades out
+  if (to === "about") {
+    if (scrollY > 0) scrollTo({ top: 0, behavior: quick ? "auto" : "smooth" });
+    if (hasGlobe) await fly("about", quick ? 0 : FLY_MS);          // the Earth turns and closes in on San Diego, the pin lands
+    if (!quick) await wait(250);
+    show("about");
+  } else {
+    if (!quick) await wait(450);
+    show("hero");
+    if (hasGlobe) fly("hero", quick ? 0 : 1300);                    // the Projects view fades in while the Earth pulls back
+  }
+  if (pageEl) { void pageEl.offsetWidth; pageEl.classList.remove("leaving"); }
+  const m = document.getElementById("main"); if (m && push) m.focus({ preventScroll: true });
+  if (!quick) await wait(to === "about" ? 450 : 1300);
+  busy = false;
+  if (want() !== view() && !api.noHistory) go(want(), false);      // Back or Forward was pressed mid-move
+}
+
 const api = window.DWSpace = {
-  // mode "hero": the turning Earth on the home page. mode "about": the still close-up on San Diego.
-  init(o) { sky(); if (!layout()) return; const mode = (o && o.mode) || "hero"; let out = false;
-    try { out = mode === "hero" && sessionStorage.getItem("dw-zoom-out") === "1"; sessionStorage.removeItem("dw-zoom-out"); } catch (err) {}
-    fly(mode === "about" || out ? "about" : "hero", 0); wire(); G.raf = requestAnimationFrame(frame);
-    if (out) fly("hero", 1300); },
-  fly, layout() { if (layout()) paint(0); }, go: null,
-  get mode() { return G.mode; }
+  init() { sky(); pageEl = document.querySelector(".page"); const ok = layout();
+    addEventListener("click", e => { const a = e.target.closest && e.target.closest("a[data-go]"); if (!a || e.button !== 0 || e.metaKey || e.ctrlKey || e.shiftKey || e.altKey) return;
+      e.preventDefault(); e.stopImmediatePropagation(); go(a.dataset.go, true); }, true);
+    addEventListener("popstate", () => go(want(), false));
+    if (!ok) return;
+    fly(view(), 0); wire(); G.raf = requestAnimationFrame(frame); },
+  fly, go, layout() { if (layout()) paint(0); }, onview: null, noHistory: false,
+  get mode() { return G.mode; }, get view() { return view(); }
 };
 })();
