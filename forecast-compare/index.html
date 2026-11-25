@@ -81,6 +81,8 @@ td.l .ref { font-size: 11px; color: var(--text-3); max-width: 300px; }
 td.pm { font-size: 12px; color: var(--text-2); white-space: nowrap; }
 td.best { font-weight: 700; }
 tr.win td { background: var(--accent-soft); }
+tr.dim td { color: var(--text-3); }
+.pill { display: inline-block; font-size: 11px; font-weight: 600; color: var(--accent); background: var(--accent-soft); border-radius: 5px; padding: 1px 6px; margin-left: 4px; white-space: nowrap; }
 .grid2 { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
 .doc p, .doc li { color: var(--text-2); font-size: 14px; }
 .doc ul { padding-left: 20px; margin: 6px 0; }
@@ -104,7 +106,7 @@ footer { font-size: 12px; color: var(--text-3); margin-top: 24px; }
 <div class="wrap">
   <nav class="home"><a href="/">Dawson Wilhelmi</a></nav>
   <h1>Forecast Method Comparison</h1>
-  <p class="lede">This page tests which forecasting method to trust for a series. Up to fourteen methods, from simple benchmarks to machine learning, are re-fitted and tested period by period on data they have not seen, then scored on six error measures plus bias. Pick any of the 100 price, wage, freight and currency series from the <a href="/market-watch/">Industry Market Watch</a>, or upload your own.</p>
+  <p class="lede">This page tests which forecasting method to trust for a series. Up to fourteen methods, from simple benchmarks to machine learning, are re-fitted and tested period by period on data they have not seen, then scored on six error measures plus bias. The recommendation, an average of the top three, is tested the same way. Pick any of the 100 price, wage, freight and currency series from the <a href="/market-watch/">Industry Market Watch</a>, or upload your own.</p>
 
   <div class="card">
     <div class="controls">
@@ -124,15 +126,20 @@ footer { font-size: 12px; color: var(--text-3); margin-top: 24px; }
 
   <div class="kpis" id="kpis"></div>
   <div class="card" id="rec"></div>
+  <div class="card">
+    <h2>Testing the choice itself</h2>
+    <div id="honest"></div>
+    <div class="hint">Each approach is re-picked at every past origin from only the errors known at that time, then scored on what happened next (Tashman, 2000). The hindsight row is the table's #1 scored on the window it was picked on, shown for contrast: the gap between it and the re-picked rows is the luck in a ranking (Cawley &amp; Talbot, 2010).</div>
+  </div>
 
   <div class="card">
     <div class="head">
       <div><h2 style="margin:0" id="ch1t">Actuals, backtest and 12-month forecast</h2><div class="hint" id="meta" style="margin-top:2px"></div></div>
-      <label class="ctl">Compare best method with<select id="cmp"></select></label>
+      <label class="ctl">Compare with<select id="cmp"></select></label>
     </div>
     <div class="legend" id="lg1"></div>
     <div class="chart" id="ch1"></div>
-    <div class="hint">Dots inside the shaded window are each method's 1-step-ahead forecasts from the backtest. Lines after the last actual are the forecasts from the model fitted on all data.</div>
+    <div class="hint">Dots inside the shaded window are 1-step-ahead forecasts from the backtest; for the pool they come from the version re-picked at each origin. Lines after the last actual are the forecasts from all the data.</div>
   </div>
 
   <div class="card">
@@ -141,7 +148,7 @@ footer { font-size: 12px; color: var(--text-3); margin-top: 24px; }
       <button class="btn" id="dl" type="button">Download backtest CSV</button>
     </div>
     <div class="tblwrap" id="tbl"></div>
-    <div class="hint">Ranked by MASE (lowest first). ★ marks the best value in each column. Click a column to sort. Hover a header for its definition.</div>
+    <div class="hint">Ranked by MASE over the backtest window (lowest first). These are the scores the ranking was made on, so the #1 method is flattered; the check above shows what the choice earned. p-values come from the Diebold-Mariano test with fixed-b variance and are Holm-adjusted across the table. ★ marks the best value in each column. Click a column to sort. Hover a header for its definition.</div>
   </div>
 
   <div class="card" id="hz">
@@ -154,11 +161,13 @@ footer { font-size: 12px; color: var(--text-3); margin-top: 24px; }
   <div class="grid2">
     <div class="card doc">
       <h2>How the test works</h2>
-      <p><b>Rolling origin.</b> For each of the last <i>N</i> periods, every method is fitted only on data before that point and forecasts the next <i>h</i> periods. Forecasts are compared with what actually happened. This mimics real use and avoids judging a model on data it was fitted to (Tashman, 2000; Hyndman &amp; Athanasopoulos, 2021, §5.10).</p>
+      <p><b>Rolling origin.</b> At each origin in the backtest window, every method is fitted only on data before that point and forecasts the next <i>h</i> periods, which are then compared with what actually happened (Tashman, 2000; Hyndman &amp; Athanasopoulos, 2021, §5.10). Only origins whose whole <i>h</i>-step path can be checked are scored, so every step ahead counts the same number of times. The window must therefore be at least twice the horizon.</p>
       <p><b>Fitting.</b> Holt-Winters fits its three weights and its starting level, trend and seasonal pattern together by minimising one-step squared error (Nelder–Mead search). Seasonal ARIMA is fitted by conditional least squares. The simpler smoothing methods pick their weights from a grid (0.05 to 0.95); full fitting changed their accuracy by under 1% on these series. Every number was re-computed by an independent Python implementation and matches; accuracy is in line with the statsmodels library's maximum-likelihood fits.</p>
-      <p><b>Significance.</b> A Diebold-Mariano test (with the Harvey-Leybourne-Newbold small-sample correction) checks whether the winner's lower error could be luck, against both naive and the runner-up. When it could, the page names the simplest method that is not significantly worse.</p>
-      <p><b>No method is favoured.</b> The backtest on your series picks the winner. Two combinations (simple averages of other methods) are entered as candidates because averaging often reduces error (Bates &amp; Granger, 1969; Makridakis et al., 2020), but they only win when the data says so. The page also checks whether the same method wins with 12, 24 and 36-period windows.</p>
-      <p><b>Ranking.</b> MASE decides the winner because it compares methods on a common, scale-free basis and does not break when values approach zero (Hyndman &amp; Koehler, 2006).</p>
+      <p><b>Testing the choice.</b> The top score in any ranking is partly luck, so the method that tops it usually does worse afterwards (Cawley &amp; Talbot, 2010). On the 80 Market Watch monthly series at 6 months ahead, picking the #1 method from earlier data and scoring it on what came next gave 24% more error than the #1's own score in the table. So the page also tests its own advice: at each past origin it ranks the methods on the errors known then, takes the top one and the top three, and scores what they forecast next.</p>
+      <p><b>Recommendation.</b> The page recommends the equal-weight average of the three best-ranked methods, because pooling a few top methods is more reliable than betting on one (Kourentzes, Barrow &amp; Petropoulos, 2019) and equal weights are hard to beat (Smith &amp; Wallis, 2009). Tested that way on the 80 Market Watch series with a 24-month window, the pool beat the re-picked single best method at 6 months ahead (50 of 80 series, Wilcoxon p = 0.001) and at 12 months ahead (p = 0.015), and matched it at 1 month. The page switches to the single best method only if that beat the pool by a margin unlikely to be luck, and to naive if the chosen approach did not beat naive. Neither rule changed average accuracy in a test a year back, but naive is the simpler plan when no model earns its place.</p>
+      <p><b>Significance.</b> The Diebold-Mariano test (1995) uses an equal-weighted cosine variance with fixed-b critical values, which keeps its false-alarm rate near 5% with the short backtests used here (Lazarus, Lewis, Stock &amp; Watson, 2018; Coroneo &amp; Iacone, 2020). The version used before, with the Harvey, Leybourne &amp; Newbold (1997) correction, called a method significantly better up to 15% of the time when nothing differed. A table runs many tests at once, so its p-values are Holm-adjusted (Holm, 1979). "Tied" means a method was not shown to be worse than the #1.</p>
+      <p><b>No method is favoured.</b> Every method, including the two fixed combinations, is a candidate. The backtest on your series decides the ranking and which three go into the pool.</p>
+      <p><b>Ranking.</b> MASE ranks the methods. Within one series it orders them exactly as MAE does; its scaling lets errors be compared across series (Hyndman &amp; Koehler, 2006). RMSE breaks ties.</p>
     </div>
     <div class="card doc">
       <h2>What the metrics mean</h2>
@@ -167,7 +176,8 @@ footer { font-size: 12px; color: var(--text-3); margin-top: 24px; }
         <li><b>MSE / RMSE</b>: square the misses first, so one big miss counts heavily. Use when large errors are costly (stockouts, budget overruns).</li>
         <li><b>MAPE</b>: average miss as a % of actual. Intuitive, but undefined at zero, explodes near zero and penalises over-forecasts more than under-forecasts.</li>
         <li><b>sMAPE</b>: divides by the average of actual and forecast; bounded at 200%, but still unstable near zero.</li>
-        <li><b>MASE</b>: MAE divided by the in-sample MAE of a seasonal-naive forecast. Below 1 means the method beats that simple benchmark.</li>
+        <li><b>MASE</b>: MAE divided by the in-sample MAE of a seasonal-naive forecast, which is the typical change over one seasonal cycle. For a trending price that yardstick is large, so a MASE below 1 is easy to reach and is not proof of skill.</li>
+        <li><b>vs naive, vs seasonal naive</b>: MAE divided by the benchmark's MAE on exactly the same forecasts. −15% means misses 15% smaller than the benchmark's (Davydenko &amp; Fildes, 2013). This is the fair comparison.</li>
         <li><b>Bias (ME)</b>: average of actual minus forecast. Persistently positive = under-forecasting.</li>
       </ul>
     </div>
@@ -196,6 +206,14 @@ footer { font-size: 12px; color: var(--text-3); margin-top: 24px; }
       <li>Hoerl, A. E., &amp; Kennard, R. W. (1970). Ridge regression: Biased estimation for nonorthogonal problems. <i>Technometrics, 12</i>(1), 55–67. <a href="https://doi.org/10.1080/00401706.1970.10488634">doi:10.1080/00401706.1970.10488634</a></li>
       <li>Friedman, J. H. (2001). Greedy function approximation: A gradient boosting machine. <i>Annals of Statistics, 29</i>(5), 1189–1232. <a href="https://doi.org/10.1214/aos/1013203451">doi:10.1214/aos/1013203451</a></li>
       <li>Diebold, F. X., &amp; Mariano, R. S. (1995). Comparing predictive accuracy. <i>Journal of Business &amp; Economic Statistics, 13</i>(3), 253–263. <a href="https://doi.org/10.1080/07350015.1995.10524599">doi:10.1080/07350015.1995.10524599</a></li>
+      <li>Lazarus, E., Lewis, D. J., Stock, J. H., &amp; Watson, M. W. (2018). HAR inference: Recommendations for practice. <i>Journal of Business &amp; Economic Statistics, 36</i>(4), 541–559. <a href="https://doi.org/10.1080/07350015.2018.1506926">doi:10.1080/07350015.2018.1506926</a></li>
+      <li>Coroneo, L., &amp; Iacone, F. (2020). Comparing predictive accuracy in small samples using fixed-smoothing asymptotics. <i>Journal of Applied Econometrics, 35</i>(4), 391–409. <a href="https://doi.org/10.1002/jae.2756">doi:10.1002/jae.2756</a></li>
+      <li>Holm, S. (1979). A simple sequentially rejective multiple test procedure. <i>Scandinavian Journal of Statistics, 6</i>(2), 65–70. <a href="https://www.jstor.org/stable/4615733">jstor.org/stable/4615733</a></li>
+      <li>Kourentzes, N., Barrow, D., &amp; Petropoulos, F. (2019). Another look at forecast selection and combination: Evidence from forecast pooling. <i>International Journal of Production Economics, 209</i>, 226–235. <a href="https://doi.org/10.1016/j.ijpe.2018.05.019">doi:10.1016/j.ijpe.2018.05.019</a></li>
+      <li>Smith, J., &amp; Wallis, K. F. (2009). A simple explanation of the forecast combination puzzle. <i>Oxford Bulletin of Economics and Statistics, 71</i>(3), 331–355. <a href="https://ideas.repec.org/a/bla/obuest/v71y2009i3p331-355.html">ideas.repec.org record</a></li>
+      <li>Cawley, G. C., &amp; Talbot, N. L. C. (2010). On over-fitting in model selection and subsequent selection bias in performance evaluation. <i>Journal of Machine Learning Research, 11</i>, 2079–2107. <a href="https://jmlr.org/papers/v11/cawley10a.html">jmlr.org/papers/v11/cawley10a.html</a></li>
+      <li>Davydenko, A., &amp; Fildes, R. (2013). Measuring forecasting accuracy: The case of judgmental adjustments to SKU-level demand forecasts. <i>International Journal of Forecasting, 29</i>(3), 510–522. <a href="https://doi.org/10.1016/j.ijforecast.2012.09.002">doi:10.1016/j.ijforecast.2012.09.002</a></li>
+      <li>Kolassa, S. (2020). Why the "best" point forecast depends on the error or accuracy measure. <i>International Journal of Forecasting, 36</i>(1), 208–211. <a href="https://eprints.lancs.ac.uk/id/eprint/213526">eprints.lancs.ac.uk/id/eprint/213526</a></li>
       <li>Harvey, D., Leybourne, S., &amp; Newbold, P. (1997). Testing the equality of prediction mean squared errors. <i>International Journal of Forecasting, 13</i>(2), 281–291. <a href="https://doi.org/10.1016/S0169-2070(96)00719-4">doi:10.1016/S0169-2070(96)00719-4</a></li>
       <li>Makridakis, S., Spiliotis, E., &amp; Assimakopoulos, V. (2018). Statistical and machine learning forecasting methods: Concerns and ways forward. <i>PLOS ONE, 13</i>(3), e0194889. <a href="https://doi.org/10.1371/journal.pone.0194889">doi:10.1371/journal.pone.0194889</a></li>
       <li>Makridakis, S., Spiliotis, E., &amp; Assimakopoulos, V. (2022). M5 accuracy competition: Results, findings, and conclusions. <i>International Journal of Forecasting, 38</i>(4), 1346–1364. <a href="https://doi.org/10.1016/j.ijforecast.2021.11.013">doi:10.1016/j.ijforecast.2021.11.013</a></li>
@@ -518,9 +536,12 @@ footer { font-size: 12px; color: var(--text-3); margin-top: 24px; }
   }
   function treeEval(tr, x) { var kd = tr.kids[x[tr.j] <= tr.thr ? 0 : 1]; return "v" in kd ? kd.v : (x[kd.j] <= kd.thr ? kd.l : kd.r); }
 
-  // ---- Diebold-Mariano test (Diebold & Mariano, 1995) with the Harvey, Leybourne &
-  // Newbold (1997) small-sample correction. Loss = per-origin mean absolute scaled error.
-  // Returns the two-sided p-value for "equal accuracy".
+  // ---- Diebold-Mariano test (Diebold & Mariano, 1995) -------------------------------------
+  // Loss = per-origin mean absolute scaled error. The long-run variance is the equal-weighted
+  // cosine (EWC) estimator with B = floor(0.4 T^(2/3)) and the p-value comes from Student's t
+  // with B degrees of freedom (fixed-b; Lazarus, Lewis, Stock & Watson, 2018; Coroneo & Iacone,
+  // 2020). With the 7 to 35 origins used here this keeps the false-alarm rate near 5%, where the
+  // Harvey-Leybourne-Newbold version used before rejected up to 15% of the time.
   function betacf(a, b, x) {
     var qab = a + b, qap = a + 1, qam = a - 1, c = 1, d = 1 - qab * x / qap, h, m, m2, aa, del;
     if (Math.abs(d) < 1e-300) d = 1e-300; d = 1 / d; h = d;
@@ -545,17 +566,32 @@ footer { font-size: 12px; color: var(--text-3); margin-top: 24px; }
     return x < (a + 1) / (a + b + 2) ? bt * betacf(a, b, x) / a : 1 - bt * betacf(b, a, 1 - x) / b;
   }
   function tTwoSided(t, df) { return ibeta(df / 2, 0.5, df / (df + t * t)); }
-  function dmTest(l1, l2, h) {
-    var T = l1.length, d = [], mu = 0, i, k;
+  // Returns the two-sided p-value for "equal accuracy"; NaN when it cannot be tested.
+  function dmTest(l1, l2) {
+    var T = l1.length, d = [], mu = 0, spread = 0, i, j;
     for (i = 0; i < T; i++) { d.push(l1[i] - l2[i]); mu += d[i]; }
     mu /= T;
-    var hh = Math.max(1, Math.min(h, Math.floor((T - 1) / 2))), g = [];
-    for (k = 0; k < hh; k++) { var s = 0; for (i = k; i < T; i++) s += (d[i] - mu) * (d[i - k] - mu); g.push(s / T); }
-    if (g[0] === 0) return { p: 1, stat: 0, mean: mu };
-    var v = g[0]; for (k = 1; k < hh; k++) v += 2 * g[k]; v /= T;
-    if (v <= 0) v = g[0] / T;
-    var stat = mu / Math.sqrt(v) * Math.sqrt((T + 1 - 2 * hh + hh * (hh - 1) / T) / T);
-    return { p: tTwoSided(stat, T - 1), stat: stat, mean: mu };
+    for (i = 0; i < T; i++) spread = Math.max(spread, Math.abs(d[i] - mu));
+    if (T < 2 || spread <= 1e-12 * Math.abs(mu)) return { p: mu === 0 ? 1 : NaN, stat: NaN, mean: mu, B: 0 };
+    var B = Math.max(1, Math.floor(0.4 * Math.pow(T, 2 / 3))), om = 0;
+    for (j = 1; j <= B; j++) {
+      var L = 0;
+      for (i = 0; i < T; i++) L += Math.cos(Math.PI * j * (i + 0.5) / T) * (d[i] - mu);
+      L *= Math.sqrt(2 / T); om += L * L;
+    }
+    om /= B;
+    if (!(om > 0)) return { p: NaN, stat: NaN, mean: mu, B: B };
+    var stat = Math.sqrt(T) * mu / Math.sqrt(om);
+    return { p: tTwoSided(stat, B), stat: stat, mean: mu, B: B };
+  }
+  // Holm (1979) step-down adjustment for a family of tests. NaN p-values are left out of the
+  // family and stay NaN.
+  function holm(ps) {
+    var idx = [], out = ps.map(function () { return NaN; }), run = 0, i;
+    for (i = 0; i < ps.length; i++) if (isFinite(ps[i])) idx.push(i);
+    idx.sort(function (a, b) { return ps[a] - ps[b] || a - b; });
+    idx.forEach(function (ix, r) { run = Math.max(run, Math.min(1, (idx.length - r) * ps[ix])); out[ix] = run; });
+    return out;
   }
 
   // ---- equal-weight combinations (Bates & Granger, 1969) ------------------
@@ -646,62 +682,121 @@ footer { font-size: 12px; color: var(--text-3); margin-top: 24px; }
   }
 
   /* Rolling-origin evaluation (Tashman 2000; FPP3 §5.10).
-   * For each origin T = n-test .. n-1 every method is re-fitted on y[0..T-1]
-   * and forecasts 1..h steps ahead; forecasts that land inside the data are
-   * scored. MASE scale = in-sample MAE of the seasonal naive (m=1: naive)
-   * forecast on the training data before the first origin.
-   * prepare() fits every origin once (longest window, 12 steps); a k-step
-   * forecast does not depend on how many steps were requested, so every
-   * horizon/window setting is then scored from the same forecasts. */
+   * At each origin T every method is re-fitted on y[0..T-1] and forecasts 1..h steps ahead.
+   * Only complete origins are scored: those whose whole h-step path lands inside the data, so
+   * every step ahead is scored the same number of times. With a backtest window of N periods
+   * the targets are the last N values and the origins run from n-N to n-h.
+   * MASE scale = in-sample MAE of the seasonal naive (m = 1: naive) forecast on the data
+   * before the first origin.
+   * prepare() fits each origin once (12 steps); a k-step forecast does not depend on how many
+   * steps were requested, so every horizon/window setting is scored from the same forecasts.
+   * It fits twice the window: the older half lets the page test its own choice (see below). */
   var MAXH = 12, WINDOWS = [12, 24, 36];
   function maxWindow(n, m) { var w = 0; WINDOWS.forEach(function (x) { if (n - x >= minTrain(m)) w = x; }); return w; }
   // skip: indices of values that were filled in (interpolated gaps). They are used for fitting
   // but never scored as targets, so a method is not judged against a made-up number.
-  function prepare(y, m, onProgress, skip) {
+  // want: how many origins to fit (default: twice the longest window the series allows).
+  function prepare(y, m, onProgress, skip, want) {
     var n = y.length, W = maxWindow(n, m), sk = {};
     for (var i0 = 0; i0 < n; i0++) if (typeof y[i0] !== "number" || !isFinite(y[i0])) throw new Error("Value " + (i0 + 1) + " of the series is not a number. Remove or fill it and try again.");
     (skip || []).forEach(function (i) { sk[i] = true; });
     if (!W) throw new Error("Need at least " + (minTrain(m) + 12) + " observations for this seasonality setting (have " + n + ").");
-    var meths = activeMethods(m), fc = {}, fut = {};
-    function avg(arrs) { var o = []; for (var k = 0; k < MAXH; k++) { var s = 0; for (var i = 0; i < arrs.length; i++) s += arrs[i][k]; o.push(s / arrs.length); } return o; }
-    meths.forEach(function (d) {
-      fc[d.id] = {};
-      if (d.parts) { // a combination: average the component forecasts already computed (same numbers as refitting)
-        for (var T0 = n - W; T0 < n; T0++) fc[d.id][T0] = avg(d.parts.map(function (p) { return fc[p][T0]; }));
-        fut[d.id] = { f: avg(d.parts.map(function (p) { return fut[p].f; })) };
-      } else {
-        for (var T = n - W; T < n; T++) fc[d.id][T] = d.fn(y.slice(0, T), MAXH, m).f;
-        fut[d.id] = d.fn(y, MAXH, m);
-      }
+    var P = { y: y, m: m, W: W, meths: activeMethods(m), fc: {}, fut: {}, skip: sk, nSkip: (skip || []).length, lo: n };
+    P.meths.forEach(function (d) { P.fc[d.id] = {}; });
+    ensure(P, want || 2 * W, onProgress);
+    P.meths.forEach(function (d) {
+      P.fut[d.id] = d.parts ? { f: avg(d.parts.map(function (p) { return P.fut[p].f; })) } : d.fn(y, MAXH, m);
+    });
+    return P;
+  }
+  function avg(arrs) { var o = []; for (var k = 0; k < arrs[0].length; k++) { var s = 0; for (var i = 0; i < arrs.length; i++) s += arrs[i][k]; o.push(s / arrs.length); } return o; }
+  // Fit more (older) origins so that at least `want` origins exist, as far as the data allows.
+  // Returns true when it had to fit anything.
+  function ensure(P, want, onProgress) {
+    var y = P.y, n = y.length, m = P.m, lo = Math.max(n - Math.max(want, P.W), minTrain(m));
+    if (lo >= P.lo) return false;
+    P.meths.forEach(function (d) {
+      for (var T = lo; T < P.lo; T++) // a combination averages the component forecasts already computed (same numbers as refitting)
+        P.fc[d.id][T] = d.parts ? avg(d.parts.map(function (p) { return P.fc[p][T]; })) : d.fn(y.slice(0, T), MAXH, m).f;
       if (onProgress) onProgress(d.id);
     });
-    return { y: y, m: m, W: W, meths: meths, fc: fc, fut: fut, skip: sk, nSkip: (skip || []).length };
+    P.lo = lo;
+    return true;
   }
+  // Ranking used everywhere on the page: lowest MAE (equivalently MASE) first, then lowest
+  // RMSE, then method order. Anything not finite goes last.
+  function cmpNum(x, y) { x = isFinite(x) ? x : Infinity; y = isFinite(y) ? y : Infinity; return x < y ? -1 : x > y ? 1 : 0; }
+
+  /* score(): the table (each method over the window) plus two procedures that test the page's
+   * own advice. At each scored origin T the procedures rank every method on the errors already
+   * known at T (the N periods before T, complete origins only, exactly as the table ranks them
+   * at the end of the data), then forecast with the top method ("pick") or the equal-weight
+   * average of the top three ("pool"; Kourentzes, Barrow & Petropoulos, 2019). They are scored
+   * on the same targets as the methods, so their numbers are free of the selection bias that
+   * flatters the table's winner (Cawley & Talbot, 2010). */
   function score(P, opt) {
-    var y = P.y, n = y.length, h = opt.h, m = P.m, test = opt.test, first = n - test;
+    var y = P.y, n = y.length, h = opt.h, m = P.m, test = opt.test, first = n - test, last = n - h;
     if (test > P.W) throw new Error("Backtest window of " + test + " needs " + (minTrain(m) + test) + " observations (have " + n + ").");
-    var S = trainScale(y, m, first), scale = S.scale, sk = P.skip || {}, out = [];
-    P.meths.forEach(function (d) {
+    if (test < 2 * h) throw new Error("A backtest window of " + test + " is too short for " + h + " steps ahead; use at least " + 2 * h + ".");
+    var S = trainScale(y, m, first), scale = S.scale, sk = P.skip || {}, ids = P.meths.map(function (d) { return d.id; });
+    function recordsOf(fcAt) {
       var rec = [];
-      for (var T = first; T < n; T++) {
-        var f = P.fc[d.id][T];
-        for (var k = 1; k <= h; k++) {
-          var idx = T + k - 1;
-          if (idx < n && !sk[idx]) rec.push({ origin: T, k: k, idx: idx, y: y[idx], f: f[k - 1], e: y[idx] - f[k - 1] });
-        }
+      for (var T = first; T <= last; T++) {
+        var f = fcAt(T);
+        for (var k = 1; k <= h; k++) { var idx = T + k - 1; if (!sk[idx]) rec.push({ origin: T, k: k, idx: idx, y: y[idx], f: f[k - 1], e: y[idx] - f[k - 1] }); }
       }
-      var loss = [];
-      for (var T2 = first; T2 < n; T2++) {
+      return rec;
+    }
+    function summary(rec) {
+      var loss = [], q = 0;
+      for (var T = first; T <= last; T++) {
         var s2 = 0, c2 = 0;
-        for (var q = 0; q < rec.length; q++) if (rec[q].origin === T2) { s2 += Math.abs(rec[q].e); c2++; }
+        for (; q < rec.length && rec[q].origin === T; q++) { s2 += Math.abs(rec[q].e); c2++; }
         if (c2) loss.push(s2 / c2 / scale); // an origin whose only targets were filled-in values has no loss
       }
       var byH = [];
       for (var k2 = 1; k2 <= h; k2++) byH.push(metrics(rec.filter(function (r) { return r.k === k2; }), scale).MAE);
-      out.push({ id: d.id, name: d.id === "tslm" && m === 1 ? "Regression: linear trend" : d.name, ref: d.ref, note: d.note, metrics: metrics(rec, scale),
-        maeByH: byH, loss: loss, future: P.fut[d.id].f, params: P.fut[d.id].params || null, records: rec });
+      return { metrics: metrics(rec, scale), maeByH: byH, loss: loss, records: rec };
+    }
+    var out = P.meths.map(function (d) {
+      var r = summary(recordsOf(function (T) { return P.fc[d.id][T]; }));
+      r.id = d.id; r.name = d.id === "tslm" && m === 1 ? "Regression: linear trend" : d.name; r.ref = d.ref; r.note = d.note;
+      r.future = P.fut[d.id].f; r.params = P.fut[d.id].params || null;
+      return r;
     });
-    return { scale: scale, scaleBase: S.base, first: first, results: out };
+    var ranked = rank(out), top = ranked.slice(0, 3).map(function (r) { return r.id; });
+    function poolAt(T, members) { return avg(members.map(function (id) { return P.fc[id][T]; })); }
+    var res = { scale: scale, scaleBase: S.base, first: first, last: last, origins: last - first + 1, h: h, test: test, results: out, members: top,
+      needN: minTrain(m) + 2 * test, pool: null, pick: null, picks: null };
+    // the pool with today's members over the whole window: used only when the history is too
+    // short to test the choice, and labelled as optimistic there
+    res.hindsight = summary(recordsOf(function (T) { return poolAt(T, top); }));
+    res.hindsight.future = avg(top.map(function (id) { return P.fut[id].f; }));
+    if (first - test < P.lo) return res;
+    // per-origin absolute and squared error sums over the h steps, for ranking
+    var sa = {}, sq = {}, T, k;
+    ids.forEach(function (id) {
+      sa[id] = {}; sq[id] = {};
+      for (T = first - test; T <= last; T++) {
+        var a = 0, b = 0, f = P.fc[id][T];
+        for (k = 1; k <= h; k++) { var idx = T + k - 1; if (sk[idx]) continue; var e = y[idx] - f[k - 1]; a += Math.abs(e); b += e * e; }
+        sa[id][T] = a; sq[id][T] = b;
+      }
+    });
+    var picks = {};
+    for (T = first; T <= last; T++) {
+      var A = {}, Q = {};
+      ids.forEach(function (id) { var a = 0, b = 0; for (var t = T - test; t <= T - h; t++) { a += sa[id][t]; b += sq[id][t]; } A[id] = a; Q[id] = b; });
+      picks[T] = ids.map(function (id, i) { return { id: id, i: i }; }).sort(function (u, v) {
+        return cmpNum(A[u.id], A[v.id]) || cmpNum(Q[u.id], Q[v.id]) || u.i - v.i;
+      }).slice(0, 3).map(function (u) { return u.id; });
+    }
+    res.pool = summary(recordsOf(function (T) { return poolAt(T, picks[T]); }));
+    res.pool.future = res.hindsight.future;
+    res.pick = summary(recordsOf(function (T) { return P.fc[picks[T][0]][T]; }));
+    res.pick.future = P.fut[top[0]].f;
+    res.picks = picks;
+    return res;
   }
   /* MASE scale: in-sample MAE of the seasonal naive forecast (naive when m = 1) on the data
    * before the first origin (Hyndman & Koehler, 2006). When that is zero, as for a flat or
@@ -717,23 +812,13 @@ footer { font-size: 12px; color: var(--text-3); margin-top: 24px; }
   }
   function backtest(y, opt) { return score(prepare(y, opt.m), opt); }
 
-  // Does the winner hold up when the backtest window changes?
-  function stability(P, h) {
-    var rows = WINDOWS.filter(function (w) { return w <= P.W; }).map(function (w) {
-      var r = rank(score(P, { h: h, test: w }).results);
-      return { test: w, winner: r[0].id, name: r[0].name, top3: r.slice(0, 3).map(function (x) { return x.id; }) };
-    });
-    return rows;
+  function rank(results) { // lowest MASE wins; RMSE breaks ties; then method order; anything not finite goes last
+    return results.map(function (r, i) { return { r: r, i: i }; }).sort(function (a, b) {
+      return cmpNum(a.r.metrics.MASE, b.r.metrics.MASE) || cmpNum(a.r.metrics.RMSE, b.r.metrics.RMSE) || a.i - b.i;
+    }).map(function (o) { return o.r; });
   }
 
-  function rank(results) { // lowest MASE wins; RMSE breaks ties; anything not finite goes last
-    function cmp(x, y) { x = isFinite(x) ? x : Infinity; y = isFinite(y) ? y : Infinity; return x < y ? -1 : x > y ? 1 : 0; }
-    return results.slice().sort(function (a, b) {
-      return cmp(a.metrics.MASE, b.metrics.MASE) || cmp(a.metrics.RMSE, b.metrics.RMSE);
-    });
-  }
-
-  var api = { dmTest: dmTest, tTwoSided: tTwoSided, SIMPLE_ORDER: ["naive", "snaive", "drift", "ses", "ma3", "theta", "holt", "damped", "tslm", "ridge", "hw", "sarima", "gbm", "combN", "combS"], METHODS: METHODS, activeMethods: activeMethods, backtest: backtest, prepare: prepare, score: score, stability: stability, WINDOWS: WINDOWS, MAXH: MAXH, metrics: metrics, rank: rank, minTrain: minTrain, GRID: GRID, PHI: PHI };
+  var api = { dmTest: dmTest, holm: holm, tTwoSided: tTwoSided, ensure: ensure, METHODS: METHODS, activeMethods: activeMethods, backtest: backtest, prepare: prepare, score: score, WINDOWS: WINDOWS, MAXH: MAXH, metrics: metrics, rank: rank, minTrain: minTrain, GRID: GRID, PHI: PHI };
   if (typeof module !== "undefined" && module.exports) module.exports = api; else root.FCEngine = api;
 })(this);
 </script>
@@ -1485,7 +1570,7 @@ footer { font-size: 12px; color: var(--text-3); margin-top: 24px; }
 
   // ---- render -------------------------------------------------------------
   var COLS = [
-    { k: "MASE", t: "MASE", tip: "Mean absolute scaled error. Below 1 = better than a seasonal-naive forecast on the training data. Ranks the table." },
+    { k: "MASE", t: "MASE", tip: "Mean absolute scaled error: MAE divided by the in-sample error of a seasonal-naive forecast. Ranks the table, in the same order as MAE." },
     { k: "MAE", t: "MAE", tip: "Mean absolute error, in the series' own units." },
     { k: "RMSE", t: "RMSE", tip: "Root mean squared error. Punishes big misses more than MAE." },
     { k: "MSE", t: "MSE", tip: "Mean squared error (RMSE squared)." },
@@ -1501,81 +1586,110 @@ footer { font-size: 12px; color: var(--text-3); margin-top: 24px; }
   }
 
   // Fitting every method at every origin is the slow part, so it runs once per
-  // series + seasonality and every horizon/window choice is scored from it.
+  // series + seasonality and every horizon/window choice is scored from it. It fits twice
+  // the backtest window: the older half is what the page uses to test its own choice.
   var cache = {};
   function run() {
-    var s = current(), key = s.key + "|" + (s.uid || s.name) + "|" + state.m, err = $("err");
+    var s = current(), key = s.key + "|" + (s.uid || s.name) + "|" + state.m, err = $("err"), P = cache[key];
     unitLabels(s);
     err.hidden = true;
-    if (cache[key]) return render(s, cache[key]);
-    $("busy").innerHTML = "<b>Fitting every method at each backtest origin…</b>"; $("busy").hidden = false;
+    var need = 2 * Math.max(state.test, state.testPref || 0);
+    if (P && !moreNeeded(P, need)) return render(s, P);
+    $("busy").innerHTML = P ? "<b>Fitting older origins to test the choice…</b>" : "<b>Fitting every method at each backtest origin…</b>"; $("busy").hidden = false;
     setTimeout(function () {
-      try { cache[key] = E.prepare(s.values, state.m, null, s.skip || []); }
+      try { if (P) E.ensure(P, need); else cache[key] = P = E.prepare(s.values, state.m, null, s.skip || [], need); }
       catch (e) { $("busy").hidden = true; err.textContent = e.message; err.hidden = false; return; }
       $("busy").hidden = true;
-      render(s, cache[key]);
+      render(s, P);
     }, 30);
   }
+  function moreNeeded(P, need) { return Math.max(P.y.length - need, E.minTrain(P.m)) < P.lo; }
+
+  // The page's advice, decided in a fixed order: the top-3 pool by default; the single best
+  // method only if, re-picked at each origin, it beat the pool by a margin unlikely to be luck;
+  // naive if the chosen approach did not beat naive when tested the way it would be used.
+  function decide(res, nv) {
+    if (!res.pool) return { kind: res.hindsight.metrics.MAE < nv.metrics.MAE ? "pool" : "naive", honest: false, row: res.hindsight };
+    var t = E.dmTest(res.pick.loss, res.pool.loss), kind = isFinite(t.p) && t.p < 0.05 && t.mean < 0 ? "pick" : "pool";
+    var row = kind === "pick" ? res.pick : res.pool;
+    return { kind: row.metrics.MAE < nv.metrics.MAE ? kind : "naive", tried: kind, honest: true, row: row, pickVsPool: t };
+  }
+  function relPct(a, b) { return 100 * (a / b - 1); }
+  function relText(v) { return !isFinite(v) ? "n/a" : (v < 0 ? "−" : v > 0 ? "+" : "") + fmt(Math.abs(v), 1) + "%"; }
+  function pf(p) { return !isFinite(p) ? "not testable" : p < 0.001 ? "p < 0.001" : "p = " + fmt(p, 3); }
+  function nameList(names) { names = names.map(function (x) { return "<b>" + esc(x) + "</b>"; }); return names.length < 2 ? names.join("") : names.slice(0, -1).join(", ") + " and " + names[names.length - 1]; }
 
   function render(s, P) {
-    var err = $("err");
-    Array.prototype.forEach.call($("test").options, function (o) { o.disabled = +o.value > P.W; });
+    var err = $("err"), WS = E.WINDOWS;
+    // a window must be at least twice the horizon, so every step ahead is scored at least h+1 times
+    Array.prototype.forEach.call($("h").options, function (o) { o.disabled = 2 * +o.value > P.W; });
+    if (2 * state.h > P.W) { state.h = [12, 6, 3, 1].filter(function (v) { return 2 * v <= P.W; })[0]; $("h").value = String(state.h); }
     if (!state.testPref) state.testPref = state.test;
-    state.test = Math.min(state.testPref, P.W); $("test").value = String(state.test);
-    var meths = P.meths;
-    if (!meths.some(function (d) { return d.id === state.compare; })) state.compare = "naive";
-    var res;
+    var ok = WS.filter(function (w) { return w <= P.W && w >= 2 * state.h; });
+    state.test = ok.filter(function (w) { return w <= state.testPref; }).pop() || ok[0];
+    Array.prototype.forEach.call($("test").options, function (o) { o.disabled = ok.indexOf(+o.value) < 0; });
+    $("test").value = String(state.test);
+    if (moreNeeded(P, 2 * state.test)) return run();
+    var meths = P.meths, res;
     try { res = E.score(P, { h: state.h, test: state.test }); }
     catch (e) { err.textContent = e.message; err.hidden = false; return; }
-    var ranked = E.rank(relabel(res.results, s));
-    var stab = E.stability(P, state.h); stab.forEach(function (r) { r.name = displayName(r.winner, r.name, s); });
-    last = { s: s, res: res, ranked: ranked, stab: stab };
-    var best = ranked[0], nv = res.results.filter(function (r) { return r.id === "naive"; })[0];
+    var ranked = E.rank(relabel(res.results, s)), byId = {};
+    res.results.forEach(function (r) { byId[r.id] = r; });
+    var nv = byId.naive, sn = byId.snaive, best = ranked[0], dec = decide(res, nv);
+    var poolNames = res.members.map(function (id) { return byId[id].name; });
+    // primary series on the page = what the page recommends
+    var prim = dec.kind === "naive" ? { id: "naive", name: nv.name, r: nv, future: nv.future }
+      : dec.kind === "pick" ? { id: best.id, name: best.name, r: res.pick, future: best.future }
+      : { id: "pool", name: "Top-3 pool", r: dec.row, future: (res.pool || res.hindsight).future };
     var ref = s.values[s.values.length - 1];
+    last = { s: s, res: res, ranked: ranked, byId: byId, dec: dec, prim: prim, P: P };
 
     // tag + KPIs
     $("tag").innerHTML = s.sample ? '<span class="badge">SAMPLE DATA · synthetic, for demonstration</span>' : "";
-    var gain = 100 * (1 - best.metrics.MAE / nv.metrics.MAE);
+    var ev = dec.kind === "naive" ? dec.row : prim.r, hz = state.h + " " + (state.h > 1 ? many(s) : one(s)) + " ahead";
+    var how = dec.honest ? "re-picked at each origin, " + hz : "in the window used to choose (optimistic)";
     $("kpis").innerHTML =
-      kpi("Best method", best.name, "lowest MASE of " + ranked.length) +
-      kpi("Best MASE", fmt(best.metrics.MASE, 3), scaleText(res.scaleBase, best.metrics.MASE)) +
-      kpi("MAE vs naive", best.id === "naive" ? "0%" : (gain >= 0 ? "−" : "+") + fmt(Math.abs(gain), 1) + "%", best.id === "naive" ? "naive is the winner" : "error " + (gain >= 0 ? "lower" : "higher") + " than naive") +
-      kpi("Forecasts scored", best.metrics.n, state.test + " origins × up to " + state.h + " " + (state.h > 1 ? many(s) : one(s)) + " ahead");
+      kpi("Recommended forecast", dec.kind === "naive" ? "Naive" : prim.name,
+        dec.kind === "pool" ? "average of " + poolNames.join(", ") : dec.kind === "naive" ? "the latest value; " + (dec.tried === "pick" ? "the re-picked best method" : "the top-3 pool") + " did not beat it" : "best single method, re-picked at each origin") +
+      kpi(dec.kind === "naive" ? (dec.tried === "pick" ? "Best method vs naive" : "Top-3 pool vs naive") : "Error vs naive", relText(relPct(ev.metrics.MAE, nv.metrics.MAE)), "MAE, " + how) +
+      (sn ? kpi(dec.kind === "naive" ? "Naive vs seasonal naive" : "Error vs seasonal naive", relText(relPct((dec.kind === "naive" ? nv : ev).metrics.MAE, sn.metrics.MAE)), "same forecasts and targets")
+        : kpi("Best in hindsight", best.name, "MASE " + fmt(best.metrics.MASE, 3) + " used to choose" + (res.pick ? ", " + fmt(res.pick.metrics.MASE, 3) + " re-picked" : ""))) +
+      kpi("Forecasts scored", ev.metrics.n, res.origins + " origins × " + hz);
 
-    // recommendation
-    $("rec").innerHTML = recommend(s, ranked, nv, ref);
+    $("rec").innerHTML = recommend(s, res, ranked, byId, dec, prim, poolNames, ref);
+    honestTable(s, res, byId, best);
 
     // compare picker
-    $("cmp").innerHTML = meths.filter(function (d) { return d.id !== best.id; }).map(function (d) {
+    if (state.compare === prim.id || !byId[state.compare]) state.compare = prim.id === "naive" ? (best.id === "naive" ? ranked[1].id : best.id) : "naive";
+    $("cmp").innerHTML = meths.filter(function (d) { return d.id !== prim.id; }).map(function (d) {
       return '<option value="' + d.id + '"' + (d.id === state.compare ? " selected" : "") + ">" + esc(displayName(d.id, d.name, s)) + "</option>";
     }).join("");
-    if (state.compare === best.id) state.compare = $("cmp").value;
-    var cmp = res.results.filter(function (r) { return r.id === state.compare; })[0];
+    var cmp = byId[state.compare];
 
     // main chart
     var n = s.values.length, fut = futureDates(s.dates, 12, s), labels = s.dates.concat(fut);
     var actual = s.values.map(function (v, i) { return [i, v]; });
     function bt(r) { return r.records.filter(function (q) { return q.k === 1; }).map(function (q) { return [q.idx, q.f]; }); }
-    function fu(r) { return [[n - 1, s.values[n - 1]]].concat(r.future.map(function (v, i) { return [n + i, v]; })); }
+    function fu(f) { return [[n - 1, s.values[n - 1]]].concat(f.map(function (v, i) { return [n + i, v]; })); }
     var C1 = "var(--s1)", C2 = "var(--s2)", CA = "var(--text)";
     var series = [
       { name: "Actual", color: CA, pts: actual },
-      { name: best.name + " (backtest, 1-step)", color: C1, pts: bt(best), dots: true },
-      { name: best.name + " (forecast)", color: C1, pts: fu(best) },
+      { name: prim.name + " (backtest, 1-step)", color: C1, pts: bt(prim.r), dots: true },
+      { name: prim.name + " (forecast)", color: C1, pts: fu(prim.future) },
       { name: cmp.name + " (backtest, 1-step)", color: C2, pts: bt(cmp), dots: true, dash: true },
-      { name: cmp.name + " (forecast)", color: C2, pts: fu(cmp), dash: true }
+      { name: cmp.name + " (forecast)", color: C2, pts: fu(cmp.future), dash: true }
     ];
-    $("lg1").innerHTML = legend([{ name: "Actual", color: CA }, { name: best.name + " (best)", color: C1 }, { name: cmp.name, color: C2, dash: true }]);
+    $("lg1").innerHTML = legend([{ name: "Actual", color: CA }, { name: prim.name + " (recommended)", color: C1 }, { name: cmp.name, color: C2, dash: true }]);
     lineChart($("ch1"), { labels: labels, series: series, xfmt: label, ref: ref, band: [res.first - 0.5 < 0 ? 0 : res.first - 0.5, n - 1], bandLabel: "Backtest window",
-      aria: "Actual values with backtest and 12-" + one(s) + " forecasts for " + best.name + " and " + cmp.name, height: 320 });
+      aria: "Actual values with backtest and 12-" + one(s) + " forecasts for " + prim.name + " and " + cmp.name, height: 320 });
 
     // horizon chart
     if (state.h > 1) {
       $("hz").hidden = false;
       var hl = []; for (var k = 1; k <= state.h; k++) hl.push(k);
-      var hs = [{ name: best.name, color: C1, pts: best.maeByH.map(function (v, i) { return [i, v]; }), dots: true },
+      var hs = [{ name: prim.name, color: C1, pts: prim.r.maeByH.map(function (v, i) { return [i, v]; }), dots: true },
         { name: cmp.name, color: C2, pts: cmp.maeByH.map(function (v, i) { return [i, v]; }), dots: true, dash: true }];
-      $("lg2").innerHTML = legend([{ name: best.name, color: C1 }, { name: cmp.name, color: C2, dash: true }]);
+      $("lg2").innerHTML = legend([{ name: prim.name, color: C1 }, { name: cmp.name, color: C2, dash: true }]);
       lineChart($("ch2"), { labels: hl, series: hs, xfmt: function (k) { return k + " ahead"; }, ref: ref, aria: "MAE by forecast horizon", height: 220, zero: true });
     } else $("hz").hidden = true;
 
@@ -1598,70 +1712,113 @@ footer { font-size: 12px; color: var(--text-3); margin-top: 24px; }
 
   function kpi(t, v, sub) { return '<div class="kpi"><div class="kt">' + esc(t) + '</div><div class="kv">' + esc(v) + '</div><div class="ks">' + esc(sub) + "</div></div>"; }
 
-  function scaleText(base, v) {
-    var nm = { snaive: "seasonal naive", naive: "naive" }[base];
-    if (nm) return (v < 1 ? "beats" : "worse than") + " in-sample " + nm + " (1-step)";
-    return "scaled by the average level, because the history before the backtest is flat";
-  }
-
-  function recommend(s, ranked, nv, ref) {
-    var best = ranked[0], second = ranked[1];
-    var out = "<h2>Recommendation: use " + esc(best.name) + "</h2><ul>";
-    if (best.id === "naive") out += "<li>No method beat the naive forecast. For this series, last month's value is the best planning number; extra modelling adds complexity without accuracy.</li>";
-    else {
-      var gain = 100 * (1 - best.metrics.MASE / nv.metrics.MASE);
-      out += "<li>Over the " + state.test + "-" + one(s) + " backtest it was off by " + fmtV(best.metrics.MAE, ref) + (s.short ? " " + esc(s.short) : "") + " on average (MAE), " +
-        fmt(Math.abs(gain), 1) + "% " + (gain >= 0 ? "better" : "worse") + " than the naive benchmark.</li>";
-      if (gain < 5) out += "<li>That edge over naive is small (under 5%). Treat the series as close to a random walk: plan on the latest value and spend effort on hedging or contract terms rather than on a model.</li>";
+  function recommend(s, res, ranked, byId, dec, prim, poolNames, ref) {
+    var best = ranked[0], nv = byId.naive, u1 = one(s), unit = s.short ? " " + esc(s.short) : "";
+    var hz = state.h + " " + (state.h > 1 ? many(s) : one(s)) + " ahead", out;
+    var honestP = res.pool ? E.holm([E.dmTest(res.pool.loss, nv.loss).p, E.dmTest(res.pick.loss, nv.loss).p]) : null;
+    var why = "Averaging a few strong methods is safer than betting on one, because the top-ranked method is partly there by luck (Kourentzes, Barrow &amp; Petropoulos, 2019).";
+    if (dec.kind === "pool") {
+      out = "<h2>Recommendation: average the top 3 methods</h2><ul>";
+      out += "<li>Average the forecasts of " + nameList(poolNames) + ", the three methods with the lowest error over the last " + state.test + " " + many(s) + ". " + why + "</li>";
+    } else if (dec.kind === "pick") {
+      out = "<h2>Recommendation: use " + esc(best.name) + "</h2><ul>";
+      out += "<li>Picking the single best method at each past " + u1 + " beat the top-3 pool on this series by a margin that is unlikely to be luck (" + pf(dec.pickVsPool.p) + "). Today that method is " + esc(best.name) + ".</li>";
+    } else {
+      out = "<h2>Recommendation: plan on the latest value (naive)</h2><ul>";
     }
-    // Significance (Diebold-Mariano with HLN correction) on per-origin scaled errors
-    var pf = function (p) { return p < 0.001 ? "p < 0.001" : "p = " + fmt(p, 3); };
-    if (best.id !== "naive") {
-      var dn = E.dmTest(best.loss, nv.loss, state.h).p;
-      out += !isFinite(dn) ? "<li>Whether the edge over naive is real cannot be tested here: the backtest errors do not vary enough.</li>"
-        : dn < 0.05 ? "<li>The edge over naive is <b>statistically significant</b> (Diebold-Mariano test, " + pf(dn) + "), so it is unlikely to be luck.</li>"
-        : "<li>The edge over naive is <b>not statistically significant</b> (Diebold-Mariano test, " + pf(dn) + "): it could be luck, so naive is a defensible choice too.</li>";
+    var r = dec.row, g = relPct(r.metrics.MAE, nv.metrics.MAE), who = dec.kind === "naive" ? (dec.tried === "pick" ? "the re-picked single best method" : "the top-3 pool") : dec.kind === "pick" ? "this approach" : "the pool";
+    if (!dec.honest) {
+      out += "<li>This series is too short to test the choice itself with a " + state.test + "-" + u1 + " window: that needs " + res.needN + " " + many(s) + " and it has " + s.values.length + ". " +
+        "The numbers here come from the window used to choose, so they flatter the result. In that window " + who + " missed by " + fmtV(r.metrics.MAE, ref) + unit + " on average at " + hz + ", " +
+        fmt(Math.abs(g), 1) + "% " + (g <= 0 ? "less" : "more") + " than naive." + (dec.kind === "naive" ? " Even so it did not beat naive, so the latest value is the planning number." : "") + " A shorter backtest window may allow the full test.</li>";
+    } else {
+      var pAdj = honestP[dec.tried === "pick" ? 1 : 0];
+      if (dec.kind === "naive") {
+        out += "<li>Tested the way you would use it (" + (dec.tried === "pick" ? "the best method" : "the top 3") + " picked again at each past " + u1 + " from only the errors known then), " + who + " did not beat naive: its error was " + fmt(Math.abs(g), 1) + "% " + (g <= 0 ? "lower" : "higher") +
+          " at " + hz + ". For this series the latest value is as good a planning number as any model here, so effort is better spent on contract terms or hedging than on a model.</li>";
+      } else {
+        out += "<li>Tested the way you would use it (" + (dec.kind === "pool" ? "the top 3 picked" : "the best method picked") + " again at each past " + u1 + " from only the errors known then), " + who + " missed by " + fmtV(r.metrics.MAE, ref) + unit +
+          " on average at " + hz + ", " + fmt(Math.abs(g), 1) + "% less than naive. " +
+          (!isFinite(pAdj) ? "Whether that edge is real cannot be tested here: the errors do not vary enough." : pAdj < 0.05 ? "That edge is <b>statistically significant</b> (" + pf(pAdj) + ")." :
+            "The backtest is too short to tell whether that edge is real (" + pf(pAdj) + "), so naive remains a reasonable fallback.") + "</li>";
+        if (g > -5) out += "<li>An edge under 5% is small. Treat the series as close to a random walk: plan around the latest value and put effort into hedging or contract terms.</li>";
+      }
+      out += "<li>The best single method in the table, " + esc(best.name) + ", scored MASE " + fmt(best.metrics.MASE, 3) + " over this window, but that is the score it was picked on, so it flatters it. " +
+        "Picking the single best method at each past " + u1 + " scored " + fmt(res.pick.metrics.MASE, 3) + " on what came next, against " + fmt(res.pool.metrics.MASE, 3) + " for the top-3 pool." +
+        (dec.kind === "pool" && res.pick.metrics.MAE < res.pool.metrics.MAE ? " That difference is too small for the backtest to separate, so the pool stays the safer default." : "") + "</li>";
     }
-    var d2 = E.dmTest(best.loss, second.loss, state.h).p;
-    var simpler = function (a2, b2) { return E.SIMPLE_ORDER.indexOf(a2.id) < E.SIMPLE_ORDER.indexOf(b2.id); };
-    var alt = ranked.filter(function (r) { return r.id !== best.id && simpler(r, best) && E.dmTest(best.loss, r.loss, state.h).p >= 0.05; })
-      .sort(function (x, y) { return E.SIMPLE_ORDER.indexOf(x.id) - E.SIMPLE_ORDER.indexOf(y.id); })[0];
-    if (!isFinite(d2)) { /* not testable: say nothing about the runner-up */ }
-    else if (d2 >= 0.05) out += "<li>The runner-up, " + esc(second.name) + ", is not significantly worse (" + pf(d2) + ")." +
-      (alt ? " The simplest method that is not significantly worse is <b>" + esc(alt.name) + "</b>; if you value simplicity, it is a sound alternative." : "") + "</li>";
-    else out += "<li>It is significantly better than the runner-up, " + esc(second.name) + " (" + pf(d2) + ").</li>";
+    out += tiedText(ranked, res, s);
     var winners = {};
-    ["MAE", "RMSE", "MAPE", "sMAPE"].forEach(function (k) {
-      var w = ranked.filter(function (r) { return r.metrics[k] !== null; }).sort(function (a, b) { return a.metrics[k] - b.metrics[k]; })[0];
+    ["RMSE", "MAPE", "sMAPE"].forEach(function (k) {
+      var w = ranked.filter(function (x) { return x.metrics[k] !== null; }).sort(function (a, b) { return a.metrics[k] - b.metrics[k]; })[0];
       if (w && w.id !== best.id) (winners[w.name] = winners[w.name] || []).push(k);
     });
     var dis = Object.keys(winners);
-    if (dis.length) out += "<li>Metrics disagree: " + dis.map(function (n) { return esc(n) + " wins on " + winners[n].join(" and "); }).join("; ") + ". MASE is used for the ranking because it is scale-free and stays defined near zero (Hyndman &amp; Koehler, 2006).</li>";
-    else out += "<li>Every error metric agrees on the winner.</li>";
-    var bias = best.metrics.ME, rel = Math.abs(bias) / best.metrics.MAE;
-    if (rel > 0.5) out += "<li>Watch the bias: it tends to " + (bias > 0 ? "under" : "over") + "-forecast (mean error " + fmtV(bias, ref) + "). " + (bias > 0 ? "Budget and safety stock set from it will run short." : "Budget set from it will be padded.") + "</li>";
-    out += stabilityText(last.stab, best, s);
-    var nxt = best.future[0];
-    out += "<li>Next " + one(s) + ": <b>" + fmtV(nxt, ref) + "</b>" + (s.short ? " " + esc(s.short) : "") + ", 12-" + one(s) + " path in the chart below.</li></ul>";
+    if (dis.length) out += "<li>Other error measures would rank a different method first: " + dis.map(function (n) { return esc(n) + " on " + winners[n].join(" and "); }).join("; ") +
+      ". The table ranks by MASE, which orders methods the same way as MAE. Use RMSE instead when one large miss costs more than several small ones (Kolassa, 2020).</li>";
+    var bias = r.metrics.ME, rel = Math.abs(bias) / r.metrics.MAE;
+    if (dec.kind !== "naive" && rel > 0.5) out += "<li>Watch the bias: it tends to " + (bias > 0 ? "under" : "over") + "-forecast (mean error " + fmtV(bias, ref) + "). " + (bias > 0 ? "Budget and safety stock set from it will run short." : "Budget set from it will be padded.") + "</li>";
+    out += "<li>Next " + u1 + ": <b>" + fmtV(prim.future[0], ref) + "</b>" + unit + ", 12-" + u1 + " path in the chart below.</li></ul>";
     return out;
   }
 
-  function stabilityText(rows, best, s) {
-    if (rows.length < 2) return "";
-    var ws = rows.map(function (r) { return r.test; }).join(", ");
-    if (rows.every(function (r) { return r.winner === best.id; }))
-      return "<li><b>Stable:</b> " + esc(best.name) + " also wins with " + ws + "-" + one(s) + " backtest windows.</li>";
-    var list = rows.map(function (r) { return r.test + " " + many(s) + ": " + esc(r.name); }).join("; ");
-    if (rows.every(function (r) { return r.top3.indexOf(best.id) >= 0; }))
-      return "<li><b>Mostly stable:</b> the winner changes with the backtest window (" + list + "), but " + esc(best.name) + " stays in the top 3 each time.</li>";
-    return "<li><b>Not stable:</b> the winner changes with the backtest window (" + list + "). Treat the ranking as a shortlist, and lean toward the simpler or combined method.</li>";
+  // Methods not shown to be worse than the table's #1 (Diebold-Mariano, Holm-adjusted across
+  // the table). The ranking among them is not reliable.
+  function vsBest(ranked) {
+    var best = ranked[0], others = ranked.slice(1), adj = E.holm(others.map(function (r) { return E.dmTest(r.loss, best.loss).p; })), o = {};
+    others.forEach(function (r, i) { o[r.id] = adj[i]; });
+    return o;
+  }
+  function tiedText(ranked, res, s) {
+    var vb = last.vb = vsBest(ranked), best = ranked[0], others = ranked.slice(1);
+    var worse = others.filter(function (r) { return vb[r.id] < 0.05; }).map(function (r) { return r.name; });
+    var tied = others.length - worse.length, lim = "With " + res.origins + " overlapping origins the significance test only separates large, steady differences";
+    if (!worse.length) return "<li>" + lim + ", and none of the other " + others.length + " methods was shown to be worse than " + esc(best.name) +
+      ". So the ranking is a guide only, which is one reason the page pools the top three.</li>";
+    if (!tied) return "<li>Every other method scored significantly worse than " + esc(best.name) + " in this window.</li>";
+    return "<li>" + (worse.length > 5 ? worse.length + " methods were" : nameList(worse) + (worse.length > 1 ? " were" : " was")) + " shown to be worse than " + esc(best.name) +
+      ". " + lim + ", so the other " + tied + " are statistically tied with it and their order in the table is not reliable.</li>";
   }
 
-  function pv(r) {
-    if (r.id === "naive") return "–";
-    var nv = last.ranked.filter(function (x) { return x.id === "naive"; })[0], t = E.dmTest(r.loss, nv.loss, state.h);
-    var txt = t.p < 0.001 ? "<0.001" : fmt(t.p, 3);
-    return t.p < 0.05 ? (t.mean < 0 ? "<b>" + txt + " better</b>" : txt + " worse") : txt;
+  // Testing the choice itself: each approach is re-picked at every past origin from the errors
+  // known then, and scored on what happened next. The hindsight row is shown for contrast.
+  function honestTable(s, res, byId, best) {
+    var nv = byId.naive, sn = byId.snaive, el = $("honest");
+    if (!res.pool) {
+      el.innerHTML = '<p class="hint" style="margin:0">Testing the choice needs at least ' + res.needN + " " + many(s) + " of history with a " + state.test + "-" + one(s) +
+        " backtest window; this series has " + s.values.length + ". Pick a shorter window, or read the ranking below as optimistic.</p>";
+      return;
+    }
+    var p = E.holm([E.dmTest(res.pool.loss, nv.loss).p, E.dmTest(res.pick.loss, nv.loss).p]);
+    var rows = [
+      { name: "Top-3 pool", note: "Average of the three best methods, re-picked at each origin", r: res.pool, p: p[0], cls: "win" },
+      { name: "Best single method", note: "The top method, re-picked at each origin", r: res.pick, p: p[1] },
+      { name: "Naive", note: "Benchmark: the latest value", r: nv, p: null }
+    ];
+    if (sn) rows.push({ name: "Seasonal naive", note: "Benchmark: the value one cycle earlier", r: sn, p: null });
+    rows.push({ name: esc(best.name) + ", best in hindsight", note: "Scored on the window it was picked on, so this number is optimistic", r: best, p: null, cls: "dim" });
+    var ref = s.values[s.values.length - 1];
+    var h = '<table><thead><tr><th class="l">Approach</th><th title="Mean absolute scaled error">MASE</th><th title="Mean absolute error, in the series\' units">MAE</th><th>RMSE</th><th title="Mean error, actual minus forecast">Bias (ME)</th>' +
+      '<th title="MAE relative to naive on the same forecasts (Davydenko &amp; Fildes, 2013)">vs naive</th>' + (sn ? '<th title="MAE relative to seasonal naive on the same forecasts">vs seasonal naive</th>' : "") +
+      '<th title="Diebold-Mariano test against naive, fixed-b variance, Holm-adjusted over the two re-picked approaches">p vs naive</th></tr></thead><tbody>';
+    rows.forEach(function (o) {
+      var m = o.r.metrics, isNv = o.r === nv;
+      h += "<tr" + (o.cls ? ' class="' + o.cls + '"' : "") + '><td class="l"><b>' + o.name + '</b><div class="ref">' + esc(o.note) + "</div></td><td>" + fmt(m.MASE, 3) + "</td><td>" + fmt(m.MAE, digits(ref)) + "</td><td>" + fmt(m.RMSE, digits(ref)) +
+        "</td><td>" + fmt(m.ME, digits(ref)) + "</td><td>" + (isNv ? "–" : relText(relPct(m.MAE, nv.metrics.MAE))) + "</td>" + (sn ? "<td>" + (o.r === sn ? "–" : relText(relPct(m.MAE, sn.metrics.MAE))) + "</td>" : "") +
+        "<td>" + (o.p === null ? "–" : !isFinite(o.p) ? "n/a" : o.p < 0.05 ? "<b>" + (o.p < 0.001 ? "&lt;0.001" : fmt(o.p, 3)) + "</b>" : fmt(o.p, 3)) + "</td></tr>";
+    });
+    el.innerHTML = '<div class="tblwrap">' + h + "</tbody></table></div>";
+  }
+
+  function pvCells(ranked) { // Holm-adjusted across the table
+    var nv = last.byId.naive, others = ranked.filter(function (r) { return r.id !== "naive"; });
+    var tests = others.map(function (r) { return E.dmTest(r.loss, nv.loss); }), adj = E.holm(tests.map(function (t) { return t.p; })), o = {};
+    others.forEach(function (r, i) {
+      var p = adj[i], txt = !isFinite(p) ? "n/a" : p < 0.001 ? "<0.001" : fmt(p, 3);
+      o[r.id] = isFinite(p) && p < 0.05 ? (tests[i].mean < 0 ? "<b>" + txt + " better</b>" : txt + " worse") : txt;
+    });
+    o.naive = "–";
+    return o;
   }
   function table(ranked) {
     var rows = ranked.map(function (r, i) { return { r: r, rank: i + 1 }; });
@@ -1671,7 +1828,7 @@ footer { font-size: 12px; color: var(--text-3); margin-top: 24px; }
       if (x === null) return 1; if (y === null) return -1;
       return state.dir * (x - y);
     });
-    var bestOf = {};
+    var bestOf = {}, pv = pvCells(ranked), vb = last.vb || vsBest(ranked), pool = last.res.members;
     COLS.forEach(function (c) {
       var v = ranked.map(function (r) { var m = r.metrics[c.k]; return m === null ? Infinity : c.k === "ME" ? Math.abs(m) : m; });
       bestOf[c.k] = Math.min.apply(null, v);
@@ -1679,15 +1836,17 @@ footer { font-size: 12px; color: var(--text-3); margin-top: 24px; }
     var ref = last.s.values[last.s.values.length - 1];
     var h = '<table><thead><tr><th data-k="rank" class="l">#</th><th class="l">Method</th>' +
       COLS.map(function (c) { return '<th data-k="' + c.k + '" title="' + esc(c.tip) + '">' + c.t + (state.sort === c.k ? (state.dir > 0 ? " ▲" : " ▼") : "") + "</th>"; }).join("") +
-      '<th title="Diebold-Mariano test against the naive forecast. Below 0.05 = significantly different.">p vs naive</th><th class="l">Fitted parameters</th></tr></thead><tbody>';
+      '<th title="Diebold-Mariano test against naive (fixed-b variance), Holm-adjusted across the table. Below 0.05 = significantly different.">p vs naive</th>' +
+      '<th title="Diebold-Mariano test against the #1 method, Holm-adjusted. Tied = not shown to be worse; with few origins the test only separates large, steady differences.">vs #1</th><th class="l">Fitted parameters</th></tr></thead><tbody>';
     rows.forEach(function (o) {
-      var r = o.r, m = r.metrics;
-      h += '<tr' + (o.rank === 1 ? ' class="win"' : "") + '><td class="l">' + o.rank + '</td><td class="l"><b>' + esc(r.name) + '</b><div class="ref">' + esc(r.note) + " " + esc(r.ref) + "</div></td>" +
+      var r = o.r, m = r.metrics, p1 = vb[r.id];
+      var v1 = o.rank === 1 ? "–" : !(p1 < 0.05) ? "tied" : "worse, " + (p1 < 0.001 ? "p<0.001" : "p " + fmt(p1, 3));
+      h += '<tr' + (o.rank === 1 ? ' class="win"' : "") + '><td class="l">' + o.rank + '</td><td class="l"><b>' + esc(r.name) + "</b>" + (pool.indexOf(r.id) >= 0 ? ' <span class="pill">in pool</span>' : "") + '<div class="ref">' + esc(r.note) + " " + esc(r.ref) + "</div></td>" +
         COLS.map(function (c) {
           var v = m[c.k], isBest = v !== null && (c.k === "ME" ? Math.abs(v) : v) === bestOf[c.k];
           var d = c.k === "MASE" ? 3 : (c.k === "MAPE" || c.k === "sMAPE") ? 2 : c.k === "MSE" ? digits(v) : digits(ref);
           return "<td" + (isBest ? ' class="best" title="Best in column"' : "") + ">" + (isBest ? "★ " : "") + fmt(v, d) + "</td>";
-        }).join("") + "<td>" + pv(r) + '</td><td class="l pm">' + esc(paramText(r.params)) + "</td></tr>";
+        }).join("") + "<td>" + pv[r.id] + "</td><td>" + v1 + '</td><td class="l pm">' + esc(paramText(r.params)) + "</td></tr>";
     });
     $("tbl").innerHTML = h + "</tbody></table>";
     Array.prototype.forEach.call($("tbl").querySelectorAll("th[data-k]"), function (th) {
@@ -1702,7 +1861,9 @@ footer { font-size: 12px; color: var(--text-3); margin-top: 24px; }
   function downloadCSV() {
     if (!last) return;
     var lines = ["method,origin_date,steps_ahead,target_date,actual,forecast,error"];
-    last.res.results.forEach(function (r) {
+    var rows = last.res.results.slice();
+    if (last.res.pool) rows.push({ name: "Top-3 pool (re-picked at each origin)", records: last.res.pool.records }, { name: "Best single method (re-picked at each origin)", records: last.res.pick.records });
+    rows.forEach(function (r) {
       r.records.forEach(function (q) {
         lines.push([JSON.stringify(r.name), last.s.dates[q.origin - 1], q.k, last.s.dates[q.idx], q.y, q.f, q.e].join(","));
       });

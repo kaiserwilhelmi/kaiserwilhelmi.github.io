@@ -1,9 +1,10 @@
 """Independent Python re-implementation of every method and metric.
 
-Runs the same rolling-origin backtest as engine.js and compares each metric, the
-winner at each backtest window (stability check),
-each MAE-by-horizon value, each future forecast and each fitted parameter
-against the JS output (js_results.json, written by `node dump_js.js`).
+Runs the same rolling-origin backtest as engine.js (complete origins only) and compares
+each metric, each MAE-by-horizon value, each per-origin loss, each future forecast, each
+fitted parameter, the ranking, every Diebold-Mariano p-value (EWC fixed-b) and its Holm
+adjustment, and the top-3 pool and single pick re-chosen at every origin, against the JS
+output (js_results.json, written by `node dump_js.js`).
 Regression uses numpy least squares (a different solver from the JS
 Gaussian elimination) as an extra independent check.
 """
@@ -300,16 +301,24 @@ def gbm(y, h, m):
     return ml_forecast(y, h, z, L, sd, predict), {"trees": len(trees)}
 
 
-def dm_test(l1, l2, h):
+def dm_test(l1, l2):
+    """Diebold-Mariano test with the equal-weighted cosine long-run variance and fixed-b
+    Student-t reference, nu = B = floor(0.4 T^(2/3)) (Lazarus, Lewis, Stock & Watson 2018, sec. 3)."""
     from scipy import stats
     T = len(l1); d = [a - b for a, b in zip(l1, l2)]; mu = psum(d) / T
-    hh = max(1, min(h, (T - 1) // 2))
-    g = [psum((d[i] - mu) * (d[i - k] - mu) for i in range(k, T)) / T for k in range(hh)]
-    if g[0] == 0: return 1.0
-    v = (g[0] + 2 * psum(g[1:])) / T
-    if v <= 0: v = g[0] / T
-    stat = mu / math.sqrt(v) * math.sqrt((T + 1 - 2 * hh + hh * (hh - 1) / T) / T)
-    return float(2 * stats.t.sf(abs(stat), T - 1))
+    if T < 2 or max(abs(x - mu) for x in d) <= 1e-12 * abs(mu): return 1.0 if mu == 0 else None
+    B = max(1, int(math.floor(0.4 * T ** (2.0 / 3.0))))
+    lam = [math.sqrt(2.0 / T) * psum(math.cos(math.pi * j * (t + 0.5) / T) * (d[t] - mu) for t in range(T)) for j in range(1, B + 1)]
+    om = psum(x * x for x in lam) / B
+    if not om > 0: return None
+    return float(2 * stats.t.sf(abs(math.sqrt(T) * mu / math.sqrt(om)), B))
+
+
+def holm(ps):
+    """Holm (1979) step-down adjusted p-values; None stays None and is left out of the family."""
+    idx = sorted([i for i, p in enumerate(ps) if p is not None], key=lambda i: (ps[i], i)); out = [None] * len(ps); run = 0.0
+    for r, i in enumerate(idx): run = max(run, min(1.0, (len(idx) - r) * ps[i])); out[i] = run
+    return out
 
 
 def combo(fns):
@@ -342,13 +351,16 @@ def load(path):
     with open(path) as fh: return [float(r["value"]) for r in csv.DictReader(fh)]
 
 
-def run_all(y, m, max_test, max_h, future):
+JS_ORDER = ["naive", "snaive", "drift", "ma3", "ses", "holt", "damped", "hw", "sarima", "theta", "ridge", "gbm", "tslm", "combS", "combN"]
+
+
+def run_all(y, m, lo, max_h, future):
     """Fit each method once per origin with the longest horizon; truncating is exact
     because a k-step forecast does not depend on how many steps are requested."""
     n = len(y); fc = {}
     for mid, fn, seas in METHODS:
         if (seas is True and m == 1) or (seas == "N" and m > 1): continue
-        fc[mid] = {T: fn(y[:T], max_h, m)[0] for T in range(n - max_test, n)}
+        fc[mid] = {T: fn(y[:T], max_h, m)[0] for T in range(lo, n)}
         fc[mid]["future"] = fn(y, future, m)
     return fc
 
@@ -364,19 +376,36 @@ def train_scale(y, m, first):
     return lvl if lvl > 0 else 1.0
 
 
-def evaluate(y, fc, m, test, h):
-    n = len(y); first = n - test
+def evaluate(y, fc, m, test, h, lo):
+    """Complete origins only: origins n-test .. n-h, each scored on all h steps."""
+    n = len(y); first = n - test; last = n - h
     scale = train_scale(y, m, first)
-    out = {}
-    for mid in fc:
-        rec = [(T, k, y[T + k - 1], fc[mid][T][k - 1]) for T in range(first, n) for k in range(1, h + 1) if T + k - 1 < n]
-        loss = []
-        for T in range(first, n):
-            es = [abs(r[2] - r[3]) for r in rec if r[0] == T]
-            loss.append(psum(es) / len(es) / scale)
-        out[mid] = {"loss": loss, "metrics": metrics(rec, scale),
-                    "maeByH": [metrics([r for r in rec if r[1] == k], scale)["MAE"] for k in range(1, h + 1)]}
-    return scale, out
+    ids = sorted(fc, key=JS_ORDER.index)
+
+    def summary(fc_at):
+        rec = [(T, k, y[T + k - 1], fc_at(T)[k - 1]) for T in range(first, last + 1) for k in range(1, h + 1)]
+        loss = [psum(abs(r[2] - r[3]) for r in rec if r[0] == T) / h / scale for T in range(first, last + 1)]
+        return {"loss": loss, "metrics": metrics(rec, scale), "maeByH": [metrics([r for r in rec if r[1] == k], scale)["MAE"] for k in range(1, h + 1)]}
+    out = {mid: summary(lambda T, mid=mid: fc[mid][T]) for mid in ids}
+    ranked = sorted(ids, key=lambda k: (out[k]["metrics"]["MASE"], out[k]["metrics"]["RMSE"], JS_ORDER.index(k)))
+    top = ranked[:3]
+    pool_at = lambda T, mem: [psum(fc[i][T][k] for i in mem) / len(mem) for k in range(len(fc[mem[0]][T]))]
+    res = {"scale": scale, "out": out, "ranked": ranked, "members": top, "pool": None, "pick": None, "picks": None,
+           "hindsight": summary(lambda T: pool_at(T, top))}
+    res["hindsight"]["future"] = [psum(fc[i]["future"][0][k] for i in top) / 3 for k in range(12)]
+    if first - test < lo: return res
+    # rank at each origin on the complete origins whose targets all fall before it
+    err = {i: {T: [y[T + k - 1] - fc[i][T][k - 1] for k in range(1, h + 1)] for T in range(first - test, last + 1)} for i in ids}
+    sa = {i: {T: psum(abs(e) for e in err[i][T]) for T in err[i]} for i in ids}
+    sq = {i: {T: psum(e * e for e in err[i][T]) for T in err[i]} for i in ids}
+    picks = {}
+    for T in range(first, last + 1):
+        win = range(T - test, T - h + 1)
+        picks[T] = sorted(ids, key=lambda i: (psum(sa[i][t] for t in win), psum(sq[i][t] for t in win), JS_ORDER.index(i)))[:3]
+    res["picks"] = picks
+    res["pool"] = summary(lambda T: pool_at(T, picks[T])); res["pool"]["future"] = res["hindsight"]["future"]
+    res["pick"] = summary(lambda T: fc[picks[T][0]][T]); res["pick"]["future"] = fc[top[0]]["future"][0]
+    return res
 
 
 def main():
@@ -384,33 +413,48 @@ def main():
     worst, checked = 0.0, 0
     cache = {}
     for case in js:
-        y = load(case["file"]); m = case["m"]
-        key = (case["file"], m)
-        if key not in cache: cache[key] = run_all(y, m, 36, 12, 12)
+        y = load(case["file"]); m = case["m"]; key = (case["file"], m)
+        if key not in cache: cache[key] = run_all(y, m, case["lo"], 12, 12)
         fc = cache[key]
-        scale, py = evaluate(y, fc, m, case["test"], case["h"])
-        pairs = [("scale", scale, case["scale"])]
+        ev = evaluate(y, fc, m, case["test"], case["h"], case["lo"]); py = ev["out"]
+        pairs = [("scale", ev["scale"], case["scale"])]
+        bad = lambda what, a, b: print("MISMATCH", case["label"], what, a, b)
+        if ev["ranked"] != case["ranked"]: bad("ranking", ev["ranked"], case["ranked"]); worst = math.inf
+        if ev["members"] != case["members"]: bad("pool members", ev["members"], case["members"]); worst = math.inf
+        nv = py["naive"]["loss"]
         for r in case["results"]:
             p = py[r["id"]]
-            for k, v in r["metrics"].items():
-                pairs.append((f"{r['id']}.{k}", p["metrics"][k], v))
+            for k, v in r["metrics"].items(): pairs.append((f"{r['id']}.{k}", p["metrics"][k], v))
             for i, v in enumerate(r["maeByH"]): pairs.append((f"{r['id']}.maeH{i+1}", p["maeByH"][i], v))
+            if len(r["loss"]) != len(p["loss"]): bad(r["id"] + ".loss length", len(p["loss"]), len(r["loss"])); worst = math.inf
             for i, v in enumerate(r["loss"]): pairs.append((f"{r['id']}.loss{i}", p["loss"][i], v))
-            if r["id"] != "naive": pairs.append((f"{r['id']}.dm_vs_naive", dm_test(p["loss"], py["naive"]["loss"], case["h"]), r["dm"]))
+            if r["id"] != "naive": pairs.append((f"{r['id']}.dm_vs_naive", dm_test(p["loss"], nv), r["dm"]))
             ff, pp = fc[r["id"]]["future"]
             for i, v in enumerate(r["future"]): pairs.append((f"{r['id']}.future{i+1}", ff[i], v))
             for k, v in (r["params"] or {}).items(): pairs.append((f"{r['id']}.{k}", pp[k], v))
-        stab = []
-        for w in (12, 24, 36):
-            _, pw = evaluate(y, fc, m, w, case["h"])
-            stab.append(min(pw, key=lambda k: (pw[k]["metrics"]["MASE"], pw[k]["metrics"]["RMSE"])))
-        if stab != case["stability"]: print("STABILITY MISMATCH", case["label"], stab, case["stability"]); worst = math.inf
-        for name, a, b in pairs:
-            checked += 1
+        others = [i for i in ev["ranked"] if i != "naive"]
+        # Holm multiplies a raw p-value by up to the family size, so the rounding allowance grows by the same factor
+        for i, v in zip(others, holm([dm_test(py[i]["loss"], nv) for i in others])): pairs.append((f"{i}.holm_vs_naive", v, case["holmNaive"][i], len(others)))
+        best = ev["ranked"][0]; rest = ev["ranked"][1:]
+        for i, v in zip(rest, holm([dm_test(py[i]["loss"], py[best]["loss"]) for i in rest])): pairs.append((f"{i}.holm_vs_best", v, case["holmBest"][i], len(rest)))
+        for name in ("pool", "pick", "hindsight"):
+            a, b = ev[name], case[name]
+            if (a is None) != (b is None): bad(name + " availability", a is None, b is None); worst = math.inf; continue
+            if a is None: continue
+            for k, v in b["metrics"].items(): pairs.append((f"{name}.{k}", a["metrics"][k], v))
+            for i, v in enumerate(b["maeByH"]): pairs.append((f"{name}.maeH{i+1}", a["maeByH"][i], v))
+            for i, v in enumerate(b["loss"]): pairs.append((f"{name}.loss{i}", a["loss"][i], v))
+            for i, v in enumerate(b["future"]): pairs.append((f"{name}.future{i+1}", a["future"][i], v))
+            pairs.append((f"{name}.dm_vs_naive", dm_test(a["loss"], nv), b["dmNaive"]))
+        if ev["picks"] is not None:
+            for T, ids in ev["picks"].items():
+                if case["picks"][str(T)] != ids: bad(f"picks at origin {T}", ids, case["picks"][str(T)]); worst = math.inf
+        for name, a, b, *k in pairs:
+            checked += 1; k = k[0] if k else 1
             if a is None or b is None:
                 if a is not b: print("MISMATCH", case["label"], name, a, b); worst = math.inf
                 continue
-            rel = abs(a - b) / max(1.0, abs(a))
+            rel = abs(a - b) / max(1.0, abs(a)) / k
             worst = max(worst, rel)
             if rel > 1e-9: print("MISMATCH", case["label"], name, a, b)
     print(f"checked {checked} values across {len(js)} cases; worst relative difference {worst:.2e}")
