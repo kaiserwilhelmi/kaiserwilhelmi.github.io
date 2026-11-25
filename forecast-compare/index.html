@@ -883,29 +883,37 @@ footer { font-size: 12px; color: var(--text-3); margin-top: 24px; }
       sel.sort(function (a, b) { return a - b; });
       return { n: sel.length, med: quantile(sel, 0.5), b: levels.map(function (L) { return confBounds(sel, L); }) };
     }
-    var levels = opt.levels, out = { kind: kind, start: start, levels: levels, future: [], check: [], cover: {}, coverH: {}, nCheck: 0 };
+    // A series that never goes below zero (prices, demand) gets ranges floored at zero. Every actual
+    // is then >= 0, so a clipped range holds exactly when the unclipped one does: coverage is
+    // unchanged and the range only gets narrower.
+    var nonneg = true;
+    for (T = 0; T < n; T++) if (!sk[T] && !(y[T] >= 0)) { nonneg = false; break; }
+    var fl = nonneg ? 0 : -Infinity;
+    var levels = opt.levels, out = { kind: kind, start: start, levels: levels, floor: nonneg ? 0 : null, future: [], check: [], cover: {}, coverH: {}, nCheck: 0 };
     for (k = 1; k <= h; k++) {
       var b = bounds(k, n - k);
       out.future.push(b ? { n: b.n, p50: b.med, lo: b.b.map(function (x) { return x.lo; }), hi: b.b.map(function (x) { return x.hi; }), ok: b.b.map(function (x) { return x.ok; }) } : null);
     }
     // the check: scored origins of the backtest window, errors known at each origin only
-    var first = n - test, last = n - h, hit = levels.map(function () { return 0; }), hitH = hit.slice(), above = hit.slice(), below = hit.slice(), cnt = 0, cntH = 0;
+    var first = n - test, last = n - h, hit = levels.map(function () { return 0; }), hitH = hit.slice(), above = hit.slice(), below = hit.slice(), cnt = 0, cntH = 0, nOrig = 0;
     for (T = Math.max(first, start); T <= last; T++) {
+      var cnt0 = cnt;
       for (k = 1; k <= h; k++) {
         var idx2 = T + k - 1;
         if (sk[idx2]) continue;
         var b2 = bounds(k, T - k);
         if (!b2) continue;
-        var f = paths[T][k - 1], row = { T: T, k: k, n: b2.n, f: f, y: y[idx2], p50: f + b2.med, lo: [], hi: [] };
+        var f = paths[T][k - 1], row = { T: T, k: k, n: b2.n, f: f, y: y[idx2], p50: Math.max(f + b2.med, fl), lo: [], hi: [] };
         levels.forEach(function (L, li) {
-          var lo = f + b2.b[li].lo, hi = f + b2.b[li].hi, inside = y[idx2] >= lo && y[idx2] <= hi;
+          var lo = Math.max(f + b2.b[li].lo, fl), hi = Math.max(f + b2.b[li].hi, fl), inside = y[idx2] >= lo && y[idx2] <= hi;
           row.lo.push(lo); row.hi.push(hi);
           if (inside) { hit[li]++; if (k === h) hitH[li]++; } else if (y[idx2] > hi) above[li]++; else below[li]++;
         });
         out.check.push(row); cnt++; if (k === h) cntH++;
       }
+      if (cnt > cnt0) nOrig++;
     }
-    out.nCheck = cnt; out.nCheckH = cntH;
+    out.nCheck = cnt; out.nCheckH = cntH; out.nOrigins = nOrig;
     out.above = {}; out.below = {};
     levels.forEach(function (L, li) {
       out.cover[L] = cnt ? hit[li] / cnt : NaN; out.coverH[L] = cntH ? hitH[li] / cntH : NaN;
@@ -1892,7 +1900,8 @@ self.onmessage = function (ev) {
     if (calReady && !P.calFailed) rg = E.ranges(P, { h: H, test: state.test, kind: dec.kind, levels: LEVELS });
     var rows = prim.future.slice(0, H).map(function (f, i) {
       var b = rg && rg.future[i];
-      return b ? { k: i + 1, f: f, n: b.n, p50: f + b.p50, ok: b.ok, lo: b.lo.map(function (q) { return f + q; }), hi: b.hi.map(function (q) { return f + q; }) } : null;
+      var fl = rg && rg.floor === 0 ? 0 : -Infinity, clip = function (v) { return Math.max(v, fl); };
+      return b ? { k: i + 1, f: f, n: b.n, p50: clip(f + b.p50), ok: b.ok, lo: b.lo.map(function (q) { return clip(f + q); }), hi: b.hi.map(function (q) { return clip(f + q); }) } : null;
     });
     last = { s: s, res: res, ranked: ranked, byId: byId, dec: dec, prim: prim, P: P, rg: rg, rows: rows };
 
@@ -1983,13 +1992,14 @@ self.onmessage = function (ev) {
 
   // ---- forecast ranges --------------------------------------------------------
   var LEVELS = [0.5, 0.8, 0.95], MAIN = 1; // MAIN: index of the planning range (80%)
+  var FEW = 20; // fewer checked forecasts than this: report the count, not a verdict (binomial s.e. at 80% is about 9 points at 20)
   function pctL(L) { return Math.round(100 * L) + "%"; }
   function pct(x) { return isFinite(x) ? Math.round(100 * x) + "%" : "n/a"; }
   function rangeKpi(s, rg, rows, ref, ready) {
     var H = state.h, r = rows[H - 1], when = label(futureDates(s.dates, H, s)[H - 1]);
     if (!ready) return kpi("80% range, " + when, "…", "building from older backtests");
     if (!r) return kpi("80% range, " + when, "n/a", "too few past forecasts");
-    return kpi("80% range, " + when, fmtV(r.lo[MAIN], ref) + " to " + fmtV(r.hi[MAIN], ref), isFinite(rg.cover[0.8]) ? "held " + pct(rg.cover[0.8]) + " of the time in the backtest" : "not yet checked: too little history");
+    return kpi("80% range, " + when, fmtV(r.lo[MAIN], ref) + " to " + fmtV(r.hi[MAIN], ref), !isFinite(rg.cover[0.8]) ? "not yet checked: too little history" : rg.nCheck < FEW ? "held " + Math.round(rg.cover[0.8] * rg.nCheck) + " of " + rg.nCheck + " times in the backtest" : "held " + pct(rg.cover[0.8]) + " of the time in the backtest");
   }
   function rangeCard(s, P, dec, prim, rg, rows, ref) {
     var el = $("ranges"), H = state.h, u = s.short ? " " + esc(s.short) : "", fd = futureDates(s.dates, H, s), job = fitter.busy();
@@ -2013,9 +2023,10 @@ self.onmessage = function (ev) {
       ", an 80% range around the forecast of " + fmtV(r.f, ref) + ". It is built from " + who + "'s last " + r.n + " forecasts made " + esc(hz) + ".</p>";
     var c = rg.cover[0.8], ab = rg.above[0.8], bl = rg.below[0.8];
     if (rg.nCheck) {
-      var verdict = c < 0.7 ? " That is less often than the label says, so expect more surprises than the range suggests." : c > 0.9 ? " That is more often than the label says, so the range is on the cautious side." : "";
-      html += '<p style="margin:0 0 8px">Check: at the ' + (state.test - H + 1) + " origins in the backtest window, 80% ranges built this way held " + pct(c) + " of the time (" + Math.round(c * rg.nCheck) + " of " + rg.nCheck + " forecasts; " + pct(rg.coverH[0.8]) + " at " + esc(hz) + ")." + verdict + "</p>" +
-        '<p style="margin:0 0 10px">For a budget or a price cap, plan on the forecast and treat the top end as the cautious case. In the check the actual came in above the top end ' + pct(ab) + " of the time and below the bottom end " + pct(bl) + "; an 80% range allows 10% each.</p>";
+      var few = rg.nCheck < FEW, verdict = few ? " That is too few forecasts to judge the range." : c < 0.7 ? " That is less often than the label says, so expect more surprises than the range suggests." : c > 0.9 ? " That is more often than the label says, so the range is on the cautious side." : "";
+      html += '<p style="margin:0 0 8px">Check: at the ' + rg.nOrigins + " " + (rg.nOrigins === 1 ? "origin" : "origins") + " in the backtest window with enough earlier forecasts, 80% ranges built this way held " + pct(c) + " of the time (" + Math.round(c * rg.nCheck) + " of " + rg.nCheck + " forecasts" +
+        (isFinite(rg.coverH[0.8]) && !few ? "; " + pct(rg.coverH[0.8]) + " at " + esc(hz) : "") + ")." + verdict + "</p>" +
+        '<p style="margin:0 0 10px">For a budget or a price cap, plan on the forecast and treat the top end as the cautious case.' + (few ? "" : " In the check the actual came in above the top end " + pct(ab) + " of the time and below the bottom end " + pct(bl) + "; an 80% range allows 10% each.") + "</p>";
     } else html += '<p style="margin:0 0 10px">These ranges cannot be checked on this series: the check needs ' + E.CAL + " past forecasts before the backtest window, and the history is too short for that.</p>";
     var show = LEVELS.map(function (L, li) { return rows.every(function (x) { return !x || x.ok[li]; }); });
     html += '<div class="tblwrap"><table><thead><tr><th class="l">' + esc(one(s).charAt(0).toUpperCase() + one(s).slice(1)) + "</th><th>Forecast</th>" +

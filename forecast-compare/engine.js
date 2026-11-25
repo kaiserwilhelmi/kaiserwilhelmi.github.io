@@ -638,29 +638,37 @@
       sel.sort(function (a, b) { return a - b; });
       return { n: sel.length, med: quantile(sel, 0.5), b: levels.map(function (L) { return confBounds(sel, L); }) };
     }
-    var levels = opt.levels, out = { kind: kind, start: start, levels: levels, future: [], check: [], cover: {}, coverH: {}, nCheck: 0 };
+    // A series that never goes below zero (prices, demand) gets ranges floored at zero. Every actual
+    // is then >= 0, so a clipped range holds exactly when the unclipped one does: coverage is
+    // unchanged and the range only gets narrower.
+    var nonneg = true;
+    for (T = 0; T < n; T++) if (!sk[T] && !(y[T] >= 0)) { nonneg = false; break; }
+    var fl = nonneg ? 0 : -Infinity;
+    var levels = opt.levels, out = { kind: kind, start: start, levels: levels, floor: nonneg ? 0 : null, future: [], check: [], cover: {}, coverH: {}, nCheck: 0 };
     for (k = 1; k <= h; k++) {
       var b = bounds(k, n - k);
       out.future.push(b ? { n: b.n, p50: b.med, lo: b.b.map(function (x) { return x.lo; }), hi: b.b.map(function (x) { return x.hi; }), ok: b.b.map(function (x) { return x.ok; }) } : null);
     }
     // the check: scored origins of the backtest window, errors known at each origin only
-    var first = n - test, last = n - h, hit = levels.map(function () { return 0; }), hitH = hit.slice(), above = hit.slice(), below = hit.slice(), cnt = 0, cntH = 0;
+    var first = n - test, last = n - h, hit = levels.map(function () { return 0; }), hitH = hit.slice(), above = hit.slice(), below = hit.slice(), cnt = 0, cntH = 0, nOrig = 0;
     for (T = Math.max(first, start); T <= last; T++) {
+      var cnt0 = cnt;
       for (k = 1; k <= h; k++) {
         var idx2 = T + k - 1;
         if (sk[idx2]) continue;
         var b2 = bounds(k, T - k);
         if (!b2) continue;
-        var f = paths[T][k - 1], row = { T: T, k: k, n: b2.n, f: f, y: y[idx2], p50: f + b2.med, lo: [], hi: [] };
+        var f = paths[T][k - 1], row = { T: T, k: k, n: b2.n, f: f, y: y[idx2], p50: Math.max(f + b2.med, fl), lo: [], hi: [] };
         levels.forEach(function (L, li) {
-          var lo = f + b2.b[li].lo, hi = f + b2.b[li].hi, inside = y[idx2] >= lo && y[idx2] <= hi;
+          var lo = Math.max(f + b2.b[li].lo, fl), hi = Math.max(f + b2.b[li].hi, fl), inside = y[idx2] >= lo && y[idx2] <= hi;
           row.lo.push(lo); row.hi.push(hi);
           if (inside) { hit[li]++; if (k === h) hitH[li]++; } else if (y[idx2] > hi) above[li]++; else below[li]++;
         });
         out.check.push(row); cnt++; if (k === h) cntH++;
       }
+      if (cnt > cnt0) nOrig++;
     }
-    out.nCheck = cnt; out.nCheckH = cntH;
+    out.nCheck = cnt; out.nCheckH = cntH; out.nOrigins = nOrig;
     out.above = {}; out.below = {};
     levels.forEach(function (L, li) {
       out.cover[L] = cnt ? hit[li] / cnt : NaN; out.coverH[L] = cntH ? hitH[li] / cntH : NaN;

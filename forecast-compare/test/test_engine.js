@@ -136,4 +136,15 @@ for (let rep = 0; rep < 400; rep++) {
 }
 check("random walk: naive 80% ranges hold 78% to 86% of the time", hits / tot > 0.78 && hits / tot < 0.86, (100 * hits / tot).toFixed(1) + "%");
 
+// 18. a series that never goes below zero gets ranges floored at zero; coverage is unchanged
+// (shifting the series down by 1000 gives the same errors, no floor, and must give the same coverage)
+function naiveP(y) { const P = { y, m: 1, lo: 2, skip: {}, fc: { naive: {} } }; for (let T = 2; T < y.length; T++) P.fc.naive[T] = Array(12).fill(y[T - 1]); return P; }
+const pos = []; for (let i = 0; i < 120; i++) pos.push(Math.abs(3 * gauss()));
+const gp = E.ranges(naiveP(pos), { h: 6, test: 24, kind: "naive", levels: [0.5, 0.8, 0.95] });
+const gs = E.ranges(naiveP(pos.map(v => v - 1000)), { h: 6, test: 24, kind: "naive", levels: [0.5, 0.8, 0.95] });
+const clipped = gp.check.filter(c => c.lo.some(v => v === 0)).length;
+check("non-negative series: ranges floored at zero, coverage unchanged", gp.floor === 0 && gs.floor === null && clipped > 0 &&
+  gp.check.every(c => c.p50 >= 0 && c.lo.every(v => v >= 0) && c.hi.every(v => v >= 0)) &&
+  [0.5, 0.8, 0.95].every(L => gp.cover[L] === gs.cover[L]) && gp.nOrigins === 19, clipped + " clipped; " + [0.5, 0.8, 0.95].map(L => gp.cover[L] + "/" + gs.cover[L]).join(" "));
+
 console.log(fails ? fails + " check(s) failed" : "all engine checks passed"); process.exit(fails ? 1 : 0);

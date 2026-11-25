@@ -19,7 +19,7 @@ function rangesOf(P, test, h) {
   const o = {};
   for (const kind of ["pool", "pick", "naive"]) {
     const g = E.ranges(P, { h, test, kind, levels: [0.5, 0.8, 0.95] });
-    o[kind] = g && { start: g.start, cover: g.cover, coverH: g.coverH, above: g.above, below: g.below, nCheck: g.nCheck,
+    o[kind] = g && { start: g.start, cover: g.cover, coverH: g.coverH, above: g.above, below: g.below, nCheck: g.nCheck, floor: g.floor, nOrigins: g.nOrigins,
       future: g.future.map(f => f && { n: f.n, p50: f.p50, lo: f.lo, hi: f.hi, ok: f.ok }),
       check: g.check.map(c => ({ T: c.T, k: c.k, n: c.n, f: c.f, p50: c.p50, lo: c.lo, hi: c.hi })) };
   }

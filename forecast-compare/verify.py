@@ -445,18 +445,19 @@ def ranges(y, fc, test, h, lo, kind, levels, cal=48, minc=10):
     for k in range(1, h + 1):
         b = bounds(k, n - k)
         fut.append(b and {"n": b[0], "p50": b[1], "lo": [x[0] for x in b[2]], "hi": [x[1] for x in b[2]], "ok": [x[2] for x in b[2]]})
-    check = []
+    fl = 0.0 if min(y) >= 0 else -math.inf  # a never-negative series gets ranges floored at zero
+    check, origins = [], set()
     for T in range(max(n - test, start), n - h + 1):
         for k in range(1, h + 1):
             b = bounds(k, T - k)
             if not b: continue
-            f = path[T][k - 1]
-            check.append({"T": T, "k": k, "n": b[0], "f": f, "y": y[T + k - 1], "p50": f + b[1], "lo": [f + x[0] for x in b[2]], "hi": [f + x[1] for x in b[2]]})
+            f = path[T][k - 1]; origins.add(T)
+            check.append({"T": T, "k": k, "n": b[0], "f": f, "y": y[T + k - 1], "p50": max(f + b[1], fl), "lo": [max(f + x[0], fl) for x in b[2]], "hi": [max(f + x[1], fl) for x in b[2]]})
     cover = {}
     for li, L in enumerate(levels):
         ins = [c["lo"][li] <= c["y"] <= c["hi"][li] for c in check]
         cover[L] = (sum(ins) / len(ins)) if ins else None
-    return {"start": start, "future": fut, "check": check, "cover": cover}
+    return {"start": start, "future": fut, "check": check, "cover": cover, "floor": 0 if fl == 0 else None, "nOrigins": len(origins)}
 
 
 def main():
@@ -504,7 +505,7 @@ def main():
             a, b = ranges(y, fc, case["test"], case["h"], case["lo"], kind, [0.5, 0.8, 0.95]), case["ranges"][kind]
             if (a is None) != (b is None): bad(kind + " ranges availability", a is None, b is None); worst = math.inf; continue
             if a is None: continue
-            if a["start"] != b["start"] or len(a["check"]) != len(b["check"]) or len(a["check"]) != b["nCheck"]:
+            if a["start"] != b["start"] or len(a["check"]) != len(b["check"]) or len(a["check"]) != b["nCheck"] or a["floor"] != b["floor"] or a["nOrigins"] != b["nOrigins"]:
                 bad(kind + " ranges shape", (a["start"], len(a["check"])), (b["start"], len(b["check"]))); worst = math.inf; continue
             for k, (fa, fb) in enumerate(zip(a["future"], b["future"])):
                 if (fa is None) != (fb is None) or (fa and (fa["n"] != fb["n"] or fa["ok"] != fb["ok"])): bad(f"{kind} range step {k+1} size", fa and fa["n"], fb and fb["n"]); worst = math.inf; continue

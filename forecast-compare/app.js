@@ -268,7 +268,8 @@
     if (calReady && !P.calFailed) rg = E.ranges(P, { h: H, test: state.test, kind: dec.kind, levels: LEVELS });
     var rows = prim.future.slice(0, H).map(function (f, i) {
       var b = rg && rg.future[i];
-      return b ? { k: i + 1, f: f, n: b.n, p50: f + b.p50, ok: b.ok, lo: b.lo.map(function (q) { return f + q; }), hi: b.hi.map(function (q) { return f + q; }) } : null;
+      var fl = rg && rg.floor === 0 ? 0 : -Infinity, clip = function (v) { return Math.max(v, fl); };
+      return b ? { k: i + 1, f: f, n: b.n, p50: clip(f + b.p50), ok: b.ok, lo: b.lo.map(function (q) { return clip(f + q); }), hi: b.hi.map(function (q) { return clip(f + q); }) } : null;
     });
     last = { s: s, res: res, ranked: ranked, byId: byId, dec: dec, prim: prim, P: P, rg: rg, rows: rows };
 
@@ -359,13 +360,14 @@
 
   // ---- forecast ranges --------------------------------------------------------
   var LEVELS = [0.5, 0.8, 0.95], MAIN = 1; // MAIN: index of the planning range (80%)
+  var FEW = 20; // fewer checked forecasts than this: report the count, not a verdict (binomial s.e. at 80% is about 9 points at 20)
   function pctL(L) { return Math.round(100 * L) + "%"; }
   function pct(x) { return isFinite(x) ? Math.round(100 * x) + "%" : "n/a"; }
   function rangeKpi(s, rg, rows, ref, ready) {
     var H = state.h, r = rows[H - 1], when = label(futureDates(s.dates, H, s)[H - 1]);
     if (!ready) return kpi("80% range, " + when, "…", "building from older backtests");
     if (!r) return kpi("80% range, " + when, "n/a", "too few past forecasts");
-    return kpi("80% range, " + when, fmtV(r.lo[MAIN], ref) + " to " + fmtV(r.hi[MAIN], ref), isFinite(rg.cover[0.8]) ? "held " + pct(rg.cover[0.8]) + " of the time in the backtest" : "not yet checked: too little history");
+    return kpi("80% range, " + when, fmtV(r.lo[MAIN], ref) + " to " + fmtV(r.hi[MAIN], ref), !isFinite(rg.cover[0.8]) ? "not yet checked: too little history" : rg.nCheck < FEW ? "held " + Math.round(rg.cover[0.8] * rg.nCheck) + " of " + rg.nCheck + " times in the backtest" : "held " + pct(rg.cover[0.8]) + " of the time in the backtest");
   }
   function rangeCard(s, P, dec, prim, rg, rows, ref) {
     var el = $("ranges"), H = state.h, u = s.short ? " " + esc(s.short) : "", fd = futureDates(s.dates, H, s), job = fitter.busy();
@@ -389,9 +391,10 @@
       ", an 80% range around the forecast of " + fmtV(r.f, ref) + ". It is built from " + who + "'s last " + r.n + " forecasts made " + esc(hz) + ".</p>";
     var c = rg.cover[0.8], ab = rg.above[0.8], bl = rg.below[0.8];
     if (rg.nCheck) {
-      var verdict = c < 0.7 ? " That is less often than the label says, so expect more surprises than the range suggests." : c > 0.9 ? " That is more often than the label says, so the range is on the cautious side." : "";
-      html += '<p style="margin:0 0 8px">Check: at the ' + (state.test - H + 1) + " origins in the backtest window, 80% ranges built this way held " + pct(c) + " of the time (" + Math.round(c * rg.nCheck) + " of " + rg.nCheck + " forecasts; " + pct(rg.coverH[0.8]) + " at " + esc(hz) + ")." + verdict + "</p>" +
-        '<p style="margin:0 0 10px">For a budget or a price cap, plan on the forecast and treat the top end as the cautious case. In the check the actual came in above the top end ' + pct(ab) + " of the time and below the bottom end " + pct(bl) + "; an 80% range allows 10% each.</p>";
+      var few = rg.nCheck < FEW, verdict = few ? " That is too few forecasts to judge the range." : c < 0.7 ? " That is less often than the label says, so expect more surprises than the range suggests." : c > 0.9 ? " That is more often than the label says, so the range is on the cautious side." : "";
+      html += '<p style="margin:0 0 8px">Check: at the ' + rg.nOrigins + " " + (rg.nOrigins === 1 ? "origin" : "origins") + " in the backtest window with enough earlier forecasts, 80% ranges built this way held " + pct(c) + " of the time (" + Math.round(c * rg.nCheck) + " of " + rg.nCheck + " forecasts" +
+        (isFinite(rg.coverH[0.8]) && !few ? "; " + pct(rg.coverH[0.8]) + " at " + esc(hz) : "") + ")." + verdict + "</p>" +
+        '<p style="margin:0 0 10px">For a budget or a price cap, plan on the forecast and treat the top end as the cautious case.' + (few ? "" : " In the check the actual came in above the top end " + pct(ab) + " of the time and below the bottom end " + pct(bl) + "; an 80% range allows 10% each.") + "</p>";
     } else html += '<p style="margin:0 0 10px">These ranges cannot be checked on this series: the check needs ' + E.CAL + " past forecasts before the backtest window, and the history is too short for that.</p>";
     var show = LEVELS.map(function (L, li) { return rows.every(function (x) { return !x || x.ok[li]; }); });
     html += '<div class="tblwrap"><table><thead><tr><th class="l">' + esc(one(s).charAt(0).toUpperCase() + one(s).slice(1)) + "</th><th>Forecast</th>" +
