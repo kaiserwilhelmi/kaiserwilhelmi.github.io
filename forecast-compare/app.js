@@ -1,9 +1,9 @@
 /* UI for the forecast comparison page. Depends on FCEngine (engine.js) and SERIES (inlined data). */
 (function () {
   "use strict";
-  var E = window.FCEngine, SERIES = window.SERIES, MW = window.MW_CATALOG || { groups: [], items: [] }, MK = window.FCMarket;
+  var E = window.FCEngine, SERIES = window.SERIES, MW = window.MW_CATALOG || { groups: [], items: [] }, MK = window.FCMarket, FEAT = MW.featured || [];
   var $ = function (id) { return document.getElementById(id); };
-  var state = { key: SERIES[0].key, upload: null, h: 6, test: 24, m: 12, compare: "naive", view: "recent", dots: "1", more: false, sort: "rank", dir: 1 };
+  var state = { key: FEAT.length ? FEAT[0].k : SERIES[0].key, upload: null, h: 6, test: 24, m: 12, compare: "naive", view: "recent", dots: "1", more: false, sort: "rank", dir: 1 };
   var last = null;
 
   function esc(s) { return String(s).replace(/[&<>"]/g, function (c) { return { "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c]; }); }
@@ -655,22 +655,28 @@
   var loaded = {}, byKey = {};
   MW.items.forEach(function (it) {
     byKey[it.k] = it;
-    it.q = [it.n, it.id, it.u, it.p, it.ind.join(" "), (MW.groups.filter(function (g) { return g.k === it.g; })[0] || {}).label].join(" ").toLowerCase();
+    it.q = [it.n, it.id, it.u, it.p, it.ind.join(" "), "market watch", (MW.groups.filter(function (g) { return g.k === it.g; })[0] || {}).label].join(" ").toLowerCase();
   });
+  FEAT.forEach(function (it) { byKey[it.k] = it; it.q = [it.n, it.u, it.p.replace(/<[^>]+>/g, ""), it.note].join(" ").toLowerCase(); });
   function opt(k, name, cur, dis) { return '<option value="' + esc(k) + '"' + (k === cur ? " selected" : "") + (dis ? " disabled" : "") + ">" + esc(name) + "</option>"; }
   function fillSeries() {
     var words = $("find").value.toLowerCase().split(/\s+/).filter(Boolean), cur = state.key;
     function hit(txt) { return words.every(function (w) { return txt.indexOf(w) >= 0; }); }
     var html = "", count = 0, curHit = !words.length;
-    var ex = SERIES.filter(function (x) { return !words.length || hit(x.name.toLowerCase()); });
+    var ft = FEAT.filter(function (it) { return !words.length || hit(it.q); });
+    count += words.length ? ft.length : 0;
+    if (ft.some(function (it) { return it.k === cur; })) curHit = true;
+    if (ft.length) html += '<optgroup label="Published test series">' + ft.map(function (it) { return opt(it.k, it.n, cur); }).join("") + "</optgroup>";
+    var ex = SERIES.filter(function (x) { return !words.length || hit(x.name.toLowerCase() + " synthetic sample"); });
+    count += words.length ? ex.length : 0;
     if (ex.some(function (x) { return x.key === cur; })) curHit = true;
-    if (ex.length) html += '<optgroup label="Example">' + ex.map(function (x) { return opt(x.key, x.name, cur); }).join("") + "</optgroup>";
+    if (ex.length) html += '<optgroup label="Synthetic samples">' + ex.map(function (x) { return opt(x.key, x.name, cur); }).join("") + "</optgroup>";
     MW.groups.forEach(function (g) {
       var its = MW.items.filter(function (it) { return it.g === g.k; });
       count += its.filter(function (it) { return words.length && hit(it.q); }).length;
       its = its.filter(function (it) { return !words.length || hit(it.q); });
       if (its.some(function (it) { return it.k === cur; })) curHit = true;
-      if (its.length) html += '<optgroup label="' + esc(g.label) + '">' + its.map(function (it) { return opt(it.k, it.n, cur); }).join("") + "</optgroup>";
+      if (its.length) html += '<optgroup label="Market Watch: ' + esc(g.label) + '">' + its.map(function (it) { return opt(it.k, it.n, cur); }).join("") + "</optgroup>";
     });
     html += '<optgroup label="Your data">' + opt("upload", state.upload ? "Uploaded: " + state.upload.name : "Uploaded file (use the button)", cur, !state.upload) + "</optgroup>";
     if (cur === "upload" && state.upload) curHit = true;
@@ -679,6 +685,18 @@
     var fn = $("findn");
     fn.hidden = !words.length;
     fn.textContent = !words.length ? "" : count ? count + (count === 1 ? " match" : " matches") + " in the Series menu" : "No series match “" + $("find").value.trim() + "”";
+  }
+  // featured series are embedded in the page and read with the same date and unit rules as an upload
+  function loadFeatured(it) {
+    var res = window.FCUpload.build([["Date", it.n]].concat(it.dates.map(function (d, i) { return [d, String(it.values[i])]; })), {});
+    return { key: it.k, name: it.n, unit: it.u, short: it.s, sample: false, dates: res.dates, values: res.values, future: res.future,
+      unitOne: res.unitOne, unitMany: res.unitMany, m: it.m, it: it, skip: res.filledIdx, filledLabels: [], sourceHtml: it.p + ' (<a href="' + esc(it.src) + '" target="_blank" rel="noopener">source</a>)' };
+  }
+  function featNote(s) {
+    var it = s.it, n = s.values.length;
+    return '<div class="upok"><b>' + esc(it.n) + "</b>: " + n.toLocaleString() + " " + esc(many(s)) + ", " + esc(s.dates[0]) + " to " + esc(s.dates[n - 1]) + ". " + esc(it.note) + "</div>" +
+      '<div class="upinfo">Source: ' + it.p + ' (<a href="' + esc(it.src) + '" target="_blank" rel="noopener">source page</a>). Seasonality is set to ' +
+      (s.m > 1 ? s.m + " (" + cycleName(s.m, one(s)) + ")" : "None") + "; change it above if you like.</div>";
   }
   function loadSeries(it) {
     if (it.k.indexOf("mw:") === 0) {
@@ -701,7 +719,7 @@
     var it = s.it, c = s.c, n = s.values.length;
     var h = "<div class=\"upok\"><b>Loaded from Industry Market Watch</b> (refreshed daily): " + n.toLocaleString() + " " + esc(n === 1 ? one(s) : many(s)) +
       ", " + esc(label(s.dates[0])) + " to " + esc(label(s.dates[n - 1])) + ". Published by " + esc(it.p) +
-      (it.k.indexOf("mw:") === 0 ? ", via FRED (" + esc(it.id) + ")" : "") + ".</div>";
+      (it.k.indexOf("mw:") === 0 ? " (series " + esc(it.id) + ")" : "") + ".</div>";
     if (it.ind.length) h += '<div class="upinfo">Tracked for: ' + esc(it.ind.join(", ")) + ".</div>";
     if (it.avg) h += '<div class="upinfo">Published daily or weekly; shown as monthly averages.</div>';
     var fl = s.filledLabels || [];
@@ -711,7 +729,7 @@
     return h;
   }
   function sourceHtml(it) {
-    return esc(it.p) + ' (<a href="' + esc(it.src) + '" target="_blank" rel="noopener">' + (it.k.indexOf("mw:") === 0 ? "FRED " + esc(it.id) : "source page") + "</a>), loaded from Industry Market Watch";
+    return esc(it.p) + ' (<a href="' + esc(it.src) + '" target="_blank" rel="noopener">' + (it.k.indexOf("mw:") === 0 ? esc(it.id) : "source page") + "</a>), loaded from Industry Market Watch";
   }
   var reqId = 0;
   function choose(k) {
@@ -724,8 +742,9 @@
     $("upnote").hidden = true;
     var it = byKey[k];
     if (!it) { state.key = k; setM(current().m || 12); $("mwnote").hidden = true; run(); return; }
-    function show(s) { state.key = k; setM(s.m); $("mwnote").innerHTML = mwNote(s); $("mwnote").hidden = false; run(); }
+    function show(s) { state.key = k; setM(s.m); $("mwnote").innerHTML = s.it.dates ? featNote(s) : mwNote(s); $("mwnote").hidden = false; run(); }
     if (loaded[k]) return show(loaded[k]);
+    if (it.dates) { loaded[k] = loadFeatured(it); return show(loaded[k]); }
     var my = ++reqId;
     $("busy").innerHTML = "<b>Loading " + esc(it.n) + " from Industry Market Watch…</b>"; $("busy").hidden = false;
     loadSeries(it).then(function (s) {
@@ -815,6 +834,8 @@
   // ---- wiring -------------------------------------------------------------
   function init() {
     fillSeries();
+    var it0 = byKey[state.key];
+    if (it0 && it0.dates) { loaded[state.key] = loadFeatured(it0); setM(it0.m); $("mwnote").innerHTML = featNote(loaded[state.key]); $("mwnote").hidden = false; }
     $("series").addEventListener("change", function (e) { choose(e.target.value); });
     var ft; $("find").addEventListener("input", function () { clearTimeout(ft); ft = setTimeout(fillSeries, 120); });
     [["h", "h"], ["test", "test"], ["m", "m"]].forEach(function (p) { $(p[0]).addEventListener("change", function (e) {

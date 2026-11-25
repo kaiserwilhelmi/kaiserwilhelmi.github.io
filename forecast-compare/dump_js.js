@@ -41,5 +41,16 @@ for (const [f, m] of [["test/daily_cases.csv", 7], ["test/business_days.csv", 5]
   const P = E.prepare(y, m, null, [], CALMAX);
   for (const h of [1, 6]) if (24 <= P.W) record(`${f} m=${m} test=24 h=${h}`, f, m, 24, h, P);
 }
+// the nine published test series built into the page, with the seasonality the page sets for each.
+// The weekly gasoline and daily Walmart series take minutes in verify.py, so they run only with FC_FULL=1.
+const FEATURED = [["us_retail_sales_nsa_monthly", 12], ["airline_passengers_monthly", 12], ["pbs_antidiabetic_scripts_monthly", 12],
+  ["australian_beer_quarterly", 4], ["victoria_electricity_daily", 7], ["cad_per_usd_monthly", 1], ["nile_annual_flow", 1]]
+  .concat(process.env.FC_FULL ? [["us_gasoline_weekly", 52], ["walmart_item_daily_intermittent", 7]] : []);
+for (const [f, m] of FEATURED) {
+  const path = "data/featured/" + f + ".csv";
+  const y = fs.readFileSync(path, "utf8").trim().split(/\r?\n/).slice(1).map(l => +l.split(",")[1]);
+  const P = E.prepare(y, m, null, [], CALMAX);
+  for (const h of [1, 6]) record(`${f} m=${m} test=24 h=${h}`, path, m, 24, h, P);
+}
 fs.writeFileSync("js_results.json", JSON.stringify(out));
 console.log("cases", out.length);
