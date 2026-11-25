@@ -853,4 +853,9 @@
     run();
   }
   document.addEventListener("DOMContentLoaded", init);
+  // the explanation cards start open on wider screens and closed on phones, to keep the page short there
+  document.addEventListener("DOMContentLoaded", function () {
+    var wide = window.matchMedia("(min-width: 601px)").matches;
+    Array.prototype.forEach.call(document.querySelectorAll("details.fold"), function (d) { d.open = wide; });
+  });
 })();

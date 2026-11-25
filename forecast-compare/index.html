@@ -95,7 +95,7 @@ tr.win td { background: var(--accent-soft); }
 tr.dim td { color: var(--text-3); }
 .pill { display: inline-block; font-size: 12px; font-weight: 600; color: #d6e6f2; background: var(--accent-soft); border-radius: 5px; padding: 1px 6px; margin-left: 4px; white-space: nowrap; }
 .grid2 { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
-.doc p, .doc li { color: var(--text-2); font-size: 14px; }
+.doc p, .doc li { color: var(--text-2); font-size: 15px; }
 .doc ul { padding-left: 20px; margin: 6px 0; }
 .doc code { font-size: 13px; }
 .refs li { margin-bottom: 6px; }
@@ -199,8 +199,8 @@ main:focus { outline: none; }
   </div>
 
   <div class="grid2">
-    <div class="card doc">
-      <h2>How the test works</h2>
+    <details class="card doc big fold">
+      <summary><h2>How the test works</h2></summary>
       <p><b>Rolling origin.</b> At each origin in the backtest window, every method is fitted only on data before that point and forecasts the next <i>h</i> periods, which are then compared with what actually happened (Tashman, 2000; Hyndman &amp; Athanasopoulos, 2021, §5.10). Only origins whose whole <i>h</i>-step path can be checked are scored, so every step ahead counts the same number of times. The window must therefore be at least twice the horizon.</p>
       <p><b>Fitting.</b> Every smoothing method fits its weights and its starting values together by minimising one-step squared error with a Nelder–Mead search. For simple, Holt and damped smoothing the weights may run from 0.0001 to 0.9999 and damping from 0.80 to 0.98, the bounds of the R forecast package (Hyndman &amp; Khandakar, 2008), and the fits match the statsmodels library's. A Holt-Winters fit with restarts matched statsmodels more closely but forecast 1 to 2% worse on the 80 Market Watch series, so the simpler search was kept. The airline model (seasonal ARIMA) is fitted by conditional least squares. Ridge regression works on percentage changes when a series is always positive, and the boosted trees choose how many trees to use on a holdout. Every number was re-computed by an independent Python implementation and matches; accuracy is in line with the statsmodels library's maximum-likelihood fits.</p>
       <p><b>Testing the choice.</b> The top score in any ranking is partly luck, so the method that tops it usually does worse afterwards (Cawley &amp; Talbot, 2010). On the 80 Market Watch monthly series at 6 months ahead, picking the #1 method from earlier data and scoring it on what came next gave 24% more error than the #1's own score in the table. So the page also tests its own advice: at each past origin it ranks the methods on the errors known then, takes the top one and the top three, and scores what they forecast next.</p>
@@ -210,9 +210,9 @@ main:focus { outline: none; }
       <p><b>No method is favoured.</b> Every method, including the two fixed combinations, is a candidate. The backtest on your series decides the ranking and which three go into the pool.</p>
       <p><b>Ranking.</b> MASE ranks the methods. Within one series it orders them exactly as MAE does; its scaling lets errors be compared across series (Hyndman &amp; Koehler, 2006). RMSE breaks ties. Demand with many zero periods is the exception (next paragraph).</p>
       <p><b>Demand with many zero periods.</b> Spare parts and MRO items often go months without an order. The page measures this with the average gap between demands (ADI) and how much the order sizes vary (CV²), and calls demand intermittent when the gap is over 1.32 periods, the cut-off of Syntetos, Boylan &amp; Croston (2005). On such a series the average miss (MAE) rewards forecasting zero (Teunter &amp; Duncan, 2009; Kolassa, 2016), while reorder points and budgets need the average rate. So these series are ranked by RMSE, which targets the average, and no forecast goes below zero. Tested on 500 real Walmart item series from the M5 data (Makridakis, Spiliotis &amp; Assimakopoulos, 2022), this cut the pool's error by 5% one day ahead and 2% seven days ahead on daily sales, and by 1 to 2% on weekly sales. I also tested the methods built for this kind of demand: Croston (1972), its bias-corrected version SBA (Syntetos &amp; Boylan, 2005) and TSB (Teunter, Syntetos &amp; Babai, 2011), fitted the way Kourentzes (2014) recommends. They did not help on the daily series and made the weekly 4-week forecast 1.8% worse, so under the rule set before the test they are not among the candidates.</p>
-    </div>
-    <div class="card doc">
-      <h2>What the metrics mean</h2>
+    </details>
+    <details class="card doc big fold">
+      <summary><h2>What the metrics mean</h2></summary>
       <ul>
         <li><b>MAE</b>: average miss in the series' units. Easy to explain to a supplier or a CFO.</li>
         <li><b>MSE / RMSE</b>: square the misses first, so one big miss counts heavily. Use when large errors are costly (stockouts, budget overruns). Ranks demand with many zero periods, where it points at the average rate.</li>
@@ -222,17 +222,17 @@ main:focus { outline: none; }
         <li><b>vs naive, vs seasonal naive</b>: MAE divided by the benchmark's MAE on exactly the same forecasts. −15% means misses 15% smaller than the benchmark's (Davydenko &amp; Fildes, 2013). This is the fair comparison.</li>
         <li><b>Bias (ME)</b>: average of actual minus forecast. Persistently positive = under-forecasting.</li>
       </ul>
-    </div>
+    </details>
   </div>
 
-  <div class="card doc">
-    <h2>Machine learning vs statistical methods</h2>
+  <details class="card doc big fold">
+    <summary><h2>Machine learning vs statistical methods</h2></summary>
     <p>Before adding the two machine-learning methods (ridge regression and gradient-boosted trees on recent changes), all candidates were backtested on 80 real monthly price, wage, freight and currency series from FRED, plus six series with other time units. Theta, ridge and seasonal ARIMA had the lowest median error (MASE 0.31). But when the method was picked from an older window and scored on the newest 12 months, adding the new methods cut average error only from 0.490 to 0.486, which is <b>not statistically significant</b> (Wilcoxon p = 0.42). A small neural network was also tested and dropped: it ranked worst and was six times slower.</p>
     <p>That matches the research. On short single series, statistical methods usually match or beat machine learning (Makridakis, Spiliotis &amp; Assimakopoulos, 2018). Machine learning won the M5 competition because it learned from tens of thousands of related series plus prices and promotions (Makridakis et al., 2022). So the ML methods are here as candidates, and they win only when your data says so: ridge, for example, handles fast exponential growth that the smoothing methods miss.</p>
-  </div>
+  </details>
 
-  <div class="card doc">
-    <h2>References</h2>
+  <details class="card doc big fold">
+    <summary><h2>References</h2></summary>
     <ol class="refs">
       <li>Hyndman, R. J., &amp; Athanasopoulos, G. (2021). <i>Forecasting: Principles and Practice</i> (3rd ed.). OTexts. <a href="https://otexts.com/fpp3/">otexts.com/fpp3</a></li>
       <li>Hyndman, R. J., &amp; Koehler, A. B. (2006). Another look at measures of forecast accuracy. <i>International Journal of Forecasting, 22</i>(4), 679–688. <a href="https://doi.org/10.1016/j.ijforecast.2006.03.001">doi:10.1016/j.ijforecast.2006.03.001</a></li>
@@ -284,7 +284,7 @@ main:focus { outline: none; }
       <li><b>Sample spare-part demand</b> is synthetic too: an order in about 4 of every 10 months, sizes of 1 to about 15, with orders thinning out in the last two years. It is not real company data.</li>
       <li>The tests of the intermittent-demand handling used Walmart unit sales from the M5 competition (Makridakis, Spiliotis &amp; Assimakopoulos, 2022). That data is not part of this page.</li>
     </ul>
-  </div>
+  </details>
 
 </main>
   <footer>Built by Dawson Wilhelmi · part of the procurement analytics portfolio at <a href="/">dawsonwilhelmi.com</a></footer>
@@ -2629,6 +2629,11 @@ self.onmessage = function (ev) {
     run();
   }
   document.addEventListener("DOMContentLoaded", init);
+  // the explanation cards start open on wider screens and closed on phones, to keep the page short there
+  document.addEventListener("DOMContentLoaded", function () {
+    var wide = window.matchMedia("(min-width: 601px)").matches;
+    Array.prototype.forEach.call(document.querySelectorAll("details.fold"), function (d) { d.open = wide; });
+  });
 })();
 </script>
 </body>
