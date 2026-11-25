@@ -258,6 +258,27 @@
     return { f: o, params: { alpha: best.a } };
   }
 
+  // ---- intermittent demand (many zero periods) -------------------------------
+  /* Demand pattern (Syntetos, Boylan & Croston, 2005): ADI = periods per period with demand, CV2 =
+   * squared coefficient of variation of the non-zero sizes; cut-offs 1.32 and 0.49. A series that is
+   * never negative, has at least two non-zero values and ADI > 1.32 ("intermittent" or "lumpy") is
+   * ranked by squared error and its forecasts are floored at zero (see score and floor0).
+   * Croston (1972), SBA (Syntetos & Boylan, 2005) and TSB (Teunter, Syntetos & Babai, 2011), fitted
+   * as in Kourentzes (2014), were tested as extra candidates on 500 M5 item series and left out:
+   * they did not help on daily data and made the weekly 4-step pool 1.8% worse (Phase 5 rule). */
+  var ADI_CUT = 1.32, CV2_CUT = 0.49;
+  function demandPattern(y) {
+    var n = y.length, nz = [], i;
+    for (i = 0; i < n; i++) { if (y[i] < 0) return null; if (y[i] > 0) nz.push(y[i]); }
+    if (!nz.length) return { adi: Infinity, cv2: NaN, kind: "none", intermittent: false, nonzero: 0, n: n };
+    var mu = mean(nz), v = 0;
+    for (i = 0; i < nz.length; i++) v += (nz[i] - mu) * (nz[i] - mu);
+    var adi = n / nz.length, cv2 = v / nz.length / (mu * mu), hiA = adi > ADI_CUT, hiC = cv2 > CV2_CUT;
+    return { adi: adi, cv2: cv2, nonzero: nz.length, n: n, kind: hiA ? (hiC ? "lumpy" : "intermittent") : (hiC ? "erratic" : "smooth"),
+      intermittent: hiA && nz.length >= 2 };
+  }
+  function isIntermittent(y) { var d = demandPattern(y); return !!(d && d.intermittent); }
+
   // ---- machine learning on recent changes --------------------------------------
   // Both learners predict the next period's change from the last p changes (p = m up to 13,
   // plus lag m for longer cycles), scaled by their root mean square, then forecast
@@ -544,28 +565,32 @@
     for (var i0 = 0; i0 < n; i0++) if (typeof y[i0] !== "number" || !isFinite(y[i0])) throw new Error("Value " + (i0 + 1) + " of the series is not a number. Remove or fill it and try again.");
     (skip || []).forEach(function (i) { sk[i] = true; });
     if (!W) throw new Error("Need at least " + (minTrain(m) + 12) + " observations for this seasonality setting (have " + n + ").");
-    var P = { y: y, m: m, W: W, meths: activeMethods(m), fc: {}, fut: null, skip: sk, nSkip: (skip || []).length, lo: n };
+    var P = { y: y, m: m, W: W, meths: activeMethods(m), sq: isIntermittent(y), fc: {}, fut: null, skip: sk, nSkip: (skip || []).length, lo: n };
     P.meths.forEach(function (d) { P.fc[d.id] = {}; });
     return P;
   }
   // The 12-step forecasts from the end of the data, one per method.
   function futures(y, m) {
     var fut = {};
+    var clip = isIntermittent(y);
     activeMethods(m).forEach(function (d) {
-      fut[d.id] = d.parts ? { f: avg(d.parts.map(function (p) { return fut[p].f; })) } : d.fn(y, MAXH, m);
+      fut[d.id] = d.parts ? { f: avg(d.parts.map(function (p) { return fut[p].f; })) } : floor0(d.fn(y, MAXH, m), clip);
     });
     return fut;
   }
+  // Intermittent demand is never negative, so there every forecast is floored at zero, which can only
+  // reduce each error (the other methods can dip below zero after a run of zeros).
+  function floor0(r, on) { if (on) r.f = r.f.map(function (v) { return v < 0 ? 0 : v; }); return r; }
   function avg(arrs) { var o = []; for (var k = 0; k < arrs[0].length; k++) { var s = 0; for (var i = 0; i < arrs.length; i++) s += arrs[i][k]; o.push(s / arrs.length); } return o; }
   // Fit every method at origins lo .. hi-1 (newest first, so a progress bar moves evenly). A
   // combination averages the component forecasts already computed (the same numbers as refitting).
   // This is the slow part; the page runs it in a background worker.
   function fitRange(y, m, lo, hi, onProgress) {
-    var meths = activeMethods(m), fc = {}, T, done = 0;
+    var meths = activeMethods(m), clip = isIntermittent(y), fc = {}, T, done = 0;
     meths.forEach(function (d) { fc[d.id] = {}; });
     for (T = hi - 1; T >= lo; T--) {
       var yt = y.slice(0, T);
-      meths.forEach(function (d) { fc[d.id][T] = d.parts ? avg(d.parts.map(function (p) { return fc[p][T]; })) : d.fn(yt, MAXH, m).f; });
+      meths.forEach(function (d) { fc[d.id][T] = d.parts ? avg(d.parts.map(function (p) { return fc[p][T]; })) : floor0(d.fn(yt, MAXH, m), clip).f; });
       if (onProgress) onProgress(++done, hi - lo);
     }
     return fc;
@@ -612,12 +637,12 @@
       var loss = [], q = 0;
       for (var T = first; T <= last; T++) {
         var s2 = 0, c2 = 0;
-        for (; q < rec.length && rec[q].origin === T; q++) { s2 += Math.abs(rec[q].e); c2++; }
-        if (c2) loss.push(s2 / c2 / scale); // an origin whose only targets were filled-in values has no loss
+        for (; q < rec.length && rec[q].origin === T; q++) { s2 += P.sq ? rec[q].e * rec[q].e : Math.abs(rec[q].e); c2++; }
+        if (c2) loss.push(P.sq ? s2 / c2 / (scale * scale) : s2 / c2 / scale); // an origin whose only targets were filled-in values has no loss
       }
-      var byH = [];
-      for (var k2 = 1; k2 <= h; k2++) byH.push(metrics(rec.filter(function (r) { return r.k === k2; }), scale).MAE);
-      return { metrics: metrics(rec, scale), maeByH: byH, loss: loss, records: rec };
+      var byH = [], rByH = [];
+      for (var k2 = 1; k2 <= h; k2++) { var mk = metrics(rec.filter(function (r) { return r.k === k2; }), scale); byH.push(mk.MAE); rByH.push(mk.RMSE); }
+      return { metrics: metrics(rec, scale), maeByH: byH, rmseByH: rByH, loss: loss, records: rec };
     }
     var out = P.meths.map(function (d) {
       var r = summary(recordsOf(function (T) { return P.fc[d.id][T]; }));
@@ -625,10 +650,10 @@
       r.future = P.fut[d.id].f; r.params = P.fut[d.id].params || null;
       return r;
     });
-    var ranked = rank(out), top = ranked.slice(0, 3).map(function (r) { return r.id; });
+    var ranked = rank(out, P.sq ? "RMSE" : "MASE"), top = ranked.slice(0, 3).map(function (r) { return r.id; });
     function poolAt(T, members) { return avg(members.map(function (id) { return P.fc[id][T]; })); }
     var res = { scale: scale, scaleBase: S.base, first: first, last: last, origins: last - first + 1, h: h, test: test, results: out, members: top,
-      needN: minTrain(m) + 2 * test, pool: null, pick: null, picks: null };
+      needN: minTrain(m) + 2 * test, rankBy: P.sq ? "RMSE" : "MASE", pool: null, pick: null, picks: null };
     // the pool with today's members over the whole window: used only when the history is too
     // short to test the choice, and labelled as optimistic there
     res.hindsight = summary(recordsOf(function (T) { return poolAt(T, top); }));
@@ -661,7 +686,7 @@
       var A = {}, Q = {};
       ids.forEach(function (id) { var a = 0, b = 0; for (var t = T - test; t <= T - h; t++) { a += sa[id][t]; b += sq[id][t]; } A[id] = a; Q[id] = b; });
       picks[T] = ids.map(function (id, i) { return { id: id, i: i }; }).sort(function (u, v) {
-        return cmpNum(A[u.id], A[v.id]) || cmpNum(Q[u.id], Q[v.id]) || u.i - v.i;
+        return (P.sq ? cmpNum(Q[u.id], Q[v.id]) || cmpNum(A[u.id], A[v.id]) : cmpNum(A[u.id], A[v.id]) || cmpNum(Q[u.id], Q[v.id])) || u.i - v.i;
       }).slice(0, 3).map(function (u) { return u.id; });
     }
     return picks;
@@ -766,12 +791,15 @@
   }
   function backtest(y, opt) { return score(prepare(y, opt.m), opt); }
 
-  function rank(results) { // lowest MASE wins; RMSE breaks ties; then method order; anything not finite goes last
+  // lowest MASE wins and RMSE breaks ties (by = "RMSE", used for intermittent demand: the other way
+  // round); then method order; anything not finite goes last
+  function rank(results, by) {
+    var k1 = by === "RMSE" ? "RMSE" : "MASE", k2 = k1 === "RMSE" ? "MASE" : "RMSE";
     return results.map(function (r, i) { return { r: r, i: i }; }).sort(function (a, b) {
-      return cmpNum(a.r.metrics.MASE, b.r.metrics.MASE) || cmpNum(a.r.metrics.RMSE, b.r.metrics.RMSE) || a.i - b.i;
+      return cmpNum(a.r.metrics[k1], b.r.metrics[k1]) || cmpNum(a.r.metrics[k2], b.r.metrics[k2]) || a.i - b.i;
     }).map(function (o) { return o.r; });
   }
 
-  var api = { ranges: ranges, confBounds: confBounds, MINCAL: MINCAL, CAL: CAL, quantile: quantile, skeleton: skeleton, futures: futures, fitRange: fitRange, merge: merge, loFor: loFor, picksFor: picksFor, dmTest: dmTest, holm: holm, tTwoSided: tTwoSided, ensure: ensure, METHODS: METHODS, activeMethods: activeMethods, backtest: backtest, prepare: prepare, score: score, WINDOWS: WINDOWS, MAXH: MAXH, metrics: metrics, rank: rank, minTrain: minTrain, GRID: GRID, PHI: PHI };
+  var api = { demandPattern: demandPattern, isIntermittent: isIntermittent, ADI_CUT: ADI_CUT, CV2_CUT: CV2_CUT, ranges: ranges, confBounds: confBounds, MINCAL: MINCAL, CAL: CAL, quantile: quantile, skeleton: skeleton, futures: futures, fitRange: fitRange, merge: merge, loFor: loFor, picksFor: picksFor, dmTest: dmTest, holm: holm, tTwoSided: tTwoSided, ensure: ensure, METHODS: METHODS, activeMethods: activeMethods, backtest: backtest, prepare: prepare, score: score, WINDOWS: WINDOWS, MAXH: MAXH, metrics: metrics, rank: rank, minTrain: minTrain, GRID: GRID, PHI: PHI };
   if (typeof module !== "undefined" && module.exports) module.exports = api; else root.FCEngine = api;
 })(this);

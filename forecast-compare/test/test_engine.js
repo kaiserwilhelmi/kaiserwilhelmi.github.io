@@ -159,4 +159,20 @@ check("Holt weights inside [1e-4, 0.9999]", hp4.alpha >= 1e-4 && hp4.alpha <= 0.
 const tr = gbmM.fn(rw2, 1, 1).params.trees;
 check("boosted trees: tree count chosen from 25/50/100/150", [25, 50, 100, 150].includes(tr), tr);
 
+// 20. Phase 5, intermittent demand. Classification by Syntetos, Boylan & Croston (2005).
+const dp = E.demandPattern([0, 0, 4, 0, 0, 4, 0, 0, 4, 0, 0, 4]);
+check("demand pattern: ADI and CV2 by hand", Math.abs(dp.adi - 3) < 1e-12 && dp.cv2 === 0 && dp.kind === "intermittent" && dp.intermittent, JSON.stringify(dp));
+const lp = E.demandPattern([0, 1, 0, 0, 20, 0, 0, 2, 0, 30]);
+check("demand pattern: lumpy when sizes vary a lot", lp.kind === "lumpy" && lp.intermittent, JSON.stringify(lp));
+check("demand pattern: smooth or negative series are not intermittent", !E.isIntermittent(seas) && !E.isIntermittent([0, -1, 0, 0, 3, 0, 0, 2]) && E.demandPattern([1, -2]) === null);
+// in intermittent mode: ranking is by RMSE (and the re-picked pool follows it), every forecast is >= 0
+const spikes = []; let sd = 11; const rr = () => (sd = (sd * 16807) % 2147483647) / 2147483647;
+for (let i = 0; i < 120; i++) spikes.push(rr() < 0.3 ? 1 + Math.round(rr() * 9) : 0);
+const IP = E.prepare(spikes, 1), ir = E.score(IP, { h: 3, test: 24 });
+const ranked5 = E.rank(ir.results, "RMSE");
+check("intermittent series: ranked by RMSE, pool members are the RMSE top three", ir.rankBy === "RMSE" &&
+  ranked5.every((x, i, a) => !i || a[i - 1].metrics.RMSE <= x.metrics.RMSE) && ranked5.slice(0, 3).map(x => x.id).join() === ir.members.join(), ir.rankBy);
+check("intermittent series: no forecast below zero", Object.keys(IP.fc).every(id => Object.values(IP.fc[id]).every(f => f.every(v => v >= 0))) && ir.results.every(x => x.future.every(v => v >= 0)));
+check("smooth series: ranked by MASE as before", E.score(E.prepare(seas, 12), { h: 6, test: 24 }).rankBy === "MASE");
+
 console.log(fails ? fails + " check(s) failed" : "all engine checks passed"); process.exit(fails ? 1 : 0);

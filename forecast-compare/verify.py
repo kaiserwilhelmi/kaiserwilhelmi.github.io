@@ -397,6 +397,20 @@ def tslm(y, h, m):
     return [float(np.dot(row(len(y) + k), beta)) for k in range(h)], {"slope": float(beta[1])}
 
 
+# ---- intermittent demand (Syntetos, Boylan & Croston 2005): ranked by squared error, forecasts floored at 0
+def demand_pattern(y):
+    if any(v < 0 for v in y): return None
+    nz = [v for v in y if v > 0]
+    if not nz: return {"adi": math.inf, "intermittent": False}
+    mu = psum(nz) / len(nz); cv2 = psum((v - mu) * (v - mu) for v in nz) / len(nz) / (mu * mu)
+    adi = len(y) / len(nz)
+    return {"adi": adi, "cv2": cv2, "intermittent": adi > 1.32 and len(nz) >= 2}
+
+
+def is_intermittent(y):
+    d = demand_pattern(y); return bool(d and d["intermittent"])
+
+
 METHODS = [("naive", naive, False), ("snaive", snaive, True), ("drift", drift, False), ("ma3", ma3, False),
            ("ses", ses, False), ("holt", holt, False), ("damped", damped, False), ("theta", theta, False), ("ridge", ridge, False), ("gbm", gbm, False), ("hw", hw, True), ("sarima", sarima, True),
            ("tslm", tslm, False), ("combS", combo([hw, sarima]), True), ("combN", combo([ses, holt, damped]), "N")]
@@ -407,7 +421,7 @@ def metrics(rec, scale):
     mae = np.mean(np.abs(e)); mse = np.mean(e ** 2)
     return {"n": len(rec), "ME": float(np.mean(e)), "MAE": float(mae), "MSE": float(mse), "RMSE": math.sqrt(mse),
             "MAPE": None if np.any(a == 0) else float(100 * np.mean(np.abs(e / a))),
-            "sMAPE": float(100 * np.mean(2 * np.abs(e) / (np.abs(a) + np.abs(f)))), "MASE": float(mae / scale)}
+            "sMAPE": float(100 * np.mean([0.0 if d == 0 else 2 * abs(x) / d for x, d in zip(e, np.abs(a) + np.abs(f))])), "MASE": float(mae / scale)}
 
 
 def load(path):
@@ -420,11 +434,20 @@ JS_ORDER = ["naive", "snaive", "drift", "ma3", "ses", "holt", "damped", "hw", "s
 def run_all(y, m, lo, max_h, future):
     """Fit each method once per origin with the longest horizon; truncating is exact
     because a k-step forecast does not depend on how many steps are requested."""
-    n = len(y); fc = {}
+    n = len(y); fc = {}; inter = is_intermittent(y)
+    clip = (lambda f: [max(v, 0.0) for v in f]) if inter else (lambda f: f)
+    parts = {"combS": ["hw", "sarima"], "combN": ["ses", "holt", "damped"]}
     for mid, fn, seas in METHODS:
+        if mid in parts and inter:  # the page averages the (floored) component forecasts
+            if (seas is True and m == 1) or (seas == "N" and m > 1): continue
+            ps = parts[mid]
+            fc[mid] = {T: [psum(fc[q][T][k] for q in ps) / len(ps) for k in range(max_h)] for T in range(lo, n)}
+            fc[mid]["future"] = ([psum(fc[q]["future"][0][k] for q in ps) / len(ps) for k in range(future)], None)
+            continue
         if (seas is True and m == 1) or (seas == "N" and m > 1): continue
-        fc[mid] = {T: fn(y[:T], max_h, m)[0] for T in range(lo, n)}
-        fc[mid]["future"] = fn(y, future, m)
+        fc[mid] = {T: clip(fn(y[:T], max_h, m)[0]) for T in range(lo, n)}
+        f, p = fn(y, future, m)
+        fc[mid]["future"] = (clip(f), p)
     return fc
 
 
@@ -442,15 +465,17 @@ def train_scale(y, m, first):
 def evaluate(y, fc, m, test, h, lo):
     """Complete origins only: origins n-test .. n-h, each scored on all h steps."""
     n = len(y); first = n - test; last = n - h
-    scale = train_scale(y, m, first)
+    scale = train_scale(y, m, first); sq_mode = is_intermittent(y)
     ids = sorted(fc, key=JS_ORDER.index)
 
     def summary(fc_at):
         rec = [(T, k, y[T + k - 1], fc_at(T)[k - 1]) for T in range(first, last + 1) for k in range(1, h + 1)]
-        loss = [psum(abs(r[2] - r[3]) for r in rec if r[0] == T) / h / scale for T in range(first, last + 1)]
+        if sq_mode: loss = [psum((r[2] - r[3]) ** 2 for r in rec if r[0] == T) / h / (scale * scale) for T in range(first, last + 1)]
+        else: loss = [psum(abs(r[2] - r[3]) for r in rec if r[0] == T) / h / scale for T in range(first, last + 1)]
         return {"loss": loss, "metrics": metrics(rec, scale), "maeByH": [metrics([r for r in rec if r[1] == k], scale)["MAE"] for k in range(1, h + 1)]}
     out = {mid: summary(lambda T, mid=mid: fc[mid][T]) for mid in ids}
-    ranked = sorted(ids, key=lambda k: (out[k]["metrics"]["MASE"], out[k]["metrics"]["RMSE"], JS_ORDER.index(k)))
+    k1, k2 = ("RMSE", "MASE") if sq_mode else ("MASE", "RMSE")
+    ranked = sorted(ids, key=lambda k: (out[k]["metrics"][k1], out[k]["metrics"][k2], JS_ORDER.index(k)))
     top = ranked[:3]
     pool_at = lambda T, mem: [psum(fc[i][T][k] for i in mem) / len(mem) for k in range(len(fc[mem[0]][T]))]
     res = {"scale": scale, "out": out, "ranked": ranked, "members": top, "pool": None, "pick": None, "picks": None,
@@ -464,7 +489,8 @@ def evaluate(y, fc, m, test, h, lo):
     picks = {}
     for T in range(first, last + 1):
         win = range(T - test, T - h + 1)
-        picks[T] = sorted(ids, key=lambda i: (psum(sa[i][t] for t in win), psum(sq[i][t] for t in win), JS_ORDER.index(i)))[:3]
+        A = {i: psum(sa[i][t] for t in win) for i in ids}; Q = {i: psum(sq[i][t] for t in win) for i in ids}
+        picks[T] = sorted(ids, key=lambda i: ((Q[i], A[i]) if sq_mode else (A[i], Q[i])) + (JS_ORDER.index(i),))[:3]
     res["picks"] = picks
     res["pool"] = summary(lambda T: pool_at(T, picks[T])); res["pool"]["future"] = res["hindsight"]["future"]
     res["pick"] = summary(lambda T: fc[picks[T][0]][T]); res["pick"]["future"] = fc[top[0]]["future"][0]
@@ -495,7 +521,8 @@ def ranges(y, fc, test, h, lo, kind, levels, cal=48, minc=10):
         path = {}
         for T in range(start, n):
             win = range(T - test, T - h + 1)
-            top = sorted(ids, key=lambda i: (psum(sa[i, t] for t in win), psum(sq[i, t] for t in win), JS_ORDER.index(i)))[:3]
+            A = {i: psum(sa[i, t] for t in win) for i in ids}; Q = {i: psum(sq[i, t] for t in win) for i in ids}
+            top = sorted(ids, key=lambda i: ((Q[i], A[i]) if is_intermittent(y) else (A[i], Q[i])) + (JS_ORDER.index(i),))[:3]
             path[T] = fc[top[0]][T] if kind == "pick" else [psum(fc[i][T][k] for i in top) / 3 for k in range(12)]
     errs = {k: [(T, y[T + k - 1] - path[T][k - 1]) for T in range(start, n - k + 1)] for k in range(1, h + 1)}
 
@@ -588,6 +615,7 @@ def main():
                 if a is not b: print("MISMATCH", case["label"], name, a, b); worst = math.inf
                 continue
             rel = abs(a - b) / max(1.0, abs(a)) / k
+            if not math.isfinite(rel): rel = math.inf  # NaN on either side is a mismatch, never a silent pass
             worst = max(worst, rel)
             if rel > 1e-9: print("MISMATCH", case["label"], name, a, b)
     print(f"checked {checked} values across {len(js)} cases; worst relative difference {worst:.2e}")
