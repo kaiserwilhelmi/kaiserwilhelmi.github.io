@@ -1,4 +1,4 @@
-<title>Loot Ledger</title>
+<title>Loot Ledger · Dawson Wilhelmi</title>
 <meta name="description" content="A loot tracker for the game Tibia: what to sell, where, and for how much, with item prices and a wishlist.">
 <link rel="icon" href="/favicon.svg" type="image/svg+xml">
 <meta property="og:type" content="website">
@@ -6,6 +6,7 @@
 <meta property="og:title" content="Loot Ledger">
 <meta property="og:description" content="A loot tracker for the game Tibia: what to sell, where, and for how much, with item prices and a wishlist.">
 <meta property="og:url" content="https://dawsonwilhelmi.com/loot-ledger/">
+<link rel="canonical" href="https://dawsonwilhelmi.com/loot-ledger/">
 <meta property="og:image" content="https://dawsonwilhelmi.com/og.png">
 <meta property="og:image:width" content="1200">
 <meta property="og:image:height" content="630">
@@ -175,7 +176,7 @@ main:focus { outline: none; }
 <!-- LOOKUP -->
 <section class="book" id="v-lookup" hidden>
   <div class="panel">
-    <h2>Who buys it, and for how much?</h2>
+    <h2>Buyers and prices</h2>
     <p class="muted small" style="margin:6px 0 10px">Type an item to see every NPC that buys or sells it, or type an NPC to see what they trade.</p>
     <input id="lq" class="search" type="search" placeholder="e.g. dragon scale mail, Rashid, small ruby" autocomplete="off" aria-label="Search items and NPCs">
     <div class="hits" id="lHits"></div>
@@ -204,7 +205,7 @@ main:focus { outline: none; }
 <!-- SELL -->
 <section class="book" id="v-sell" hidden>
   <div class="panel">
-    <h2>What should I sell, and where?</h2>
+    <h2>Sell list</h2>
     <p class="muted small" style="margin:6px 0 10px">Paste the Hunt Analyser text (Copy to Clipboard), loot messages from the Server Log, or one item per line like <code>3 small rubies</code>.</p>
     <textarea id="lootIn" aria-label="Loot text" spellcheck="false"></textarea>
     <div class="row" style="margin-top:10px">
