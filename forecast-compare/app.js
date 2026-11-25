@@ -3,7 +3,7 @@
   "use strict";
   var E = window.FCEngine, SERIES = window.SERIES, MW = window.MW_CATALOG || { groups: [], items: [] }, MK = window.FCMarket;
   var $ = function (id) { return document.getElementById(id); };
-  var state = { key: SERIES[0].key, upload: null, h: 6, test: 24, m: 12, compare: "naive", sort: "rank", dir: 1 };
+  var state = { key: SERIES[0].key, upload: null, h: 6, test: 24, m: 12, compare: "naive", view: "recent", sort: "rank", dir: 1 };
   var last = null;
 
   function esc(s) { return String(s).replace(/[&<>"]/g, function (c) { return { "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c]; }); }
@@ -37,6 +37,7 @@
     var W = el.clientWidth || 720, H = cfg.height || 300, pad = { l: 56, r: 16, t: 12, b: 28 };
     var n = cfg.labels.length, ys = [];
     cfg.series.forEach(function (s) { s.pts.forEach(function (p) { if (p[1] !== null) ys.push(p[1]); }); });
+    (cfg.bands || []).forEach(function (b) { b.lo.concat(b.hi).forEach(function (p) { if (isFinite(p[1])) ys.push(p[1]); }); });
     var lo = Math.min.apply(null, ys), hi = Math.max.apply(null, ys), span = hi - lo || 1;
     lo -= span * 0.06; hi += span * 0.06;
     if (cfg.zero) lo = 0;
@@ -50,8 +51,20 @@
       s += '<line x1="' + pad.l + '" x2="' + (W - pad.r) + '" y1="' + yy + '" y2="' + yy + '" stroke="var(--grid)"/>' +
         '<text x="' + (pad.l - 8) + '" y="' + (yy + 4) + '" text-anchor="end" class="ax">' + fmtV(v, hi - lo) + "</text>";
     }
-    var every = Math.max(1, Math.ceil(n / Math.max(2, Math.floor((W - pad.l) / 70))));
-    for (var i = 0; i < n; i += every) s += '<text x="' + X(i) + '" y="' + (H - 8) + '" text-anchor="' + (i === 0 ? "start" : i === n - 1 ? "end" : "middle") + '" class="ax">' + esc(cfg.xfmt(cfg.labels[i])) + "</text>";
+    // x labels: evenly spaced, skipping any that would run into the one before (about 6.2 px per character at 11 px)
+    var every = Math.max(1, Math.ceil(n / Math.max(2, Math.floor((W - pad.l) / 70)))), right = -Infinity;
+    for (var i = 0; i < n; i += every) {
+      var txt = cfg.xfmt(cfg.labels[i]), wd = 6.2 * String(txt).length, anc = i === 0 ? "start" : i === n - 1 ? "end" : "middle";
+      var x0 = anc === "start" ? X(i) : anc === "end" ? X(i) - wd : X(i) - wd / 2;
+      if (x0 < right + 8 || x0 + wd > W) continue;
+      right = x0 + wd;
+      s += '<text x="' + X(i) + '" y="' + (H - 8) + '" text-anchor="' + anc + '" class="ax">' + esc(txt) + "</text>";
+    }
+    (cfg.bands || []).forEach(function (b) { // forecast ranges: filled between lower and upper bounds
+      var d = b.lo.map(function (p, i) { return (i ? "L" : "M") + X(p[0]).toFixed(1) + "," + Y(p[1]).toFixed(1); }).join("") +
+        b.hi.slice().reverse().map(function (p) { return "L" + X(p[0]).toFixed(1) + "," + Y(p[1]).toFixed(1); }).join("") + "Z";
+      s += '<path d="' + d + '" fill="' + b.color + '" fill-opacity="' + b.opacity + '" stroke="none"/>';
+    });
     cfg.series.forEach(function (se) {
       var d = "", pen = false;
       se.pts.forEach(function (p) { if (p[1] === null) { pen = false; return; } d += (pen ? "L" : "M") + X(p[0]).toFixed(1) + "," + Y(p[1]).toFixed(1); pen = true; });
@@ -69,6 +82,9 @@
       var rows = cfg.series.map(function (se) {
         var p = se.pts.filter(function (q) { return q[0] === i; })[0];
         return p && p[1] !== null ? '<div><i style="background:' + se.color + '"></i>' + esc(se.name) + " <b>" + fmtV(p[1], cfg.ref) + "</b></div>" : "";
+      }).join("") + (cfg.bands || []).map(function (b) {
+        var a = b.lo.filter(function (q) { return q[0] === i; })[0], z = b.hi.filter(function (q) { return q[0] === i; })[0];
+        return a && z && a[1] !== z[1] ? '<div><i style="background:' + b.color + ";opacity:" + Math.min(1, 2 * b.opacity) + '"></i>' + esc(b.name) + " <b>" + fmtV(a[1], cfg.ref) + " to " + fmtV(z[1], cfg.ref) + "</b></div>" : "";
       }).join("");
       if (!rows) { tip.hidden = true; return; }
       tip.innerHTML = '<div class="tt">' + esc(cfg.xfmt(cfg.labels[i])) + "</div>" + rows;
@@ -80,7 +96,7 @@
   }
 
   function legend(items) {
-    return items.map(function (it) { return '<span class="lg"><i style="background:' + it.color + (it.dash ? ";background:repeating-linear-gradient(90deg," + it.color + " 0 5px,transparent 5px 8px)" : "") + '"></i>' + esc(it.name) + "</span>"; }).join("");
+    return items.map(function (it) { return '<span class="lg"><i style="background:' + it.color + (it.dash ? ";background:repeating-linear-gradient(90deg," + it.color + " 0 5px,transparent 5px 8px)" : "") + (it.block ? ";height:10px" : "") + '"></i>' + esc(it.name) + "</span>"; }).join("");
   }
 
   // ---- render -------------------------------------------------------------
@@ -97,26 +113,116 @@
   function paramText(p) {
     if (!p) return "";
     var sym = { alpha: "α", beta: "β", gamma: "γ", phi: "φ", slope: "slope", theta: "θ", Theta: "Θ", lambda: "λ", trees: "trees" };
-    return Object.keys(p).map(function (k) { return sym[k] + " " + (k === "slope" ? fmtV(p[k]) : p[k].toFixed(2)); }).join(", ");
+    return Object.keys(p).map(function (k) { return sym[k] + " " + (k === "slope" ? fmtV(p[k]) : Number.isInteger(p[k]) ? String(p[k]) : p[k].toFixed(2)); }).join(", ");
   }
 
-  // Fitting every method at every origin is the slow part, so it runs once per
-  // series + seasonality and every horizon/window choice is scored from it. It fits twice
-  // the backtest window: the older half is what the page uses to test its own choice.
+  // ---- background fitting --------------------------------------------------
+  // Fitting every method at every origin is the slow part. It runs in a Web Worker started from
+  // the engine source inlined in this page (worker.js), so the page stays responsive and shows
+  // progress; where workers are unavailable it runs on the page itself. Each series + seasonality
+  // is fitted once and every horizon/window choice is scored from it. Two stages: first twice the
+  // backtest window (enough for the table and the test of the choice), then older origins for the
+  // forecast ranges, while the results are already on screen.
+  var fitter = (function () {
+    var w = null, useWorker = typeof Worker !== "undefined" && typeof Blob !== "undefined", seq = 0, cur = null;
+    function start() {
+      try {
+        var src = $("fc-engine").textContent + "\n" + $("fc-worker").textContent;
+        var wk = new Worker(URL.createObjectURL(new Blob([src], { type: "text/javascript" })));
+        wk.onmessage = function (ev) {
+          var d = ev.data;
+          if (!cur || d.job !== cur.id) return;
+          if (d.fc || d.error) { var c = cur; cur = null; c.done(d); }
+          else if (cur.progress) cur.progress(d.done / d.total);
+        };
+        wk.onerror = function (ev) { // the worker could not start (for example, blocked by the browser): fit on the page
+          if (ev && ev.preventDefault) ev.preventDefault();
+          useWorker = false; wk.terminate(); w = null;
+          if (cur) local(cur);
+        };
+        return wk;
+      } catch (e) { useWorker = false; return null; }
+    }
+    function local(job) {
+      setTimeout(function () {
+        if (cur !== job) return;
+        var r;
+        try { r = { fc: E.fitRange(job.q.y, job.q.m, job.q.lo, job.q.hi), lo: job.q.lo, fut: job.q.fut ? E.futures(job.q.y, job.q.m) : null }; }
+        catch (e) { r = { error: e.message }; }
+        if (cur !== job) return;
+        document.documentElement.setAttribute("data-fit", "page");
+        cur = null; job.done(r);
+      }, 30);
+    }
+    return {
+      // job: { key, stage, q: { y, m, lo, hi, fut }, progress(frac), done(result) }
+      run: function (job) {
+        if (cur && w) { w.terminate(); w = null; } // a newer request replaces the one running
+        job.id = ++seq; cur = job;
+        if (useWorker && !w) w = start();
+        if (w) { var q = job.q; w.postMessage({ job: job.id, y: q.y, m: q.m, lo: q.lo, hi: q.hi, fut: q.fut }); }
+        else local(job);
+        document.documentElement.setAttribute("data-fit", w ? "worker" : "page"); // for the page tests
+      },
+      busy: function () { return cur; }
+    };
+  })();
+
   var cache = {};
+  function keyOf(s) { return s.key + "|" + (s.uid || s.name) + "|" + state.m; }
   function run() {
-    var s = current(), key = s.key + "|" + (s.uid || s.name) + "|" + state.m, err = $("err"), P = cache[key];
+    var s = current(), key = keyOf(s), err = $("err"), P = cache[key];
     unitLabels(s);
     err.hidden = true;
-    var need = 2 * Math.max(state.test, state.testPref || 0);
-    if (P && !moreNeeded(P, need)) return render(s, P);
-    $("busy").innerHTML = P ? "<b>Fitting older origins to test the choice…</b>" : "<b>Fitting every method at each backtest origin…</b>"; $("busy").hidden = false;
-    setTimeout(function () {
-      try { if (P) E.ensure(P, need); else cache[key] = P = E.prepare(s.values, state.m, null, s.skip || [], need); }
+    if (!P) {
+      try { P = cache[key] = E.skeleton(s.values, state.m, s.skip || []); }
       catch (e) { $("busy").hidden = true; err.textContent = e.message; err.hidden = false; return; }
-      $("busy").hidden = true;
-      render(s, P);
-    }, 30);
+    }
+    var need = 2 * Math.max(state.test, state.testPref || 0), lo = Math.min(E.loFor(P, need), P.lo);
+    if (lo >= P.lo && P.fut) { $("busy").hidden = true; render(s, P); return calibrate(s, P, key); }
+    var job = fitter.busy();
+    if (job && job.key === key && job.q.lo <= lo && (P.fut || job.q.fut)) { job.main = true; return showBusy(job); } // already fitting what is needed
+    job = { key: key, main: true, q: { y: P.y, m: P.m, lo: lo, hi: P.lo, fut: !P.fut } };
+    job.label = P.fut ? "Fitting older origins to test the choice" : "Fitting every method at each backtest origin";
+    job.progress = function (f) { job.frac = f; showBusy(job); };
+    job.done = function (r) { fitted(s, P, key, job, r); };
+    fitter.run(job); showBusy(job);
+  }
+  function showBusy(job) {
+    if (job.main) { $("busy").innerHTML = "<b>" + esc(job.label || "Fitting older origins") + "… " + Math.round(100 * (job.frac || 0)) + "%</b>"; $("busy").hidden = false; }
+    else rangeBusy(job);
+  }
+  function fitted(s, P, key, job, r) {
+    if (r.error) {
+      if (job.main) { $("busy").hidden = true; $("err").textContent = r.error; $("err").hidden = false; }
+      else { P.calFailed = r.error; if (key === keyOf(current())) render(s, P); }
+      return;
+    }
+    E.merge(P, r.fc, r.lo);
+    if (r.fut) P.fut = r.fut;
+    if (key !== keyOf(current())) return; // the user has moved on; the fits stay cached
+    if (job.main) $("busy").hidden = true;
+    run();
+  }
+  // Older origins for the forecast ranges: errors from as far back as the data allows, up to
+  // CAL per step ahead, plus enough before the backtest window to check the ranges there.
+  // The check at the oldest backtest origin needs CAL errors before it, and each of those needs the
+  // backtest window before it to re-pick the pool: 2 x window + h + CAL - 1 origins in all.
+  function calOrigins() { return 2 * state.test + state.h + E.CAL - 1; }
+  function calLo(P) { return Math.max(E.minTrain(P.m), P.y.length - calOrigins()); }
+  function calibrate(s, P, key) {
+    var lo = calLo(P);
+    if (lo >= P.lo || P.calFailed) return;
+    var job = fitter.busy();
+    if (job && job.key === key) return; // already running
+    job = { key: key, main: false, q: { y: P.y, m: P.m, lo: lo, hi: P.lo, fut: false } };
+    job.progress = function (f) { job.frac = f; showBusy(job); };
+    job.done = function (r) { fitted(s, P, key, job, r); };
+    fitter.run(job); showBusy(job);
+  }
+  function rangeBusy(job) {
+    var el = $("rbusy"); if (!el) return;
+    el.textContent = "Building the ranges from older backtests… " + Math.round(100 * (job.frac || 0)) + "%"; el.hidden = false;
   }
   function moreNeeded(P, need) { return Math.max(P.y.length - need, E.minTrain(P.m)) < P.lo; }
 
@@ -156,8 +262,15 @@
     var prim = dec.kind === "naive" ? { id: "naive", name: nv.name, r: nv, future: nv.future }
       : dec.kind === "pick" ? { id: best.id, name: best.name, r: res.pick, future: best.future }
       : { id: "pool", name: "Top-3 pool", r: dec.row, future: (res.pool || res.hindsight).future };
-    var ref = s.values[s.values.length - 1];
-    last = { s: s, res: res, ranked: ranked, byId: byId, dec: dec, prim: prim, P: P };
+    var ref = s.values[s.values.length - 1], H = state.h;
+    // forecast ranges, once the older origins they need are fitted
+    var rg = null, calReady = P.lo <= calLo(P) || !!P.calFailed;
+    if (calReady && !P.calFailed) rg = E.ranges(P, { h: H, test: state.test, kind: dec.kind, levels: LEVELS });
+    var rows = prim.future.slice(0, H).map(function (f, i) {
+      var b = rg && rg.future[i];
+      return b ? { k: i + 1, f: f, n: b.n, p50: f + b.p50, ok: b.ok, lo: b.lo.map(function (q) { return f + q; }), hi: b.hi.map(function (q) { return f + q; }) } : null;
+    });
+    last = { s: s, res: res, ranked: ranked, byId: byId, dec: dec, prim: prim, P: P, rg: rg, rows: rows };
 
     // tag + KPIs
     $("tag").innerHTML = s.sample ? '<span class="badge">SAMPLE DATA · synthetic, for demonstration</span>' : "";
@@ -169,9 +282,10 @@
       kpi(dec.kind === "naive" ? (dec.tried === "pick" ? "Best method vs naive" : "Top-3 pool vs naive") : "Error vs naive", relText(relPct(ev.metrics.MAE, nv.metrics.MAE)), "MAE, " + how) +
       (sn ? kpi(dec.kind === "naive" ? "Naive vs seasonal naive" : "Error vs seasonal naive", relText(relPct((dec.kind === "naive" ? nv : ev).metrics.MAE, sn.metrics.MAE)), "same forecasts and targets")
         : kpi("Best in hindsight", best.name, "MASE " + fmt(best.metrics.MASE, 3) + " used to choose" + (res.pick ? ", " + fmt(res.pick.metrics.MASE, 3) + " re-picked" : ""))) +
-      kpi("Forecasts scored", ev.metrics.n, res.origins + " origins × " + hz);
+      rangeKpi(s, rg, rows, ref, calReady);
 
     $("rec").innerHTML = recommend(s, res, ranked, byId, dec, prim, poolNames, ref);
+    rangeCard(s, P, dec, prim, rg, rows, ref);
     honestTable(s, res, byId, best);
 
     // compare picker
@@ -182,21 +296,37 @@
     var cmp = byId[state.compare];
 
     // main chart
-    var n = s.values.length, fut = futureDates(s.dates, 12, s), labels = s.dates.concat(fut);
+    var n = s.values.length, fut = futureDates(s.dates, H, s), labels = s.dates.concat(fut);
     var actual = s.values.map(function (v, i) { return [i, v]; });
-    function bt(r) { return r.records.filter(function (q) { return q.k === 1; }).map(function (q) { return [q.idx, q.f]; }); }
-    function fu(f) { return [[n - 1, s.values[n - 1]]].concat(f.map(function (v, i) { return [n + i, v]; })); }
-    var C1 = "var(--s1)", C2 = "var(--s2)", CA = "var(--text)";
+    // recent view: the backtest window plus as much history again (at least 60 periods), so the
+    // forecast and its range are readable; "All history" shows everything
+    var v0 = state.view === "all" ? 0 : Math.max(0, Math.min(res.first - state.test, n - 60));
+    // backtest dots: the forecasts made h steps before each target, the horizon the table scores
+    function bt(r) { return r.records.filter(function (q) { return q.k === H; }).map(function (q) { return [q.idx, q.f]; }); }
+    function fu(f) { return [[n - 1, s.values[n - 1]]].concat(f.slice(0, H).map(function (v, i) { return [n + i, v]; })); }
+    var C1 = "var(--s1)", C2 = "var(--s2)", CA = "var(--text)", hs1 = H === 1 ? "1 step" : H + " steps";
     var series = [
       { name: "Actual", color: CA, pts: actual },
-      { name: prim.name + " (backtest, 1-step)", color: C1, pts: bt(prim.r), dots: true },
-      { name: prim.name + " (forecast)", color: C1, pts: fu(prim.future) },
-      { name: cmp.name + " (backtest, 1-step)", color: C2, pts: bt(cmp), dots: true, dash: true },
-      { name: cmp.name + " (forecast)", color: C2, pts: fu(cmp.future), dash: true }
+      { name: prim.name + " (backtest, " + hs1 + " ahead)", color: C1, pts: bt(prim.r), dots: true },
+      { name: prim.name + " (forecast)", color: C1, pts: fu(prim.future), dots: H === 1 },
+      { name: cmp.name + " (backtest, " + hs1 + " ahead)", color: C2, pts: bt(cmp), dots: true, dash: true },
+      { name: cmp.name + " (forecast)", color: C2, pts: fu(cmp.future), dash: true, dots: H === 1 }
     ];
-    $("lg1").innerHTML = legend([{ name: "Actual", color: CA }, { name: prim.name + " (recommended)", color: C1 }, { name: cmp.name, color: C2, dash: true }]);
-    lineChart($("ch1"), { labels: labels, series: series, xfmt: label, ref: ref, band: [res.first - 0.5 < 0 ? 0 : res.first - 0.5, n - 1], bandLabel: "Backtest window",
-      aria: "Actual values with backtest and 12-" + one(s) + " forecasts for " + prim.name + " and " + cmp.name, height: 320 });
+    var bands = [], lgs = [{ name: "Actual", color: CA }, { name: prim.name + " (recommended)", color: C1 }];
+    if (rows.every(Boolean)) LEVELS.map(function (L, i) { return i; }).reverse().forEach(function (li) {
+      if (!rows.every(function (r) { return r.ok[li]; })) return;
+      bands.push({ name: pctL(LEVELS[li]) + " range", color: C1, opacity: [0.24, 0.16, 0.09][li],
+        lo: [[n - 1, s.values[n - 1]]].concat(rows.map(function (r, i) { return [n + i, r.lo[li]]; })),
+        hi: [[n - 1, s.values[n - 1]]].concat(rows.map(function (r, i) { return [n + i, r.hi[li]]; })) });
+    });
+    bands.slice().reverse().forEach(function (b) { lgs.push({ name: b.name, color: "rgba(76,154,255," + (0.15 + b.opacity * 2).toFixed(2) + ")", block: true }); });
+    lgs.push({ name: cmp.name, color: C2, dash: true });
+    $("lg1").innerHTML = legend(lgs);
+    function cut(pts) { return pts.filter(function (p) { return p[0] >= v0; }).map(function (p) { return [p[0] - v0, p[1]]; }); }
+    series.forEach(function (se) { se.pts = cut(se.pts); });
+    bands.forEach(function (b) { b.lo = cut(b.lo); b.hi = cut(b.hi); });
+    lineChart($("ch1"), { labels: labels.slice(v0), series: series, bands: bands, xfmt: label, ref: ref, band: [Math.max(0, res.first - 0.5 - v0), n - 1 - v0], bandLabel: "Backtest window",
+      aria: "Actual values with backtest and " + H + "-" + one(s) + " forecasts for " + prim.name + " and " + cmp.name + (bands.length ? ", with forecast ranges" : ""), height: 320 });
 
     // horizon chart
     if (state.h > 1) {
@@ -209,7 +339,7 @@
     } else $("hz").hidden = true;
 
     table(ranked);
-    $("ch1t").textContent = "Actuals, backtest and 12-" + one(s) + " forecast";
+    $("ch1t").textContent = "Actuals, backtest and " + (H === 1 ? "next-" + one(s) : H + "-" + one(s)) + " forecast";
     $("meta").innerHTML = esc(s.name) + (s.unit ? " · " + esc(s.unit) : "") + " · " + n + " " + many(s) + ", " + label(s.dates[0]) + " to " + label(s.dates[n - 1]) + " · Source: " + (s.sourceHtml || esc(s.source));
   }
 
@@ -226,6 +356,54 @@
   }
 
   function kpi(t, v, sub) { return '<div class="kpi"><div class="kt">' + esc(t) + '</div><div class="kv">' + esc(v) + '</div><div class="ks">' + esc(sub) + "</div></div>"; }
+
+  // ---- forecast ranges --------------------------------------------------------
+  var LEVELS = [0.5, 0.8, 0.95], MAIN = 1; // MAIN: index of the planning range (80%)
+  function pctL(L) { return Math.round(100 * L) + "%"; }
+  function pct(x) { return isFinite(x) ? Math.round(100 * x) + "%" : "n/a"; }
+  function rangeKpi(s, rg, rows, ref, ready) {
+    var H = state.h, r = rows[H - 1], when = label(futureDates(s.dates, H, s)[H - 1]);
+    if (!ready) return kpi("80% range, " + when, "…", "building from older backtests");
+    if (!r) return kpi("80% range, " + when, "n/a", "too few past forecasts");
+    return kpi("80% range, " + when, fmtV(r.lo[MAIN], ref) + " to " + fmtV(r.hi[MAIN], ref), isFinite(rg.cover[0.8]) ? "held " + pct(rg.cover[0.8]) + " of the time in the backtest" : "not yet checked: too little history");
+  }
+  function rangeCard(s, P, dec, prim, rg, rows, ref) {
+    var el = $("ranges"), H = state.h, u = s.short ? " " + esc(s.short) : "", fd = futureDates(s.dates, H, s), job = fitter.busy();
+    var hz = H + " " + (H > 1 ? many(s) : one(s)) + " ahead";
+    $("rbusy").hidden = true;
+    $("rhint").innerHTML = "Each range comes from the recommended approach's own past misses at that step ahead: the last " + E.CAL + " it made, with the pool re-picked at each past origin as it is today " +
+      "(Williams &amp; Goodman, 1971; Lee &amp; Scholtes, 2014). The check rebuilds the range at every origin in the backtest window from only the misses known then, and counts how often the actual landed inside.";
+    if (P.calFailed) { el.innerHTML = '<p class="hint" style="margin:0">The ranges could not be built: ' + esc(P.calFailed) + "</p>"; return; }
+    if (!rg) { el.innerHTML = ""; if (job && job.key === keyOf(s) && !job.main) rangeBusy(job); else { $("rbusy").textContent = "Building the ranges from older backtests…"; $("rbusy").hidden = false; } return; }
+    var r = rows[H - 1], nmax = rows.reduce(function (a, x) { return x ? Math.max(a, x.n) : a; }, 0);
+    if (!r) {
+      // how many step-h errors a window w would give: one per origin from (first fitted + w) to n - h
+      var n = s.values.length, lo0 = Math.max(E.minTrain(P.m), P.lo), have = rg.future[H - 1] ? rg.future[H - 1].n : Math.max(0, n - H - rg.start + 1);
+      var fit = E.WINDOWS.filter(function (w) { return w >= 2 * H && w <= P.W && w < state.test && n - H - (lo0 + w) + 1 >= E.MINCAL; }).pop();
+      el.innerHTML = '<p style="margin:0">This series is too short for a tested range at ' + esc(hz) + ": a range needs at least " + E.MINCAL + " past forecasts of the recommended approach at that step, and there are " + have + "." +
+        (fit ? " With a backtest window of " + fit + " " + esc(many(s)) + " there would be enough." : " A shorter horizon may allow one.") + "</p>";
+      return;
+    }
+    var who = dec.kind === "naive" ? "the naive forecast" : dec.kind === "pick" ? esc(prim.name) : "the top-3 pool";
+    var html = '<p style="margin:0 0 8px"><b>Planning range for ' + esc(label(fd[H - 1])) + "</b> (" + esc(hz) + "): <b>" + fmtV(r.lo[MAIN], ref) + " to " + fmtV(r.hi[MAIN], ref) + "</b>" + u +
+      ", an 80% range around the forecast of " + fmtV(r.f, ref) + ". It is built from " + who + "'s last " + r.n + " forecasts made " + esc(hz) + ".</p>";
+    var c = rg.cover[0.8], ab = rg.above[0.8], bl = rg.below[0.8];
+    if (rg.nCheck) {
+      var verdict = c < 0.7 ? " That is less often than the label says, so expect more surprises than the range suggests." : c > 0.9 ? " That is more often than the label says, so the range is on the cautious side." : "";
+      html += '<p style="margin:0 0 8px">Check: at the ' + (state.test - H + 1) + " origins in the backtest window, 80% ranges built this way held " + pct(c) + " of the time (" + Math.round(c * rg.nCheck) + " of " + rg.nCheck + " forecasts; " + pct(rg.coverH[0.8]) + " at " + esc(hz) + ")." + verdict + "</p>" +
+        '<p style="margin:0 0 10px">For a budget or a price cap, plan on the forecast and treat the top end as the cautious case. In the check the actual came in above the top end ' + pct(ab) + " of the time and below the bottom end " + pct(bl) + "; an 80% range allows 10% each.</p>";
+    } else html += '<p style="margin:0 0 10px">These ranges cannot be checked on this series: the check needs ' + E.CAL + " past forecasts before the backtest window, and the history is too short for that.</p>";
+    var show = LEVELS.map(function (L, li) { return rows.every(function (x) { return !x || x.ok[li]; }); });
+    html += '<div class="tblwrap"><table><thead><tr><th class="l">' + esc(one(s).charAt(0).toUpperCase() + one(s).slice(1)) + "</th><th>Forecast</th>" +
+      LEVELS.map(function (L, li) { return show[li] ? "<th>" + pctL(L) + " range</th>" : ""; }).join("") + '<th title="Past forecasts at this step ahead that the range is built from">Built from</th></tr></thead><tbody>';
+    rows.forEach(function (x, i) {
+      html += '<tr><td class="l">' + esc(label(fd[i])) + "</td><td>" + fmtV(prim.future[i], ref) + "</td>" +
+        LEVELS.map(function (L, li) { return show[li] ? "<td>" + (x ? fmtV(x.lo[li], ref) + " to " + fmtV(x.hi[li], ref) : "n/a") + "</td>" : ""; }).join("") + "<td>" + (x ? x.n : "–") + "</td></tr>";
+    });
+    html += "</tbody></table></div>";
+    if (!show[2] && nmax) html += '<div class="hint">A 95% range needs at least 39 past forecasts per step, so it is not shown.</div>';
+    el.innerHTML = html;
+  }
 
   function recommend(s, res, ranked, byId, dec, prim, poolNames, ref) {
     var best = ranked[0], nv = byId.naive, u1 = one(s), unit = s.short ? " " + esc(s.short) : "";
@@ -273,7 +451,7 @@
       ". The table ranks by MASE, which orders methods the same way as MAE. Use RMSE instead when one large miss costs more than several small ones (Kolassa, 2020).</li>";
     var bias = r.metrics.ME, rel = Math.abs(bias) / r.metrics.MAE;
     if (dec.kind !== "naive" && rel > 0.5) out += "<li>Watch the bias: it tends to " + (bias > 0 ? "under" : "over") + "-forecast (mean error " + fmtV(bias, ref) + "). " + (bias > 0 ? "Budget and safety stock set from it will run short." : "Budget set from it will be padded.") + "</li>";
-    out += "<li>Next " + u1 + ": <b>" + fmtV(prim.future[0], ref) + "</b>" + unit + ", 12-" + u1 + " path in the chart below.</li></ul>";
+    out += "<li>Next " + u1 + ": <b>" + fmtV(prim.future[0], ref) + "</b>" + unit + (state.h > 1 ? "; the " + state.h + "-" + u1 + " path and its range are below." : "; its range is below.") + "</li></ul>";
     return out;
   }
 
@@ -373,19 +551,31 @@
     });
   }
 
+  // CSV (RFC 4180 quoting): every backtest forecast of every method and of the two re-picked
+  // approaches; for the recommended approach, the 80% range (p10, p90) and middle (p50) as built at
+  // each origin in the check; then the forecast rows from the end of the data with their ranges.
+  function csvField(v) { var t = v === null || v === undefined ? "" : String(v); return /[",\r\n]/.test(t) ? '"' + t.replace(/"/g, '""') + '"' : t; }
   function downloadCSV() {
     if (!last) return;
-    var lines = ["method,origin_date,steps_ahead,target_date,actual,forecast,error"];
-    var rows = last.res.results.slice();
-    if (last.res.pool) rows.push({ name: "Top-3 pool (re-picked at each origin)", records: last.res.pool.records }, { name: "Best single method (re-picked at each origin)", records: last.res.pick.records });
+    var L = last, s = L.s, n = s.values.length, li = MAIN, lines = [["method", "origin_date", "steps_ahead", "target_date", "actual", "forecast", "error", "p10", "p50", "p90"].join(",")];
+    var rows = L.res.results.map(function (r) { return { name: r.name, records: r.records, id: r.id }; });
+    if (L.res.pool) rows.push({ name: "Top-3 pool (re-picked at each origin)", records: L.res.pool.records, id: "pool" }, { name: "Best single method (re-picked at each origin)", records: L.res.pick.records, id: "pick" });
+    var recId = L.dec.kind, chk = {};
+    if (L.rg) L.rg.check.forEach(function (c) { chk[c.T + "|" + c.k] = c; });
     rows.forEach(function (r) {
+      var withRange = r.id === recId;
       r.records.forEach(function (q) {
-        lines.push([JSON.stringify(r.name), last.s.dates[q.origin - 1], q.k, last.s.dates[q.idx], q.y, q.f, q.e].join(","));
+        var c = withRange ? chk[q.origin + "|" + q.k] : null;
+        lines.push([r.name + (withRange ? " (recommended)" : ""), s.dates[q.origin - 1], q.k, s.dates[q.idx], q.y, q.f, q.e, c ? c.lo[li] : "", c ? c.p50 : "", c ? c.hi[li] : ""].map(csvField).join(","));
       });
     });
+    var fd = futureDates(s.dates, state.h, s);
+    L.rows.forEach(function (x, i) {
+      lines.push(["Forecast: " + L.prim.name + " (recommended)", s.dates[n - 1], i + 1, fd[i], "", L.prim.future[i], "", x ? x.lo[li] : "", x ? x.p50 : "", x ? x.hi[li] : ""].map(csvField).join(","));
+    });
     var a = document.createElement("a");
-    a.href = URL.createObjectURL(new Blob([lines.join("\n")], { type: "text/csv" }));
-    a.download = "backtest-" + String(last.s.key || "series").replace(/[^A-Za-z0-9_-]+/g, "-") + ".csv"; document.body.appendChild(a); a.click(); a.remove();
+    a.href = URL.createObjectURL(new Blob([lines.join("\r\n") + "\r\n"], { type: "text/csv" }));
+    a.download = "forecast-" + String(s.key || "series").replace(/[^A-Za-z0-9_-]+/g, "-") + ".csv"; document.body.appendChild(a); a.click(); a.remove();
   }
 
   // ---- Industry Market Watch series ------------------------------------------
@@ -562,6 +752,7 @@
       run();
     }); });
     $("cmp").addEventListener("change", function (e) { state.compare = e.target.value; run(); });
+    $("view").addEventListener("change", function (e) { state.view = e.target.value; run(); });
     $("file").addEventListener("change", function (e) {
       var f = e.target.files[0]; if (!f) return;
       e.target.value = "";

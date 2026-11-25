@@ -464,30 +464,55 @@
   // but never scored as targets, so a method is not judged against a made-up number.
   // want: how many origins to fit (default: twice the longest window the series allows).
   function prepare(y, m, onProgress, skip, want) {
+    var P = skeleton(y, m, skip);
+    ensure(P, want || 2 * P.W, onProgress);
+    P.fut = futures(y, m);
+    return P;
+  }
+  // An empty backtest for y: checks the data and works out the longest window, fits nothing.
+  function skeleton(y, m, skip) {
     var n = y.length, W = maxWindow(n, m), sk = {};
     for (var i0 = 0; i0 < n; i0++) if (typeof y[i0] !== "number" || !isFinite(y[i0])) throw new Error("Value " + (i0 + 1) + " of the series is not a number. Remove or fill it and try again.");
     (skip || []).forEach(function (i) { sk[i] = true; });
     if (!W) throw new Error("Need at least " + (minTrain(m) + 12) + " observations for this seasonality setting (have " + n + ").");
-    var P = { y: y, m: m, W: W, meths: activeMethods(m), fc: {}, fut: {}, skip: sk, nSkip: (skip || []).length, lo: n };
+    var P = { y: y, m: m, W: W, meths: activeMethods(m), fc: {}, fut: null, skip: sk, nSkip: (skip || []).length, lo: n };
     P.meths.forEach(function (d) { P.fc[d.id] = {}; });
-    ensure(P, want || 2 * W, onProgress);
-    P.meths.forEach(function (d) {
-      P.fut[d.id] = d.parts ? { f: avg(d.parts.map(function (p) { return P.fut[p].f; })) } : d.fn(y, MAXH, m);
-    });
     return P;
   }
-  function avg(arrs) { var o = []; for (var k = 0; k < arrs[0].length; k++) { var s = 0; for (var i = 0; i < arrs.length; i++) s += arrs[i][k]; o.push(s / arrs.length); } return o; }
-  // Fit more (older) origins so that at least `want` origins exist, as far as the data allows.
-  // Returns true when it had to fit anything.
-  function ensure(P, want, onProgress) {
-    var y = P.y, n = y.length, m = P.m, lo = Math.max(n - Math.max(want, P.W), minTrain(m));
-    if (lo >= P.lo) return false;
-    P.meths.forEach(function (d) {
-      for (var T = lo; T < P.lo; T++) // a combination averages the component forecasts already computed (same numbers as refitting)
-        P.fc[d.id][T] = d.parts ? avg(d.parts.map(function (p) { return P.fc[p][T]; })) : d.fn(y.slice(0, T), MAXH, m).f;
-      if (onProgress) onProgress(d.id);
+  // The 12-step forecasts from the end of the data, one per method.
+  function futures(y, m) {
+    var fut = {};
+    activeMethods(m).forEach(function (d) {
+      fut[d.id] = d.parts ? { f: avg(d.parts.map(function (p) { return fut[p].f; })) } : d.fn(y, MAXH, m);
     });
-    P.lo = lo;
+    return fut;
+  }
+  function avg(arrs) { var o = []; for (var k = 0; k < arrs[0].length; k++) { var s = 0; for (var i = 0; i < arrs.length; i++) s += arrs[i][k]; o.push(s / arrs.length); } return o; }
+  // Fit every method at origins lo .. hi-1 (newest first, so a progress bar moves evenly). A
+  // combination averages the component forecasts already computed (the same numbers as refitting).
+  // This is the slow part; the page runs it in a background worker.
+  function fitRange(y, m, lo, hi, onProgress) {
+    var meths = activeMethods(m), fc = {}, T, done = 0;
+    meths.forEach(function (d) { fc[d.id] = {}; });
+    for (T = hi - 1; T >= lo; T--) {
+      var yt = y.slice(0, T);
+      meths.forEach(function (d) { fc[d.id][T] = d.parts ? avg(d.parts.map(function (p) { return fc[p][T]; })) : d.fn(yt, MAXH, m).f; });
+      if (onProgress) onProgress(++done, hi - lo);
+    }
+    return fc;
+  }
+  function merge(P, fc, lo) {
+    Object.keys(fc).forEach(function (id) { for (var T in fc[id]) P.fc[id][T] = fc[id][T]; });
+    P.lo = Math.min(P.lo, lo);
+  }
+  // Lowest origin needed so that at least `want` origins exist, as far as the data allows.
+  function loFor(P, want) { return Math.max(P.y.length - Math.max(want, P.W), minTrain(P.m)); }
+  // Fit more (older) origins so that at least `want` origins exist. Returns true when it had to
+  // fit anything.
+  function ensure(P, want, onProgress) {
+    var lo = loFor(P, want);
+    if (lo >= P.lo) return false;
+    merge(P, fitRange(P.y, P.m, lo, P.lo, onProgress), lo);
     return true;
   }
   // Ranking used everywhere on the page: lowest MAE (equivalently MASE) first, then lowest
@@ -540,30 +565,115 @@
     res.hindsight = summary(recordsOf(function (T) { return poolAt(T, top); }));
     res.hindsight.future = avg(top.map(function (id) { return P.fut[id].f; }));
     if (first - test < P.lo) return res;
-    // per-origin absolute and squared error sums over the h steps, for ranking
-    var sa = {}, sq = {}, T, k;
-    ids.forEach(function (id) {
-      sa[id] = {}; sq[id] = {};
-      for (T = first - test; T <= last; T++) {
-        var a = 0, b = 0, f = P.fc[id][T];
-        for (k = 1; k <= h; k++) { var idx = T + k - 1; if (sk[idx]) continue; var e = y[idx] - f[k - 1]; a += Math.abs(e); b += e * e; }
-        sa[id][T] = a; sq[id][T] = b;
-      }
-    });
-    var picks = {};
-    for (T = first; T <= last; T++) {
-      var A = {}, Q = {};
-      ids.forEach(function (id) { var a = 0, b = 0; for (var t = T - test; t <= T - h; t++) { a += sa[id][t]; b += sq[id][t]; } A[id] = a; Q[id] = b; });
-      picks[T] = ids.map(function (id, i) { return { id: id, i: i }; }).sort(function (u, v) {
-        return cmpNum(A[u.id], A[v.id]) || cmpNum(Q[u.id], Q[v.id]) || u.i - v.i;
-      }).slice(0, 3).map(function (u) { return u.id; });
-    }
+    var picks = picksFor(P, h, test, first, last);
     res.pool = summary(recordsOf(function (T) { return poolAt(T, picks[T]); }));
     res.pool.future = res.hindsight.future;
     res.pick = summary(recordsOf(function (T) { return P.fc[picks[T][0]][T]; }));
     res.pick.future = P.fut[top[0]].f;
     res.picks = picks;
     return res;
+  }
+  /* picksFor(): the top three methods at each origin T in [from, to], ranked exactly as the table
+   * ranks them but on the errors already known at T: complete origins T-test .. T-h, lowest total
+   * absolute error first, then lowest squared error, then method order. Filled-in targets are
+   * skipped. to may be n, the end of the data, where the picks are the table's own top three. */
+  function picksFor(P, h, test, from, to) {
+    var y = P.y, sk = P.skip || {}, ids = P.meths.map(function (d) { return d.id; }), sa = {}, sq = {}, picks = {}, T, k;
+    if (from - test < P.lo) throw new Error("picksFor needs origins from " + (from - test) + "; fitted from " + P.lo + ".");
+    ids.forEach(function (id) {
+      sa[id] = {}; sq[id] = {};
+      for (T = from - test; T <= to - h; T++) {
+        var a = 0, b = 0, f = P.fc[id][T];
+        for (k = 1; k <= h; k++) { var idx = T + k - 1; if (sk[idx]) continue; var e = y[idx] - f[k - 1]; a += Math.abs(e); b += e * e; }
+        sa[id][T] = a; sq[id][T] = b;
+      }
+    });
+    for (T = from; T <= to; T++) {
+      var A = {}, Q = {};
+      ids.forEach(function (id) { var a = 0, b = 0; for (var t = T - test; t <= T - h; t++) { a += sa[id][t]; b += sq[id][t]; } A[id] = a; Q[id] = b; });
+      picks[T] = ids.map(function (id, i) { return { id: id, i: i }; }).sort(function (u, v) {
+        return cmpNum(A[u.id], A[v.id]) || cmpNum(Q[u.id], Q[v.id]) || u.i - v.i;
+      }).slice(0, 3).map(function (u) { return u.id; });
+    }
+    return picks;
+  }
+  /* ranges(): forecast ranges for an approach ("pool", "pick" or "naive") from its own past errors:
+   * empirical prediction intervals (Williams & Goodman, 1971; Lee & Scholtes, 2014). For each step
+   * ahead k, the k-step errors the approach made at past origins, with the pool or pick re-chosen at
+   * each origin exactly as it is chosen today, give quantiles that are added to today's forecast.
+   * The check applies the same construction at every scored origin of the backtest window, using
+   * only the errors already known there, and counts how often the actual landed inside: the
+   * realised coverage the page shows next to each range.
+   * opt: { h, test, kind, levels: [0.5, 0.8, ...], cal: errors per step to use (newest first) }. */
+  var MINCAL = 10, CAL = 48;
+  // Bounds of a central range from n sorted errors: the split-conformal order statistics (Lei,
+  // G'Sell, Rinaldo, Tibshirani & Wasserman, 2018), which sit slightly outside the plain sample
+  // quantiles so that a range from few errors is not too narrow. ok is false when there are too
+  // few errors for the level (fewer than 39 for 95%); the bounds are then the smallest and largest.
+  function confBounds(sorted, L) { // (the 1e-9 keeps 1 - 0.8 = 0.19999... from moving an exact rank)
+    var n = sorted.length, a = 1 - L, il = Math.floor((n + 1) * a / 2 + 1e-9), iu = Math.ceil((n + 1) * (1 - a / 2) - 1e-9);
+    return { lo: sorted[Math.max(il, 1) - 1], hi: sorted[Math.min(iu, n) - 1], ok: il >= 1 && iu <= n };
+  }
+  function ranges(P, opt) {
+    var y = P.y, n = y.length, h = opt.h, test = opt.test, sk = P.skip || {}, kind = opt.kind, cal = opt.cal || CAL;
+    var start = kind === "naive" ? P.lo : P.lo + test, picks = null, T, k;
+    if (start > n - 1) return null;
+    if (kind !== "naive") picks = picksFor(P, h, test, start, n - 1);
+    function path(T2) {
+      if (kind === "naive") return P.fc.naive[T2];
+      return kind === "pick" ? P.fc[picks[T2][0]][T2] : avg(picks[T2].map(function (id) { return P.fc[id][T2]; }));
+    }
+    var paths = {}, errs = [];
+    for (T = start; T < n; T++) paths[T] = path(T);
+    for (k = 1; k <= h; k++) {
+      var ek = [];
+      for (T = start; T + k - 1 < n; T++) { var idx = T + k - 1; if (!sk[idx]) ek.push({ T: T, e: y[idx] - paths[T][k - 1] }); }
+      errs.push(ek);
+    }
+    // quantiles of the k-step errors from origins up to `upto`, newest `cal` of them
+    function bounds(k2, upto) {
+      var ek2 = errs[k2 - 1], sel = [];
+      for (var i = ek2.length - 1; i >= 0 && sel.length < cal; i--) if (ek2[i].T <= upto) sel.push(ek2[i].e);
+      if (sel.length < MINCAL) return null;
+      sel.sort(function (a, b) { return a - b; });
+      return { n: sel.length, med: quantile(sel, 0.5), b: levels.map(function (L) { return confBounds(sel, L); }) };
+    }
+    var levels = opt.levels, out = { kind: kind, start: start, levels: levels, future: [], check: [], cover: {}, coverH: {}, nCheck: 0 };
+    for (k = 1; k <= h; k++) {
+      var b = bounds(k, n - k);
+      out.future.push(b ? { n: b.n, p50: b.med, lo: b.b.map(function (x) { return x.lo; }), hi: b.b.map(function (x) { return x.hi; }), ok: b.b.map(function (x) { return x.ok; }) } : null);
+    }
+    // the check: scored origins of the backtest window, errors known at each origin only
+    var first = n - test, last = n - h, hit = levels.map(function () { return 0; }), hitH = hit.slice(), above = hit.slice(), below = hit.slice(), cnt = 0, cntH = 0;
+    for (T = Math.max(first, start); T <= last; T++) {
+      for (k = 1; k <= h; k++) {
+        var idx2 = T + k - 1;
+        if (sk[idx2]) continue;
+        var b2 = bounds(k, T - k);
+        if (!b2) continue;
+        var f = paths[T][k - 1], row = { T: T, k: k, n: b2.n, f: f, y: y[idx2], p50: f + b2.med, lo: [], hi: [] };
+        levels.forEach(function (L, li) {
+          var lo = f + b2.b[li].lo, hi = f + b2.b[li].hi, inside = y[idx2] >= lo && y[idx2] <= hi;
+          row.lo.push(lo); row.hi.push(hi);
+          if (inside) { hit[li]++; if (k === h) hitH[li]++; } else if (y[idx2] > hi) above[li]++; else below[li]++;
+        });
+        out.check.push(row); cnt++; if (k === h) cntH++;
+      }
+    }
+    out.nCheck = cnt; out.nCheckH = cntH;
+    out.above = {}; out.below = {};
+    levels.forEach(function (L, li) {
+      out.cover[L] = cnt ? hit[li] / cnt : NaN; out.coverH[L] = cntH ? hitH[li] / cntH : NaN;
+      out.above[L] = cnt ? above[li] / cnt : NaN; out.below[L] = cnt ? below[li] / cnt : NaN;
+    });
+    return out;
+  }
+  // Sample quantile with linear interpolation between order statistics (Hyndman & Fan, 1996,
+  // type 7; the default in R and numpy). `sorted` must be in ascending order.
+  function quantile(sorted, p) {
+    var n = sorted.length; if (!n) return NaN;
+    var x = (n - 1) * p, i = Math.floor(x), j = Math.min(i + 1, n - 1);
+    return sorted[i] + (x - i) * (sorted[j] - sorted[i]);
   }
   /* MASE scale: in-sample MAE of the seasonal naive forecast (naive when m = 1) on the data
    * before the first origin (Hyndman & Koehler, 2006). When that is zero, as for a flat or
@@ -585,6 +695,6 @@
     }).map(function (o) { return o.r; });
   }
 
-  var api = { dmTest: dmTest, holm: holm, tTwoSided: tTwoSided, ensure: ensure, METHODS: METHODS, activeMethods: activeMethods, backtest: backtest, prepare: prepare, score: score, WINDOWS: WINDOWS, MAXH: MAXH, metrics: metrics, rank: rank, minTrain: minTrain, GRID: GRID, PHI: PHI };
+  var api = { ranges: ranges, confBounds: confBounds, MINCAL: MINCAL, CAL: CAL, quantile: quantile, skeleton: skeleton, futures: futures, fitRange: fitRange, merge: merge, loFor: loFor, picksFor: picksFor, dmTest: dmTest, holm: holm, tTwoSided: tTwoSided, ensure: ensure, METHODS: METHODS, activeMethods: activeMethods, backtest: backtest, prepare: prepare, score: score, WINDOWS: WINDOWS, MAXH: MAXH, metrics: metrics, rank: rank, minTrain: minTrain, GRID: GRID, PHI: PHI };
   if (typeof module !== "undefined" && module.exports) module.exports = api; else root.FCEngine = api;
 })(this);

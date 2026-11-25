@@ -408,6 +408,57 @@ def evaluate(y, fc, m, test, h, lo):
     return res
 
 
+def conf_bounds(s, L):
+    """Split-conformal order statistics (Lei et al., 2018) of sorted errors s for a central L range."""
+    n = len(s); a = 1 - L
+    il = math.floor((n + 1) * a / 2 + 1e-9); iu = math.ceil((n + 1) * (1 - a / 2) - 1e-9)
+    return s[max(il, 1) - 1], s[min(iu, n) - 1], il >= 1 and iu <= n
+
+
+def ranges(y, fc, test, h, lo, kind, levels, cal=48, minc=10):
+    """Forecast ranges from the approach's own past k-step errors, re-picked at each origin; the
+    check rebuilds them at each scored origin from the errors known there."""
+    n = len(y); start = lo if kind == "naive" else lo + test
+    if start > n - 1: return None
+    ids = sorted([i for i in fc], key=JS_ORDER.index)
+    if kind == "naive":
+        path = {T: fc["naive"][T] for T in range(start, n)}
+    else:
+        sa, sq = {}, {}
+        for i in ids:
+            for t in range(start - test, n - h):
+                e = [y[t + k - 1] - fc[i][t][k - 1] for k in range(1, h + 1)]
+                sa[i, t] = psum(abs(v) for v in e); sq[i, t] = psum(v * v for v in e)
+        path = {}
+        for T in range(start, n):
+            win = range(T - test, T - h + 1)
+            top = sorted(ids, key=lambda i: (psum(sa[i, t] for t in win), psum(sq[i, t] for t in win), JS_ORDER.index(i)))[:3]
+            path[T] = fc[top[0]][T] if kind == "pick" else [psum(fc[i][T][k] for i in top) / 3 for k in range(12)]
+    errs = {k: [(T, y[T + k - 1] - path[T][k - 1]) for T in range(start, n - k + 1)] for k in range(1, h + 1)}
+
+    def bounds(k, upto):
+        sel = [e for T, e in errs[k] if T <= upto][-cal:]
+        if len(sel) < minc: return None
+        s = sorted(sel)
+        return len(s), float(np.quantile(s, 0.5)), [conf_bounds(s, L) for L in levels]
+    fut = []
+    for k in range(1, h + 1):
+        b = bounds(k, n - k)
+        fut.append(b and {"n": b[0], "p50": b[1], "lo": [x[0] for x in b[2]], "hi": [x[1] for x in b[2]], "ok": [x[2] for x in b[2]]})
+    check = []
+    for T in range(max(n - test, start), n - h + 1):
+        for k in range(1, h + 1):
+            b = bounds(k, T - k)
+            if not b: continue
+            f = path[T][k - 1]
+            check.append({"T": T, "k": k, "n": b[0], "f": f, "y": y[T + k - 1], "p50": f + b[1], "lo": [f + x[0] for x in b[2]], "hi": [f + x[1] for x in b[2]]})
+    cover = {}
+    for li, L in enumerate(levels):
+        ins = [c["lo"][li] <= c["y"] <= c["hi"][li] for c in check]
+        cover[L] = (sum(ins) / len(ins)) if ins else None
+    return {"start": start, "future": fut, "check": check, "cover": cover}
+
+
 def main():
     js = json.load(open("js_results.json"))
     worst, checked = 0.0, 0
@@ -449,6 +500,24 @@ def main():
         if ev["picks"] is not None:
             for T, ids in ev["picks"].items():
                 if case["picks"][str(T)] != ids: bad(f"picks at origin {T}", ids, case["picks"][str(T)]); worst = math.inf
+        for kind in ("pool", "pick", "naive"):
+            a, b = ranges(y, fc, case["test"], case["h"], case["lo"], kind, [0.5, 0.8, 0.95]), case["ranges"][kind]
+            if (a is None) != (b is None): bad(kind + " ranges availability", a is None, b is None); worst = math.inf; continue
+            if a is None: continue
+            if a["start"] != b["start"] or len(a["check"]) != len(b["check"]) or len(a["check"]) != b["nCheck"]:
+                bad(kind + " ranges shape", (a["start"], len(a["check"])), (b["start"], len(b["check"]))); worst = math.inf; continue
+            for k, (fa, fb) in enumerate(zip(a["future"], b["future"])):
+                if (fa is None) != (fb is None) or (fa and (fa["n"] != fb["n"] or fa["ok"] != fb["ok"])): bad(f"{kind} range step {k+1} size", fa and fa["n"], fb and fb["n"]); worst = math.inf; continue
+                if fa is None: continue
+                pairs.append((f"{kind}.range{k+1}.p50", fa["p50"], fb["p50"]))
+                for li in range(3): pairs += [(f"{kind}.range{k+1}.lo{li}", fa["lo"][li], fb["lo"][li]), (f"{kind}.range{k+1}.hi{li}", fa["hi"][li], fb["hi"][li])]
+            for ca, cb in zip(a["check"], b["check"]):
+                if (ca["T"], ca["k"], ca["n"]) != (cb["T"], cb["k"], cb["n"]): bad(kind + " check row", (ca["T"], ca["k"], ca["n"]), (cb["T"], cb["k"], cb["n"])); worst = math.inf; break
+                pairs += [(f"{kind}.check{ca['T']}.{ca['k']}.f", ca["f"], cb["f"]), (f"{kind}.check{ca['T']}.{ca['k']}.p50", ca["p50"], cb["p50"])]
+                for li in range(3): pairs += [(f"{kind}.check.lo{li}", ca["lo"][li], cb["lo"][li]), (f"{kind}.check.hi{li}", ca["hi"][li], cb["hi"][li])]
+            for L in ("0.5", "0.8", "0.95"):
+                pa, pb = a["cover"][float(L)], b["cover"][L]
+                pairs.append((f"{kind}.cover{L}", pa, pb if pb is not None and math.isfinite(pb) else None))
         for name, a, b, *k in pairs:
             checked += 1; k = k[0] if k else 1
             if a is None or b is None:
