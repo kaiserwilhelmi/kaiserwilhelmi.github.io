@@ -7,8 +7,10 @@ The page carries a copy of the numbers it shows so it is complete on first paint
   - Supplier Scorecard: scored with score.py from a clone of kaiserwilhelmi/supplier-scorecard
     (SC_REPO, default ../../supplier-scorecard), for the last 3, 6 and 12 months.
   - Forecast preview: fc.json, written by `node prep_fc.js` from the Forecast tool's own engine.
-  - Earth graphic: land.json, a land/sea grid written by `node prep_globe.js` from Natural Earth (public domain).
-    It only needs rebuilding if the grid itself should change.
+
+It also writes ../space.js (night sky and Earth graphic, shared with the About page) from space.src.js plus
+land.json, a land/sea grid written by `node prep_globe.js` from Natural Earth (public domain). The grid only
+needs rebuilding if the grid itself should change.
 
 Run: node prep_fc.js && python build.py
 """
@@ -45,11 +47,13 @@ for n in (3, 6, 12):
     D["sc"][n] = {"from": use[0], "to": use[-1], "rows": sorted(out, key=lambda z: -z["score"])}
 D["kpis"] = {k: list(v) for k, v in S.KPIS.items()}
 D["fc"] = json.loads((HERE / "fc.json").read_text())
-D["land"] = json.loads((HERE / "land.json").read_text())
 
 blob = json.dumps(D, separators=(",", ":")).replace("</", "<\\/")
 page = (HERE / "template.html").read_text()
 assert page.count("/*__DATA__*/null") == 1
 (HERE.parent / "index.html").write_text(page.replace("/*__DATA__*/null", blob))
+space = (HERE / "space.src.js").read_text()
+assert space.count("/*__LAND__*/null") == 1
+(HERE.parent / "space.js").write_text(space.replace("/*__LAND__*/null", (HERE / "land.json").read_text().strip()))
 print(f"index.html written ({len(page) + len(blob):,} bytes; Market Watch data built {D['built']}, "
       f"{len(D['series'])} series, {len(D['ind'])} industries)")
