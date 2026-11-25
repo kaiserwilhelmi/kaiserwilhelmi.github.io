@@ -17,6 +17,8 @@
 <meta name="twitter:card" content="summary_large_image">
 <meta name="claude:viewport-fit-sides" content="cover">
 <link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400&family=IBM+Plex+Sans:wght@400;600&family=Source+Serif+4:opsz,wght@8..60,600&display=swap" media="print" onload="this.media='all'">
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Alegreya+SC:wght@500;700&family=Alegreya+Sans:wght@400;500;700&display=swap">
 <style>
 /* Layout: one column ledger. Sticky tab bar, a "today" strip, then the active book (Sell, Prices, Trophies, Wishlist, Settings). Dark only, like a depot at night. */
@@ -153,13 +155,30 @@ details summary{cursor:pointer;color:var(--muted)}
 .foot{margin-top:28px;font-size:.8rem;color:var(--muted);line-height:1.5}
 @media (max-width:560px){h1{font-size:1.45rem}.tile .v{font-size:1.25rem}td,th{padding:7px 6px}}
 @media (prefers-reduced-motion:reduce){*{transition:none!important}}
+/* Site header and skip link: same as the home page header */
+.dw-skip { position: absolute; left: 12px; top: -80px; z-index: 1000; padding: 10px 16px; border-radius: 4px; background: #ebe8e1; color: #161a1f; font: 600 15px/1.2 "IBM Plex Sans", -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Arial, sans-serif; text-decoration: none; }
+.dw-skip:focus { top: 12px; outline: 2px solid #9cc0dc; outline-offset: 2px; }
+.dw-site { display: flex; justify-content: space-between; align-items: baseline; gap: 12px; flex-wrap: wrap; padding: 22px 0 18px; margin: 0 0 20px; border-bottom: 1px solid #303741; font: 16px/1.6 "IBM Plex Sans", -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Arial, sans-serif; }
+.dw-site .dw-me { font-family: "Source Serif 4", Georgia, "Times New Roman", serif; font-weight: 600; font-size: 19px; color: #ebe8e1; text-decoration: none; }
+.dw-site nav { display: flex; gap: 22px; font-size: 15px; }
+.dw-site nav a { color: #aeb3b9; text-decoration: none; padding: 6px 0; }
+.dw-site nav a:hover { color: #ebe8e1; }
+.dw-site nav a.on { color: #ebe8e1; box-shadow: inset 0 -2px 0 #9cc0dc; }
+.dw-site a:focus-visible { outline: 2px solid #9cc0dc; outline-offset: 3px; border-radius: 2px; }
+main:focus { outline: none; }
+.dw-site { margin: 0; }
 </style>
 </head>
 <body>
 
 
+<a class="dw-skip" href="#main">Skip to content</a>
 <div class="wrap">
-<nav class="home" style="padding-top:14px"><a href="/" style="font-weight:700;font-size:15px;color:var(--fg);text-decoration:none">Dawson Wilhelmi</a></nav>
+<header class="dw-site">
+  <a class="dw-me" href="/">Dawson Wilhelmi</a>
+  <nav aria-label="Site"><a href="/" class="on">Projects</a><a href="/about/">About</a></nav>
+</header>
+<main id="main" tabindex="-1">
 <header class="top">
   <div class="brand"><h1><span class="coin" aria-hidden="true"></span>Loot Ledger</h1><span class="who" id="who"></span></div>
   <nav class="tabs" aria-label="Sections">
@@ -293,6 +312,7 @@ details summary{cursor:pointer;color:var(--muted)}
 
 <datalist id="itemList"></datalist>
 <p class="foot">Fan-made. Data from TibiaWiki (CC BY-SA 3.0). Tibia © CipSoft GmbH.</p>
+</main>
 </div>
 <div class="toast" id="toast" hidden role="status"></div>
 

@@ -13,8 +13,14 @@ maps = {os.path.basename(f)[:-4]: 'data:image/png;base64,' + base64.b64encode(op
 if maps: json.dump(maps, open('data/maps.json', 'w'), separators=(',', ':'))  # rebuilt only when build_maps.py output is present
 else: maps = json.load(open('data/maps.json'))
 if os.path.abspath(OUT) != os.path.abspath('.'): shutil.copy('data/maps.json', os.path.join(OUT,'data/maps.json'))
-HOME = '<nav class="home" style="padding-top:14px"><a href="/" style="font-weight:700;font-size:15px;color:var(--fg);text-decoration:none">Dawson Wilhelmi</a></nav>\n'
-open(os.path.join(OUT,'index.html'), 'w', encoding='utf-8').write(page('').replace('<header class="top">', HOME + '<header class="top">', 1))
+# hosted page only: the site header (same as the home page) and a skip link; the single-file copy stays standalone
+FONTS = '<link rel="preconnect" href="https://fonts.googleapis.com">\n<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>\n<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400&family=IBM+Plex+Sans:wght@400;600&family=Source+Serif+4:opsz,wght@8..60,600&display=swap" media="print" onload="this.media=\'all\'">'
+SKIP = '<a class="dw-skip" href="#main">Skip to content</a>'
+SITE = '<header class="dw-site">\n  <a class="dw-me" href="/">Dawson Wilhelmi</a>\n  <nav aria-label="Site"><a href="/" class="on">Projects</a><a href="/about/">About</a></nav>\n</header>'
+hosted = page('').replace('<link rel="preconnect" href="https://fonts.googleapis.com">\n', FONTS + '\n', 1)
+hosted = hosted.replace('<div class="wrap">\n<main', SKIP + '\n<div class="wrap">\n' + SITE + '\n<main', 1)
+assert SITE in hosted and FONTS in hosted
+open(os.path.join(OUT,'index.html'), 'w', encoding='utf-8').write(hosted)
 if OUT == 'dist':
   data = open('data/items.json', encoding='utf-8').read().replace('</', '<\\/')
   open(os.path.join(OUT,'loot-ledger.html'), 'w', encoding='utf-8').write(page('<script>window.LOOT_DATA=' + data + ';window.LOOT_MAPS=' + json.dumps(maps) + ';</script>'))
