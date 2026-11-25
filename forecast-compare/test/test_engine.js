@@ -159,4 +159,30 @@ check("Holt weights inside [1e-4, 0.9999]", hp4.alpha >= 1e-4 && hp4.alpha <= 0.
 const tr = gbmM.fn(rw2, 1, 1).params.trees;
 check("boosted trees: tree count chosen from 25/50/100/150", [25, 50, 100, 150].includes(tr), tr);
 
+// 20. Phase 5, intermittent demand. Classification by Syntetos, Boylan & Croston (2005).
+const dp = E.demandPattern([0, 0, 4, 0, 0, 4, 0, 0, 4, 0, 0, 4]);
+check("demand pattern: ADI and CV2 by hand", Math.abs(dp.adi - 3) < 1e-12 && dp.cv2 === 0 && dp.kind === "intermittent" && dp.intermittent, JSON.stringify(dp));
+const lp = E.demandPattern([0, 1, 0, 0, 20, 0, 0, 2, 0, 30]);
+check("demand pattern: lumpy when sizes vary a lot", lp.kind === "lumpy" && lp.intermittent, JSON.stringify(lp));
+check("demand pattern: smooth or negative series are not intermittent", !E.isIntermittent(seas) && !E.isIntermittent([0, -1, 0, 0, 3, 0, 0, 2]) && E.demandPattern([1, -2]) === null);
+// Croston on perfectly regular demand (5 every 3rd period) forecasts the rate 5/3; SBA is lower by 1 - a/2
+const reg = []; for (let i = 0; i < 60; i++) reg.push(i % 3 === 2 ? 5 : 0);
+const cM = E.METHODS.find(d => d.id === "croston"), sM = E.METHODS.find(d => d.id === "sba"), tM = E.METHODS.find(d => d.id === "tsb");
+const cr = cM.fn(reg, 3, 1), sb = sM.fn(reg, 3, 1);
+check("Croston: regular demand gives the true rate", Math.abs(cr.f[0] - 5 / 3) < 1e-3 && cr.f.every(v => v === cr.f[0]), cr.f[0]);
+check("SBA: at or below Croston, by the 1 - a/2 factor", sb.f[0] <= cr.f[0] + 1e-12 && sb.params.gap_alpha <= 1 && sb.params.size_alpha >= 1e-4, sb.f[0] + " " + JSON.stringify(sb.params));
+// TSB lets the forecast fall when orders stop; Croston cannot change until the next order
+const dead = []; for (let i = 0; i < 80; i++) dead.push(i < 60 && i % 2 === 0 ? 6 : 0);
+const tf = tM.fn(dead, 1, 1).f[0], cf = cM.fn(dead, 1, 1).f[0];
+check("TSB: forecast falls after 20 periods without demand, below Croston", tf < cf, "tsb " + tf + ", croston " + cf);
+// in intermittent mode: the three methods join, ranking is by RMSE, every forecast is >= 0
+const spikes = []; let sd = 11; const rr = () => (sd = (sd * 16807) % 2147483647) / 2147483647;
+for (let i = 0; i < 120; i++) spikes.push(rr() < 0.3 ? 1 + Math.round(rr() * 9) : 0);
+const IP = E.prepare(spikes, 1), ir = E.score(IP, { h: 3, test: 24 });
+const iids = ir.results.map(x => x.id);
+check("intermittent series: Croston, SBA and TSB join, ranked by RMSE", ["croston", "sba", "tsb"].every(i => iids.includes(i)) && ir.rankBy === "RMSE" &&
+  E.rank(ir.results, "RMSE").every((x, i, a) => !i || a[i - 1].metrics.RMSE <= x.metrics.RMSE), ir.rankBy);
+check("intermittent series: no forecast below zero", Object.keys(IP.fc).every(id => Object.values(IP.fc[id]).every(f => f.every(v => v >= 0))) && ir.results.every(x => x.future.every(v => v >= 0)));
+check("smooth series: no intermittent methods, ranked by MASE", !E.prepare(seas, 12).meths.some(d => d.intermittent) && E.score(E.prepare(seas, 12), { h: 6, test: 24 }).rankBy === "MASE");
+
 console.log(fails ? fails + " check(s) failed" : "all engine checks passed"); process.exit(fails ? 1 : 0);

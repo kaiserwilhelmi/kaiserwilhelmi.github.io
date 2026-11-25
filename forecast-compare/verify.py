@@ -397,9 +397,74 @@ def tslm(y, h, m):
     return [float(np.dot(row(len(y) + k), beta)) for k in range(h)], {"slope": float(beta[1])}
 
 
+# ---- intermittent demand (Croston 1972; Syntetos & Boylan 2005; Teunter, Syntetos & Babai 2011;
+# fitted as in Kourentzes 2014: two weights on (0, 1], starting values fitted, MAR / MSR cost)
+def demand_pattern(y):
+    if any(v < 0 for v in y): return None
+    nz = [v for v in y if v > 0]
+    if not nz: return {"adi": math.inf, "intermittent": False}
+    mu = psum(nz) / len(nz); cv2 = psum((v - mu) * (v - mu) for v in nz) / len(nz) / (mu * mu)
+    adi = len(y) / len(nz)
+    return {"adi": adi, "cv2": cv2, "intermittent": adi > 1.32 and len(nz) >= 2}
+
+
+def is_intermittent(y):
+    d = demand_pattern(y); return bool(d and d["intermittent"])
+
+
+IGRID = [0.05, 0.1, 0.2, 0.3]
+
+
+def id_start(y):
+    first, last, gaps, nz = -1, -1, [], 0
+    for i, v in enumerate(y):
+        if v > 0:
+            gaps.append(i - last); last = i; nz += 1
+            if first < 0: first = i
+    return {"z0": 0 if first < 0 else y[first], "x0": psum(gaps) / len(gaps) if nz else 1, "p0": nz / len(y), "nz": nz}
+
+
+def croston_obj(y, p, sba, keep=False):
+    az, ax, z, x = p; q = 1; cum = 0.0; cost = 0.0
+    if not (LO <= az <= 1 and LO <= ax <= 1 and z > 0 and x >= 1): return BIG
+    adj = 1 - ax / 2 if sba else 1
+    for t, v in enumerate(y):
+        cum += v; cost += abs(adj * z / x - cum / (t + 1))
+        if v > 0: z += az * (v - z); x += ax * (q - x); q = 1
+        else: q += 1
+    return adj * z / x if keep else cost
+
+
+def tsb_obj(y, p, keep=False):
+    az, ap, z, pr = p; cum = 0.0; cost = 0.0
+    if not (LO <= az <= 1 and LO <= ap <= 1 and z > 0 and 0 <= pr <= 1): return BIG
+    for t, v in enumerate(y):
+        cum += v; r = pr * z - cum / (t + 1); cost += r * r
+        if v > 0: z += az * (v - z); pr += ap * (1 - pr)
+        else: pr += ap * (0 - pr)
+    return pr * z if keep else cost
+
+
+def id_fit(y, h, obj, second, step2, k2):
+    st = id_start(y)
+    if st["nz"] == 0: return [0.0] * h, None
+    best, bx = None, None
+    for a in IGRID:
+        for b in IGRID:
+            x0 = [a, b, st["z0"], second]; c = obj(x0, False)
+            if best is None or c < best: best, bx = c, x0
+    r = polish(lambda q: obj(q, False), bx, [0.05, 0.05, 0.1 * st["z0"], step2], 1000)
+    return [obj(r[0], True)] * h, {"size_alpha": r[0][0], k2: r[0][1]}
+
+
+def croston(y, h, m): return id_fit(y, h, lambda q, k: croston_obj(y, q, False, k), id_start(y)["x0"], 0.5, "gap_alpha")
+def sba(y, h, m): return id_fit(y, h, lambda q, k: croston_obj(y, q, True, k), id_start(y)["x0"], 0.5, "gap_alpha")
+def tsb(y, h, m): return id_fit(y, h, lambda q, k: tsb_obj(y, q, k), id_start(y)["p0"], 0.05, "chance_alpha")
+
+
 METHODS = [("naive", naive, False), ("snaive", snaive, True), ("drift", drift, False), ("ma3", ma3, False),
            ("ses", ses, False), ("holt", holt, False), ("damped", damped, False), ("theta", theta, False), ("ridge", ridge, False), ("gbm", gbm, False), ("hw", hw, True), ("sarima", sarima, True),
-           ("tslm", tslm, False), ("combS", combo([hw, sarima]), True), ("combN", combo([ses, holt, damped]), "N")]
+           ("tslm", tslm, False), ("croston", croston, "I"), ("sba", sba, "I"), ("tsb", tsb, "I"), ("combS", combo([hw, sarima]), True), ("combN", combo([ses, holt, damped]), "N")]
 
 
 def metrics(rec, scale):
@@ -414,17 +479,26 @@ def load(path):
     with open(path) as fh: return [float(r["value"]) for r in csv.DictReader(fh)]
 
 
-JS_ORDER = ["naive", "snaive", "drift", "ma3", "ses", "holt", "damped", "hw", "sarima", "theta", "ridge", "gbm", "tslm", "combS", "combN"]
+JS_ORDER = ["naive", "snaive", "drift", "ma3", "ses", "holt", "damped", "hw", "sarima", "theta", "ridge", "gbm", "tslm", "croston", "sba", "tsb", "combS", "combN"]
 
 
 def run_all(y, m, lo, max_h, future):
     """Fit each method once per origin with the longest horizon; truncating is exact
     because a k-step forecast does not depend on how many steps are requested."""
-    n = len(y); fc = {}
+    n = len(y); fc = {}; inter = is_intermittent(y)
+    clip = (lambda f: [max(v, 0.0) for v in f]) if inter else (lambda f: f)
+    parts = {"combS": ["hw", "sarima"], "combN": ["ses", "holt", "damped"]}
     for mid, fn, seas in METHODS:
-        if (seas is True and m == 1) or (seas == "N" and m > 1): continue
-        fc[mid] = {T: fn(y[:T], max_h, m)[0] for T in range(lo, n)}
-        fc[mid]["future"] = fn(y, future, m)
+        if mid in parts and inter:  # the page averages the (floored) component forecasts
+            if (seas is True and m == 1) or (seas == "N" and m > 1): continue
+            ps = parts[mid]
+            fc[mid] = {T: [psum(fc[q][T][k] for q in ps) / len(ps) for k in range(max_h)] for T in range(lo, n)}
+            fc[mid]["future"] = ([psum(fc[q]["future"][0][k] for q in ps) / len(ps) for k in range(future)], None)
+            continue
+        if (seas is True and m == 1) or (seas == "N" and m > 1) or (seas == "I" and not inter): continue
+        fc[mid] = {T: clip(fn(y[:T], max_h, m)[0]) for T in range(lo, n)}
+        f, p = fn(y, future, m)
+        fc[mid]["future"] = (clip(f), p)
     return fc
 
 
@@ -442,15 +516,17 @@ def train_scale(y, m, first):
 def evaluate(y, fc, m, test, h, lo):
     """Complete origins only: origins n-test .. n-h, each scored on all h steps."""
     n = len(y); first = n - test; last = n - h
-    scale = train_scale(y, m, first)
+    scale = train_scale(y, m, first); sq_mode = is_intermittent(y)
     ids = sorted(fc, key=JS_ORDER.index)
 
     def summary(fc_at):
         rec = [(T, k, y[T + k - 1], fc_at(T)[k - 1]) for T in range(first, last + 1) for k in range(1, h + 1)]
-        loss = [psum(abs(r[2] - r[3]) for r in rec if r[0] == T) / h / scale for T in range(first, last + 1)]
+        if sq_mode: loss = [psum((r[2] - r[3]) ** 2 for r in rec if r[0] == T) / h / (scale * scale) for T in range(first, last + 1)]
+        else: loss = [psum(abs(r[2] - r[3]) for r in rec if r[0] == T) / h / scale for T in range(first, last + 1)]
         return {"loss": loss, "metrics": metrics(rec, scale), "maeByH": [metrics([r for r in rec if r[1] == k], scale)["MAE"] for k in range(1, h + 1)]}
     out = {mid: summary(lambda T, mid=mid: fc[mid][T]) for mid in ids}
-    ranked = sorted(ids, key=lambda k: (out[k]["metrics"]["MASE"], out[k]["metrics"]["RMSE"], JS_ORDER.index(k)))
+    k1, k2 = ("RMSE", "MASE") if sq_mode else ("MASE", "RMSE")
+    ranked = sorted(ids, key=lambda k: (out[k]["metrics"][k1], out[k]["metrics"][k2], JS_ORDER.index(k)))
     top = ranked[:3]
     pool_at = lambda T, mem: [psum(fc[i][T][k] for i in mem) / len(mem) for k in range(len(fc[mem[0]][T]))]
     res = {"scale": scale, "out": out, "ranked": ranked, "members": top, "pool": None, "pick": None, "picks": None,
@@ -464,7 +540,8 @@ def evaluate(y, fc, m, test, h, lo):
     picks = {}
     for T in range(first, last + 1):
         win = range(T - test, T - h + 1)
-        picks[T] = sorted(ids, key=lambda i: (psum(sa[i][t] for t in win), psum(sq[i][t] for t in win), JS_ORDER.index(i)))[:3]
+        A = {i: psum(sa[i][t] for t in win) for i in ids}; Q = {i: psum(sq[i][t] for t in win) for i in ids}
+        picks[T] = sorted(ids, key=lambda i: ((Q[i], A[i]) if sq_mode else (A[i], Q[i])) + (JS_ORDER.index(i),))[:3]
     res["picks"] = picks
     res["pool"] = summary(lambda T: pool_at(T, picks[T])); res["pool"]["future"] = res["hindsight"]["future"]
     res["pick"] = summary(lambda T: fc[picks[T][0]][T]); res["pick"]["future"] = fc[top[0]]["future"][0]
@@ -495,7 +572,8 @@ def ranges(y, fc, test, h, lo, kind, levels, cal=48, minc=10):
         path = {}
         for T in range(start, n):
             win = range(T - test, T - h + 1)
-            top = sorted(ids, key=lambda i: (psum(sa[i, t] for t in win), psum(sq[i, t] for t in win), JS_ORDER.index(i)))[:3]
+            A = {i: psum(sa[i, t] for t in win) for i in ids}; Q = {i: psum(sq[i, t] for t in win) for i in ids}
+            top = sorted(ids, key=lambda i: ((Q[i], A[i]) if is_intermittent(y) else (A[i], Q[i])) + (JS_ORDER.index(i),))[:3]
             path[T] = fc[top[0]][T] if kind == "pick" else [psum(fc[i][T][k] for i in top) / 3 for k in range(12)]
     errs = {k: [(T, y[T + k - 1] - path[T][k - 1]) for T in range(start, n - k + 1)] for k in range(1, h + 1)}
 

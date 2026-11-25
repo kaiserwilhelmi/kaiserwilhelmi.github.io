@@ -1,11 +1,11 @@
 // Runs engine.js over every series and setting combo; writes js_results.json for verify.py.
 const fs = require("fs");
 const E = require("./engine.js");
-const files = ["SAMPLE_demand", "FRGSHPUSM649NCIS", "PCU322211322211", "PCOPPUSDM", "DJFUELUSGULF"];
+const files = ["SAMPLE_demand", "SAMPLE_spares", "FRGSHPUSM649NCIS", "PCU322211322211", "PCOPPUSDM", "DJFUELUSGULF"];
 const out = [];
 const nul = v => (isFinite(v) ? v : null);
 function record(label, path, m, test, h, P) {
-  const r = E.score(P, { h, test }), nv = r.results.find(q => q.id === "naive"), ranked = E.rank(r.results);
+  const r = E.score(P, { h, test }), nv = r.results.find(q => q.id === "naive"), ranked = E.rank(r.results, r.rankBy);
   const others = ranked.filter(x => x.id !== "naive"), adj = E.holm(others.map(x => E.dmTest(x.loss, nv.loss).p));
   const rest = ranked.slice(1), adjB = E.holm(rest.map(x => E.dmTest(x.loss, ranked[0].loss).p));
   const proc = x => x && { metrics: x.metrics, maeByH: x.maeByH, loss: x.loss, future: x.future, dmNaive: nul(E.dmTest(x.loss, nv.loss).p) };
