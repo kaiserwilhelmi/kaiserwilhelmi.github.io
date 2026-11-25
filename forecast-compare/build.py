@@ -1,4 +1,4 @@
-"""Build the single self-contained page: template.html + engine.js + upload.js + mw.js + app.js -> index.html
+"""Build the single self-contained page: template.html + engine.js + worker.js + upload.js + mw.js + app.js -> index.html
 
 The Series menu lists every Industry Market Watch series. Only the catalog (names,
 units, publishers, industries) is built in here; the numbers themselves are loaded
@@ -60,7 +60,7 @@ page = open("template.html").read()
 for tag, val in [("/*__DATA__*/null", json.dumps(data, separators=(",", ":"))),
                  ("/*__CATALOG__*/null", json.dumps(catalog, separators=(",", ":"), ensure_ascii=False)),
                  ("/*__COUNT__*/", str(len(items))),
-                 ("/*__ENGINE__*/", open("engine.js").read()), ("/*__UPLOAD__*/", open("upload.js").read()),
+                 ("/*__ENGINE__*/", open("engine.js").read()), ("/*__WORKER__*/", open("worker.js").read()), ("/*__UPLOAD__*/", open("upload.js").read()),
                  ("/*__MW__*/", open("mw.js").read()), ("/*__APP__*/", open("app.js").read())]:
     assert tag in page, tag
     page = page.replace(tag, val)

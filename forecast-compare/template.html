@@ -4,12 +4,12 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <title>Forecast Method Comparison</title>
-<meta name="description" content="Backtest up to fourteen forecasting methods on a procurement series and compare MAE, MSE, RMSE, MAPE, sMAPE and MASE.">
+<meta name="description" content="Backtest up to fourteen forecasting methods on a procurement series, compare their errors, and get a forecast with a tested range.">
 <link rel="icon" href="/favicon.svg" type="image/svg+xml">
 <meta property="og:type" content="website">
 <meta property="og:site_name" content="Dawson Wilhelmi">
 <meta property="og:title" content="Forecast Method Comparison">
-<meta property="og:description" content="Backtest up to fourteen forecasting methods on a procurement series and compare MAE, MSE, RMSE, MAPE, sMAPE and MASE.">
+<meta property="og:description" content="Backtest up to fourteen forecasting methods on a procurement series, compare their errors, and get a forecast with a tested range.">
 <meta property="og:url" content="https://dawsonwilhelmi.com/forecast-compare/">
 <meta property="og:image" content="https://dawsonwilhelmi.com/og.png">
 <meta property="og:image:width" content="1200">
@@ -106,7 +106,7 @@ footer { font-size: 12px; color: var(--text-3); margin-top: 24px; }
 <div class="wrap">
   <nav class="home"><a href="/">Dawson Wilhelmi</a></nav>
   <h1>Forecast Method Comparison</h1>
-  <p class="lede">This page tests which forecasting method to trust for a series. Up to fourteen methods, from simple benchmarks to machine learning, are re-fitted and tested period by period on data they have not seen, then scored on six error measures plus bias. The recommendation, an average of the top three, is tested the same way. Pick any of the /*__COUNT__*/ price, wage, freight and currency series from the <a href="/market-watch/">Industry Market Watch</a>, or upload your own.</p>
+  <p class="lede">This page tests which forecasting method to trust for a series. Up to fourteen methods, from simple benchmarks to machine learning, are re-fitted and tested period by period on data they have not seen, then scored on six error measures plus bias. The recommendation, an average of the top three, is tested the same way, and so is the range around its forecast. Pick any of the /*__COUNT__*/ price, wage, freight and currency series from the <a href="/market-watch/">Industry Market Watch</a>, or upload your own.</p>
 
   <div class="card">
     <div class="controls">
@@ -126,6 +126,12 @@ footer { font-size: 12px; color: var(--text-3); margin-top: 24px; }
 
   <div class="kpis" id="kpis"></div>
   <div class="card" id="rec"></div>
+  <div class="card" id="rangecard">
+    <h2>Forecast range</h2>
+    <div id="ranges"></div>
+    <div id="rbusy" class="hint" hidden></div>
+    <div class="hint" id="rhint"></div>
+  </div>
   <div class="card">
     <h2>Testing the choice itself</h2>
     <div id="honest"></div>
@@ -135,17 +141,17 @@ footer { font-size: 12px; color: var(--text-3); margin-top: 24px; }
   <div class="card">
     <div class="head">
       <div><h2 style="margin:0" id="ch1t">Actuals, backtest and 12-month forecast</h2><div class="hint" id="meta" style="margin-top:2px"></div></div>
-      <label class="ctl">Compare with<select id="cmp"></select></label>
+      <div class="controls"><label class="ctl">Compare with<select id="cmp"></select></label><label class="ctl">View<select id="view"><option value="recent" selected>Recent</option><option value="all">All history</option></select></label></div>
     </div>
     <div class="legend" id="lg1"></div>
     <div class="chart" id="ch1"></div>
-    <div class="hint">Dots inside the shaded window are 1-step-ahead forecasts from the backtest; for the pool they come from the version re-picked at each origin. Lines after the last actual are the forecasts from all the data.</div>
+    <div class="hint">Dots inside the shaded window are backtest forecasts made as many steps before each date as the horizon you picked, which is what the table scores; for the pool they come from the version re-picked at each origin. The line after the last actual is the forecast from all the data, out to that horizon, and the shading around it is the forecast range.</div>
   </div>
 
   <div class="card">
     <div class="head">
       <h2 style="margin:0">Error metrics, all methods</h2>
-      <button class="btn" id="dl" type="button">Download backtest CSV</button>
+      <button class="btn" id="dl" type="button">Download forecast and backtest CSV</button>
     </div>
     <div class="tblwrap" id="tbl"></div>
     <div class="hint">Ranked by MASE over the backtest window (lowest first). These are the scores the ranking was made on, so the #1 method is flattered; the check above shows what the choice earned. p-values come from the Diebold-Mariano test with fixed-b variance and are Holm-adjusted across the table. ★ marks the best value in each column. Click a column to sort. Hover a header for its definition.</div>
@@ -165,6 +171,7 @@ footer { font-size: 12px; color: var(--text-3); margin-top: 24px; }
       <p><b>Fitting.</b> Holt-Winters fits its three weights and its starting level, trend and seasonal pattern together by minimising one-step squared error (Nelder–Mead search). Seasonal ARIMA is fitted by conditional least squares. The simpler smoothing methods pick their weights from a grid (0.05 to 0.95); full fitting changed their accuracy by under 1% on these series. Every number was re-computed by an independent Python implementation and matches; accuracy is in line with the statsmodels library's maximum-likelihood fits.</p>
       <p><b>Testing the choice.</b> The top score in any ranking is partly luck, so the method that tops it usually does worse afterwards (Cawley &amp; Talbot, 2010). On the 80 Market Watch monthly series at 6 months ahead, picking the #1 method from earlier data and scoring it on what came next gave 24% more error than the #1's own score in the table. So the page also tests its own advice: at each past origin it ranks the methods on the errors known then, takes the top one and the top three, and scores what they forecast next.</p>
       <p><b>Recommendation.</b> The page recommends the equal-weight average of the three best-ranked methods, because pooling a few top methods is more reliable than betting on one (Kourentzes, Barrow &amp; Petropoulos, 2019) and equal weights are hard to beat (Smith &amp; Wallis, 2009). Tested that way on the 80 Market Watch series with a 24-month window, the pool beat the re-picked single best method at 6 months ahead (50 of 80 series, Wilcoxon p = 0.001) and at 12 months ahead (p = 0.015), and matched it at 1 month. The page switches to the single best method only if that beat the pool by a margin unlikely to be luck, and to naive if the chosen approach did not beat naive. Neither rule changed average accuracy in a test a year back, but naive is the simpler plan when no model earns its place.</p>
+      <p><b>Forecast ranges.</b> A range comes from the recommended approach's own misses at each step ahead: the last 48 it made in the backtest, with the pool re-picked at each past origin exactly as it is today. These are empirical prediction intervals (Williams &amp; Goodman, 1971; Lee &amp; Scholtes, 2014). The bounds are the split-conformal order statistics of those misses (Lei, G'Sell, Rinaldo, Tibshirani &amp; Wasserman, 2018), which sit a little outside the plain percentiles so that a range built from a few dozen misses is not too narrow. Nine ways of building the ranges were tested on the 80 Market Watch series over the last five years, each range scored only on what happened after it was built. Ranges from the last 24 misses held only 62 to 73% of the time at a nominal 80%, and ranges from every past miss 67 to 68%: ranges that are too narrow are a long-known problem (Chatfield, 1993), and old misses understate recent volatility (Barber, Candès, Ramdas &amp; Tibshirani, 2023). The last 48 with conformal bounds came closest, holding 77 to 81% of the time at 80% and 87 to 95% at 95%. No rule is right on every series, so the page also shows how often the ranges held on yours.</p>
       <p><b>Significance.</b> The Diebold-Mariano test (1995) uses an equal-weighted cosine variance with fixed-b critical values, which keeps its false-alarm rate near 5% with the short backtests used here (Lazarus, Lewis, Stock &amp; Watson, 2018; Coroneo &amp; Iacone, 2020). The version used before, with the Harvey, Leybourne &amp; Newbold (1997) correction, called a method significantly better up to 15% of the time when nothing differed. A table runs many tests at once, so its p-values are Holm-adjusted (Holm, 1979). "Tied" means a method was not shown to be worse than the #1.</p>
       <p><b>No method is favoured.</b> Every method, including the two fixed combinations, is a candidate. The backtest on your series decides the ranking and which three go into the pool.</p>
       <p><b>Ranking.</b> MASE ranks the methods. Within one series it orders them exactly as MAE does; its scaling lets errors be compared across series (Hyndman &amp; Koehler, 2006). RMSE breaks ties.</p>
@@ -217,6 +224,11 @@ footer { font-size: 12px; color: var(--text-3); margin-top: 24px; }
       <li>Harvey, D., Leybourne, S., &amp; Newbold, P. (1997). Testing the equality of prediction mean squared errors. <i>International Journal of Forecasting, 13</i>(2), 281–291. <a href="https://doi.org/10.1016/S0169-2070(96)00719-4">doi:10.1016/S0169-2070(96)00719-4</a></li>
       <li>Makridakis, S., Spiliotis, E., &amp; Assimakopoulos, V. (2018). Statistical and machine learning forecasting methods: Concerns and ways forward. <i>PLOS ONE, 13</i>(3), e0194889. <a href="https://doi.org/10.1371/journal.pone.0194889">doi:10.1371/journal.pone.0194889</a></li>
       <li>Makridakis, S., Spiliotis, E., &amp; Assimakopoulos, V. (2022). M5 accuracy competition: Results, findings, and conclusions. <i>International Journal of Forecasting, 38</i>(4), 1346–1364. <a href="https://doi.org/10.1016/j.ijforecast.2021.11.013">doi:10.1016/j.ijforecast.2021.11.013</a></li>
+      <li>Williams, W. H., &amp; Goodman, M. L. (1971). A simple method for the construction of empirical confidence limits for economic forecasts. <i>Journal of the American Statistical Association, 66</i>(336), 752–754. <a href="https://scilit.com/publications/b4637cd6fa9f222073f61bbf49414a48">scilit.com record</a></li>
+      <li>Lee, Y. S., &amp; Scholtes, S. (2014). Empirical prediction intervals revisited. <i>International Journal of Forecasting, 30</i>(2), 217–234. <a href="https://doi.org/10.1016/j.ijforecast.2013.07.018">doi:10.1016/j.ijforecast.2013.07.018</a></li>
+      <li>Lei, J., G'Sell, M., Rinaldo, A., Tibshirani, R. J., &amp; Wasserman, L. (2018). Distribution-free predictive inference for regression. <i>Journal of the American Statistical Association, 113</i>(523), 1094–1111. <a href="https://ideas.repec.org/a/taf/jnlasa/v113y2018i523p1094-1111.html">ideas.repec.org record</a></li>
+      <li>Barber, R. F., Candès, E. J., Ramdas, A., &amp; Tibshirani, R. J. (2023). Conformal prediction beyond exchangeability. <i>Annals of Statistics, 51</i>(2), 816–845. <a href="https://doi.org/10.1214/23-AOS2276">doi:10.1214/23-AOS2276</a></li>
+      <li>Chatfield, C. (1993). Calculating interval forecasts. <i>Journal of Business &amp; Economic Statistics, 11</i>(2), 121–135. <a href="https://ideas.repec.org/a/bes/jnlbes/v11y1993i2p121-35.html">ideas.repec.org record</a></li>
       <li>Gardner, E. S., Jr., &amp; McKenzie, E. (1985). Forecasting trends in time series. <i>Management Science, 31</i>(10), 1237–1246. <a href="https://doi.org/10.1287/mnsc.31.10.1237">doi:10.1287/mnsc.31.10.1237</a></li>
     </ol>
     <h2 style="margin-top:14px">Data</h2>
@@ -231,7 +243,8 @@ footer { font-size: 12px; color: var(--text-3); margin-top: 24px; }
   <footer>Built by Dawson Wilhelmi · part of the procurement analytics portfolio at <a href="/">dawsonwilhelmi.com</a></footer>
 </div>
 <script>window.SERIES = /*__DATA__*/null; window.MW_CATALOG = /*__CATALOG__*/null;</script>
-<script>/*__ENGINE__*/</script>
+<script id="fc-engine">/*__ENGINE__*/</script>
+<script id="fc-worker" type="text/plain">/*__WORKER__*/</script>
 <script>/*__UPLOAD__*/</script>
 <script>/*__MW__*/</script>
 <script>/*__APP__*/</script>

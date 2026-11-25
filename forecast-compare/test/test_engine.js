@@ -1,6 +1,7 @@
 /* Engine checks (Node, no browser): flat histories, non-numbers, filled values that must not be
  * scored, NaN-safe ranking, MASE unchanged when the series is rescaled, complete-origin scoring,
- * no look-ahead in the re-picked pool, the size of the Diebold-Mariano test, Holm, lazy fitting.
+ * no look-ahead in the re-picked pool, the size of the Diebold-Mariano test, Holm, lazy fitting,
+ * chunked (worker) fitting, conformal bounds, and forecast ranges (no look-ahead, calibration).
  * Run: node test/test_engine.js   (exit code 1 on any failure) */
 const E = require("../engine.js");
 let fails = 0;
@@ -97,5 +98,42 @@ check("lazy fitting matches fitting all at once", La.lo === Lb.lo && Object.keys
 // 13. too little history to test the choice: the table still works, the pool test is skipped
 const short = seas.slice(0, 60), Q = E.score(E.prepare(short, 12), { h: 6, test: 24 });
 check("short history: no re-picked test, minimum length reported", Q.pool === null && Q.needN === 26 + 48 && fin(Q), Q.needN);
+
+// 14. background fitting: fitRange + merge (the worker's job) and futures() give the same numbers
+const W1 = E.skeleton(seas, 12, []), Wl = E.loFor(W1, 48);
+E.merge(W1, E.fitRange(seas, 12, Wl + 20, W1.lo), Wl + 20); E.merge(W1, E.fitRange(seas, 12, Wl, Wl + 20), Wl);
+const fu = E.futures(seas, 12);
+check("fitting in chunks (as the worker does) matches prepare()", W1.lo === Lb.lo && Object.keys(Lb.fc).every(id => Object.keys(Lb.fc[id]).every(T => W1.fc[id][T].join() === Lb.fc[id][T].join())));
+check("futures() matches prepare()", Object.keys(Lb.fut).every(id => fu[id].f.join() === Lb.fut[id].f.join()));
+
+// 15. conformal bounds: the right order statistics, and flagged when there are too few errors
+const z48 = Array.from({ length: 48 }, (_, i) => i), cb = L => E.confBounds(z48, L);
+check("conformal bounds, 48 errors: 80% = 4th and 45th, 95% = smallest and largest", cb(0.8).lo === 3 && cb(0.8).hi === 44 && cb(0.95).lo === 0 && cb(0.95).hi === 47 && cb(0.95).ok, JSON.stringify([cb(0.8), cb(0.95)]));
+const z19 = Array.from({ length: 19 }, (_, i) => i);
+check("conformal bounds, 19 errors: 80% = 2nd and 18th; 95% flagged as too few", E.confBounds(z19, 0.8).lo === 1 && E.confBounds(z19, 0.8).hi === 17 && !E.confBounds(z19, 0.95).ok);
+
+// 16. ranges: no look-ahead, and the check counts what it says
+const seasL = Array.from({ length: 150 }, (_, i) => 100 + 10 * Math.sin(2 * Math.PI * i / 12) + i * 0.5 + 3 * Math.sin(i * 1.7));
+const R0 = E.prepare(seasL, 12, null, [], 2 * 24 + 6 + 47), rg0 = E.ranges(R0, { h: 6, test: 24, kind: "pool", levels: [0.5, 0.8, 0.95] });
+const TT = rg0.check[30].T, Rp = Object.assign({}, R0, { y: seasL.map((v, i) => i >= TT ? v * 1.5 + 40 : v) });
+const rg1 = E.ranges(Rp, { h: 6, test: 24, kind: "pool", levels: [0.5, 0.8, 0.95] });
+const rowsAt = g => g.check.filter(c => c.T <= TT).map(c => [c.T, c.k, c.f, c.lo.join(), c.hi.join()].join("|")).join(";");
+check("ranges at origin T ignore every value from T on", rowsAt(rg0) === rowsAt(rg1) && rowsAt(rg0).length > 0);
+const ins = rg0.check.filter(c => c.y >= c.lo[1] && c.y <= c.hi[1]).length;
+check("check: 80% coverage = share of actuals inside", Math.abs(ins / rg0.check.length - rg0.cover[0.8]) < 1e-12 && rg0.check.length === 19 * 6, ins + "/" + rg0.check.length);
+check("with 2 x window + h + 47 origins fitted, every range and every check uses 48 errors", rg0.future.every(f => f && f.n === 48) && rg0.nCheck === 19 * 6 && rg0.check.every(c => c.n === 48), rg0.future.map(f => f && f.n).join());
+const Rs = E.prepare(seas.slice(0, 80), 12), rgs = E.ranges(Rs, { h: 6, test: 24, kind: "pool", levels: [0.8] });
+check("short history: ranges with fewer errors, or none, never an error", rgs === null || rgs.future.every(f => f === null || f.n >= E.MINCAL), rgs && rgs.future.map(f => f && f.n).join());
+
+// 17. calibration on a random walk (naive is the right model): 80% ranges hold about 80% of the time
+let hits = 0, tot = 0;
+for (let rep = 0; rep < 400; rep++) {
+  const rw = [100]; for (let i = 1; i < 120; i++) rw.push(rw[i - 1] + gauss());
+  const Pn = { y: rw, m: 1, lo: 2, skip: {}, fc: { naive: {} } };
+  for (let T = 2; T < 120; T++) Pn.fc.naive[T] = Array(12).fill(rw[T - 1]);
+  const g = E.ranges(Pn, { h: 6, test: 24, kind: "naive", levels: [0.8] });
+  hits += g.cover[0.8] * g.nCheck; tot += g.nCheck;
+}
+check("random walk: naive 80% ranges hold 78% to 86% of the time", hits / tot > 0.78 && hits / tot < 0.86, (100 * hits / tot).toFixed(1) + "%");
 
 console.log(fails ? fails + " check(s) failed" : "all engine checks passed"); process.exit(fails ? 1 : 0);
