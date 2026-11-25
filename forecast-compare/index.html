@@ -55,12 +55,20 @@ input[type=file] { position: absolute; width: 1px; height: 1px; opacity: 0; }
 input[type=search] { font: inherit; font-size: 16px; color: var(--text); background: var(--bg); border: 1px solid var(--border); border-radius: 8px; padding: 7px 10px; min-height: 38px; width: 100%; box-sizing: border-box; }
 .findn { font-size: 12px; color: var(--text-3); }
 input[type=number] { font: inherit; font-size: 14px; color: var(--text); background: var(--bg); border: 1px solid var(--border); border-radius: 8px; padding: 7px 8px; min-height: 38px; }
-.kpis { display: grid; grid-template-columns: repeat(4, minmax(0,1fr)); gap: 12px; margin-bottom: 16px; }
+.kpis { display: grid; grid-template-columns: repeat(3, minmax(0,1fr)); gap: 12px; margin: 12px 0 0; }
+.headline { font-size: 19px; line-height: 1.45; }
+.headline .sub { font-size: 14px; color: var(--text-2); margin-top: 4px; }
+details > summary { cursor: pointer; color: var(--text-2); font-size: 14px; margin-top: 12px; }
+details > summary:hover { color: var(--text); }
+details.big > summary { margin: 0; list-style-position: outside; }
+details.big > summary h2 { display: inline; margin: 0; color: var(--text); }
+details.big[open] > summary { margin-bottom: 10px; }
+#why h3 { margin-top: 14px; }
 .kpi { background: var(--surface); border: 1px solid var(--border); border-radius: 10px; padding: 12px 14px; min-width: 0; }
 .kt { font-size: 12px; color: var(--text-2); }
 .kv { font-size: 22px; font-weight: 650; line-height: 1.25; margin: 2px 0; overflow-wrap: anywhere; }
 .ks { font-size: 12px; color: var(--text-3); }
-#rec { border-left: 3px solid var(--accent); }
+
 #rec ul { margin: 0; padding-left: 20px; }
 #rec li { margin: 4px 0; }
 .chart { position: relative; }
@@ -106,7 +114,7 @@ footer { font-size: 12px; color: var(--text-3); margin-top: 24px; }
 <div class="wrap">
   <nav class="home"><a href="/">Dawson Wilhelmi</a></nav>
   <h1>Forecast Method Comparison</h1>
-  <p class="lede">This page tests which forecasting method to trust for a series. Up to fourteen methods, from simple benchmarks to machine learning, are re-fitted and tested period by period on data they have not seen, then scored on six error measures plus bias. The recommendation, an average of the top three, is tested the same way, and so is the range around its forecast. Pick any of the 100 price, wage, freight and currency series from the <a href="/market-watch/">Industry Market Watch</a>, or upload your own.</p>
+  <p class="lede">Pick one of the 100 price, wage, freight and currency series from the <a href="/market-watch/">Industry Market Watch</a>, or upload your own. The page tests up to fourteen forecasting methods on the series' own past, recommends the approach that held up best, and gives a range to plan around.</p>
 
   <div class="card">
     <div class="controls">
@@ -121,44 +129,49 @@ footer { font-size: 12px; color: var(--text-3); margin-top: 24px; }
     <div id="err" class="err" hidden></div>
     <div id="mwnote" class="upnote" hidden></div>
     <div id="upnote" class="upnote" hidden></div>
-    <div class="hint">CSV or Excel (.xlsx): a column of numbers, plus a column of dates or periods if you have one. Most date formats and any time unit (hours to years) work. Missing periods are filled by a straight line and not scored. Files are read in your browser and never uploaded.</div>
+    <div class="hint">CSV or Excel: a column of numbers, plus dates if you have them. Files stay in your browser.</div>
   </div>
 
-  <div class="kpis" id="kpis"></div>
-  <div class="card" id="rec"></div>
-  <div class="card" id="rangecard">
-    <h2>Forecast range</h2>
-    <div id="ranges"></div>
+  <div class="card" id="answer">
+    <div class="headline" id="headline"></div>
+    <div class="kpis" id="kpis"></div>
+    <div id="jump" class="upnote" hidden></div>
     <div id="rbusy" class="hint" hidden></div>
-    <div class="hint" id="rhint"></div>
-  </div>
-  <div class="card">
-    <h2>Testing the choice itself</h2>
-    <div id="honest"></div>
-    <div class="hint">Each approach is re-picked at every past origin from only the errors known at that time, then scored on what happened next (Tashman, 2000). The hindsight row is the table's #1 scored on the window it was picked on, shown for contrast: the gap between it and the re-picked rows is the luck in a ranking (Cawley &amp; Talbot, 2010).</div>
+    <details id="monthly"><summary>Month by month</summary><div id="ranges"></div></details>
   </div>
 
   <div class="card">
     <div class="head">
       <div><h2 style="margin:0" id="ch1t">Actuals, backtest and 12-month forecast</h2><div class="hint" id="meta" style="margin-top:2px"></div></div>
-      <div class="controls"><label class="ctl">Compare with<select id="cmp"></select></label><label class="ctl">View<select id="view"><option value="recent" selected>Recent</option><option value="all">All history</option></select></label></div>
+      <div class="controls"><label class="ctl">Compare with<select id="cmp"></select></label><label class="ctl">Past forecasts<select id="dots"><option value="1" selected>Made 1 step before</option><option value="h">Made h steps before</option></select></label><label class="ctl">View<select id="view"><option value="recent" selected>Recent</option><option value="all">All history</option></select></label></div>
     </div>
     <div class="legend" id="lg1"></div>
     <div class="chart" id="ch1"></div>
-    <div class="hint">Dots inside the shaded window are backtest forecasts made as many steps before each date as the horizon you picked, which is what the table scores; for the pool they come from the version re-picked at each origin. The line after the last actual is the forecast from all the data, out to that horizon, and the shading around it is the forecast range.</div>
+    <div class="hint" id="ch1h"></div>
+  </div>
+
+  <div class="card">
+    <details class="big" id="why"><summary><h2>Why this method</h2></summary>
+      <div id="rec"></div>
+      <h3>How often the range held</h3>
+      <div id="rcheck"></div>
+      <h3>Testing the choice</h3>
+      <div id="honest"></div>
+      <div class="hint">Each approach is picked again at every past point from only the errors known then, and scored on what happened next. The last row is the table's #1 scored on the same errors it was picked on, for contrast.</div>
+    </details>
   </div>
 
   <div class="card">
     <div class="head">
-      <h2 style="margin:0">Error metrics, all methods</h2>
-      <button class="btn" id="dl" type="button">Download forecast and backtest CSV</button>
+      <h2 style="margin:0">All methods, ranked</h2>
+      <div style="display:flex;gap:8px;flex-wrap:wrap"><button class="btn" id="more" type="button" aria-pressed="false">More measures</button><button class="btn" id="dl" type="button">Download CSV</button></div>
     </div>
     <div class="tblwrap" id="tbl"></div>
-    <div class="hint">Ranked by MASE over the backtest window (lowest first). These are the scores the ranking was made on, so the #1 method is flattered; the check above shows what the choice earned. p-values come from the Diebold-Mariano test with fixed-b variance and are Holm-adjusted across the table. ★ marks the best value in each column. Click a column to sort. Hover a header for its definition.</div>
+    <div class="hint" id="tblh"></div>
   </div>
 
   <div class="card" id="hz">
-    <h2>Error grows with horizon</h2>
+    <h2>Misses grow further ahead</h2>
     <div class="legend" id="lg2"></div>
     <div class="chart" id="ch2"></div>
     <div class="hint">MAE at each step ahead. A method that wins at 1 step can lose at 6; match the horizon to your purchasing lead time.</div>
@@ -883,29 +896,37 @@ footer { font-size: 12px; color: var(--text-3); margin-top: 24px; }
       sel.sort(function (a, b) { return a - b; });
       return { n: sel.length, med: quantile(sel, 0.5), b: levels.map(function (L) { return confBounds(sel, L); }) };
     }
-    var levels = opt.levels, out = { kind: kind, start: start, levels: levels, future: [], check: [], cover: {}, coverH: {}, nCheck: 0 };
+    // A series that never goes below zero (prices, demand) gets ranges floored at zero. Every actual
+    // is then >= 0, so a clipped range holds exactly when the unclipped one does: coverage is
+    // unchanged and the range only gets narrower.
+    var nonneg = true;
+    for (T = 0; T < n; T++) if (!sk[T] && !(y[T] >= 0)) { nonneg = false; break; }
+    var fl = nonneg ? 0 : -Infinity;
+    var levels = opt.levels, out = { kind: kind, start: start, levels: levels, floor: nonneg ? 0 : null, future: [], check: [], cover: {}, coverH: {}, nCheck: 0 };
     for (k = 1; k <= h; k++) {
       var b = bounds(k, n - k);
       out.future.push(b ? { n: b.n, p50: b.med, lo: b.b.map(function (x) { return x.lo; }), hi: b.b.map(function (x) { return x.hi; }), ok: b.b.map(function (x) { return x.ok; }) } : null);
     }
     // the check: scored origins of the backtest window, errors known at each origin only
-    var first = n - test, last = n - h, hit = levels.map(function () { return 0; }), hitH = hit.slice(), above = hit.slice(), below = hit.slice(), cnt = 0, cntH = 0;
+    var first = n - test, last = n - h, hit = levels.map(function () { return 0; }), hitH = hit.slice(), above = hit.slice(), below = hit.slice(), cnt = 0, cntH = 0, nOrig = 0;
     for (T = Math.max(first, start); T <= last; T++) {
+      var cnt0 = cnt;
       for (k = 1; k <= h; k++) {
         var idx2 = T + k - 1;
         if (sk[idx2]) continue;
         var b2 = bounds(k, T - k);
         if (!b2) continue;
-        var f = paths[T][k - 1], row = { T: T, k: k, n: b2.n, f: f, y: y[idx2], p50: f + b2.med, lo: [], hi: [] };
+        var f = paths[T][k - 1], row = { T: T, k: k, n: b2.n, f: f, y: y[idx2], p50: Math.max(f + b2.med, fl), lo: [], hi: [] };
         levels.forEach(function (L, li) {
-          var lo = f + b2.b[li].lo, hi = f + b2.b[li].hi, inside = y[idx2] >= lo && y[idx2] <= hi;
+          var lo = Math.max(f + b2.b[li].lo, fl), hi = Math.max(f + b2.b[li].hi, fl), inside = y[idx2] >= lo && y[idx2] <= hi;
           row.lo.push(lo); row.hi.push(hi);
           if (inside) { hit[li]++; if (k === h) hitH[li]++; } else if (y[idx2] > hi) above[li]++; else below[li]++;
         });
         out.check.push(row); cnt++; if (k === h) cntH++;
       }
+      if (cnt > cnt0) nOrig++;
     }
-    out.nCheck = cnt; out.nCheckH = cntH;
+    out.nCheck = cnt; out.nCheckH = cntH; out.nOrigins = nOrig;
     out.above = {}; out.below = {};
     levels.forEach(function (L, li) {
       out.cover[L] = cnt ? hit[li] / cnt : NaN; out.coverH[L] = cntH ? hitH[li] / cntH : NaN;
@@ -1627,7 +1648,7 @@ self.onmessage = function (ev) {
   "use strict";
   var E = window.FCEngine, SERIES = window.SERIES, MW = window.MW_CATALOG || { groups: [], items: [] }, MK = window.FCMarket;
   var $ = function (id) { return document.getElementById(id); };
-  var state = { key: SERIES[0].key, upload: null, h: 6, test: 24, m: 12, compare: "naive", view: "recent", sort: "rank", dir: 1 };
+  var state = { key: SERIES[0].key, upload: null, h: 6, test: 24, m: 12, compare: "naive", view: "recent", dots: "1", more: false, sort: "rank", dir: 1 };
   var last = null;
 
   function esc(s) { return String(s).replace(/[&<>"]/g, function (c) { return { "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c]; }); }
@@ -1846,7 +1867,7 @@ self.onmessage = function (ev) {
   }
   function rangeBusy(job) {
     var el = $("rbusy"); if (!el) return;
-    el.textContent = "Building the ranges from older backtests… " + Math.round(100 * (job.frac || 0)) + "%"; el.hidden = false;
+    el.textContent = "Building the range from older tests… " + Math.round(100 * (job.frac || 0)) + "%"; el.hidden = false;
   }
   function moreNeeded(P, need) { return Math.max(P.y.length - need, E.minTrain(P.m)) < P.lo; }
 
@@ -1863,6 +1884,50 @@ self.onmessage = function (ev) {
   function relText(v) { return !isFinite(v) ? "n/a" : (v < 0 ? "−" : v > 0 ? "+" : "") + fmt(Math.abs(v), 1) + "%"; }
   function pf(p) { return !isFinite(p) ? "not testable" : p < 0.001 ? "p < 0.001" : "p = " + fmt(p, 3); }
   function nameList(names) { names = names.map(function (x) { return "<b>" + esc(x) + "</b>"; }); return names.length < 2 ? names.join("") : names.slice(0, -1).join(", ") + " and " + names[names.length - 1]; }
+
+  // The forecast each approach made k steps before each date of the backtest window. "pool" and
+  // "pick" are re-chosen at each origin exactly as in the backtest (E.picksFor), so the dots for
+  // k = h are the forecasts the table scores. Dates whose origin is not fitted yet are left out.
+  function pastDots(P, id, k) {
+    var n = P.y.length, sk = P.skip || {}, rep = id === "pool" || id === "pick", out = [], picks = {};
+    var T0 = Math.max(n - state.test - k + 1, P.lo), T1 = n - k, Tp = Math.max(T0, P.lo + state.test);
+    if (T0 > T1) return out;
+    if (rep && Tp <= T1) picks = E.picksFor(P, state.h, state.test, Tp, T1);
+    // too short to re-pick (no tested pool): the methods picked today, as the table shows them
+    var fixed = id === "pick" ? [last.ranked[0].id] : last.res.members;
+    for (var T = T0; T <= T1; T++) {
+      var t = T + k - 1; if (sk[t]) continue;
+      var ids = !rep ? [id] : picks[T] ? (id === "pick" ? [picks[T][0]] : picks[T]) : last.res.pool ? null : fixed;
+      if (!ids) continue; // older origin not fitted yet
+      out.push([t, ids.reduce(function (a, m) { return a + P.fc[m][T][k - 1]; }, 0) / ids.length]);
+    }
+    return out;
+  }
+  // A sudden move: the recommended forecast's biggest miss one step ahead in the last few dates is
+  // bigger than any earlier miss in the backtest window. Every method lags such a move, and a range
+  // built from calmer errors understates the risk while it lasts (Barber et al., 2023).
+  function jumpNote(s, P, pd) {
+    var el = $("jump"), y = P.y, L = Math.min(3, Math.max(1, Math.floor(pd.length / 8)));
+    el.hidden = true;
+    if (state.dots !== "1" && state.h > 1) pd = pastDots(P, last.dec.kind === "pool" ? "pool" : last.dec.kind === "pick" ? "pick" : "naive", 1);
+    if (pd.length < 10) return;
+    var e = pd.map(function (q) { return Math.abs(y[q[0]] - q[1]); }), before = Math.max.apply(null, e.slice(0, -L)), recent = Math.max.apply(null, e.slice(-L));
+    if (!(recent > before)) return;
+    el.innerHTML = "The last few " + esc(many(s)) + " moved more than at any point in the backtest window. Every method here lags a sudden move like this, and the range is built from calmer times, so expect it to be too narrow until things settle.";
+    el.hidden = false;
+  }
+  function headline(s, dec, prim, poolNames, rows, ref, ready) {
+    var H = state.h, r = rows[H - 1], u = s.short ? " " + esc(s.short) : "", when = esc(label(futureDates(s.dates, H, s)[H - 1]));
+    var out = "Plan on <b>" + fmtV(prim.future[H - 1], ref) + u + "</b> for " + when + (H > 1 ? ", " + H + " " + esc(many(s)) + " ahead" : "") + ".";
+    var rg = last && last.rg, c = rg && rg.nCheck >= FEW ? rg.cover[0.8] : NaN, bnd = "<b>" + fmtV(r ? r.lo[MAIN] : 0, ref) + " to " + fmtV(r ? r.hi[MAIN] : 0, ref) + "</b>" + u;
+    if (r && c < 0.7) out += " The 80% range is " + bnd + ", but in past tests ranges like it held only " + Math.round(10 * c) + " times in 10, so allow for more.";
+    else if (r) out += " 8 times in 10 it should land between " + bnd.replace(" to ", " and ") + ".";
+    else if (!ready) out += " The range is still being built.";
+    var from = dec.kind === "pool" ? "the average of " + nameList(poolNames) + ", the three methods that held up best"
+      : dec.kind === "pick" ? "<b>" + esc(prim.name) + "</b>, which beat the average of the top three on this series"
+      : "the latest value. None of the methods beat it when tested on this series";
+    return out + '<div class="sub">Forecast from ' + from + ".</div>";
+  }
 
   function render(s, P) {
     var err = $("err"), WS = E.WINDOWS;
@@ -1892,21 +1957,20 @@ self.onmessage = function (ev) {
     if (calReady && !P.calFailed) rg = E.ranges(P, { h: H, test: state.test, kind: dec.kind, levels: LEVELS });
     var rows = prim.future.slice(0, H).map(function (f, i) {
       var b = rg && rg.future[i];
-      return b ? { k: i + 1, f: f, n: b.n, p50: f + b.p50, ok: b.ok, lo: b.lo.map(function (q) { return f + q; }), hi: b.hi.map(function (q) { return f + q; }) } : null;
+      var fl = rg && rg.floor === 0 ? 0 : -Infinity, clip = function (v) { return Math.max(v, fl); };
+      return b ? { k: i + 1, f: f, n: b.n, p50: clip(f + b.p50), ok: b.ok, lo: b.lo.map(function (q) { return clip(f + q); }), hi: b.hi.map(function (q) { return clip(f + q); }) } : null;
     });
     last = { s: s, res: res, ranked: ranked, byId: byId, dec: dec, prim: prim, P: P, rg: rg, rows: rows };
 
-    // tag + KPIs
+    // tag, the answer, and the reasons behind it
     $("tag").innerHTML = s.sample ? '<span class="badge">SAMPLE DATA · synthetic, for demonstration</span>' : "";
-    var ev = dec.kind === "naive" ? dec.row : prim.r, hz = state.h + " " + (state.h > 1 ? many(s) : one(s)) + " ahead";
-    var how = dec.honest ? "re-picked at each origin, " + hz : "in the window used to choose (optimistic)";
+    var ev = dec.kind === "naive" ? dec.row : prim.r;
+    $("headline").innerHTML = headline(s, dec, prim, poolNames, rows, ref, calReady);
     $("kpis").innerHTML =
-      kpi("Recommended forecast", dec.kind === "naive" ? "Naive" : prim.name,
-        dec.kind === "pool" ? "average of " + poolNames.join(", ") : dec.kind === "naive" ? "the latest value; " + (dec.tried === "pick" ? "the re-picked best method" : "the top-3 pool") + " did not beat it" : "best single method, re-picked at each origin") +
-      kpi(dec.kind === "naive" ? (dec.tried === "pick" ? "Best method vs naive" : "Top-3 pool vs naive") : "Error vs naive", relText(relPct(ev.metrics.MAE, nv.metrics.MAE)), "MAE, " + how) +
-      (sn ? kpi(dec.kind === "naive" ? "Naive vs seasonal naive" : "Error vs seasonal naive", relText(relPct((dec.kind === "naive" ? nv : ev).metrics.MAE, sn.metrics.MAE)), "same forecasts and targets")
-        : kpi("Best in hindsight", best.name, "MASE " + fmt(best.metrics.MASE, 3) + " used to choose" + (res.pick ? ", " + fmt(res.pick.metrics.MASE, 3) + " re-picked" : ""))) +
-      rangeKpi(s, rg, rows, ref, calReady);
+      kpi("Forecast, " + label(futureDates(s.dates, H, s)[H - 1]), fmtV(prim.future[H - 1], ref) + (s.short ? " " + s.short : ""), H + " " + (H > 1 ? many(s) : one(s)) + " ahead") +
+      rangeKpi(s, rg, rows, ref, calReady) +
+      kpi(dec.kind === "naive" ? (dec.tried === "pick" ? "Best method vs naive" : "Top-3 pool vs naive") : "Error vs naive", relText(relPct(ev.metrics.MAE, nv.metrics.MAE)),
+        dec.honest ? "average miss, tested on the last " + state.test + " " + many(s) : "average miss, on the scores it was picked on");
 
     $("rec").innerHTML = recommend(s, res, ranked, byId, dec, prim, poolNames, ref);
     rangeCard(s, P, dec, prim, rg, rows, ref);
@@ -1925,15 +1989,20 @@ self.onmessage = function (ev) {
     // recent view: the backtest window plus as much history again (at least 60 periods), so the
     // forecast and its range are readable; "All history" shows everything
     var v0 = state.view === "all" ? 0 : Math.max(0, Math.min(res.first - state.test, n - 60));
-    // backtest dots: the forecasts made h steps before each target, the horizon the table scores
-    function bt(r) { return r.records.filter(function (q) { return q.k === H; }).map(function (q) { return [q.idx, q.f]; }); }
+    // past forecasts: by default the one made 1 step before each date in the backtest window, so
+    // every date has one; or the one made h steps before, the horizon the table scores
+    var dk = state.dots === "h" && H > 1 ? H : 1;
+    $("dots").options[1].textContent = "Made " + H + " " + (H > 1 ? many(s) : one(s)) + " before";
+    $("dots").options[1].disabled = H === 1; $("dots").value = dk === 1 ? "1" : "h";
+    var primId = dec.kind === "pool" ? "pool" : dec.kind === "pick" ? "pick" : "naive";
+    var pd = pastDots(P, primId, dk), cd = pastDots(P, cmp.id, dk);
     function fu(f) { return [[n - 1, s.values[n - 1]]].concat(f.slice(0, H).map(function (v, i) { return [n + i, v]; })); }
-    var C1 = "var(--s1)", C2 = "var(--s2)", CA = "var(--text)", hs1 = H === 1 ? "1 step" : H + " steps";
+    var C1 = "var(--s1)", C2 = "var(--s2)", CA = "var(--text)", hs1 = dk === 1 ? "1 step" : dk + " steps";
     var series = [
       { name: "Actual", color: CA, pts: actual },
-      { name: prim.name + " (backtest, " + hs1 + " ahead)", color: C1, pts: bt(prim.r), dots: true },
+      { name: prim.name + " (made " + hs1 + " before)", color: C1, pts: pd, dots: true },
       { name: prim.name + " (forecast)", color: C1, pts: fu(prim.future), dots: H === 1 },
-      { name: cmp.name + " (backtest, " + hs1 + " ahead)", color: C2, pts: bt(cmp), dots: true, dash: true },
+      { name: cmp.name + " (made " + hs1 + " before)", color: C2, pts: cd, dots: true, dash: true },
       { name: cmp.name + " (forecast)", color: C2, pts: fu(cmp.future), dash: true, dots: H === 1 }
     ];
     var bands = [], lgs = [{ name: "Actual", color: CA }, { name: prim.name + " (recommended)", color: C1 }];
@@ -1949,6 +2018,10 @@ self.onmessage = function (ev) {
     function cut(pts) { return pts.filter(function (p) { return p[0] >= v0; }).map(function (p) { return [p[0] - v0, p[1]]; }); }
     series.forEach(function (se) { se.pts = cut(se.pts); });
     bands.forEach(function (b) { b.lo = cut(b.lo); b.hi = cut(b.hi); });
+    var u1 = one(s), um = many(s);
+    $("ch1h").textContent = (last.res.pool || dec.kind === "naive" ? "" : "This series is too short to re-pick the top three at each past point, so the dots use today's three. ") + "Dots in the shaded window are what each method forecast " + (dk === 1 ? "one " + u1 : dk + " " + um) + " before that date, using only the data it had then." +
+      (dk > 1 ? " They trail sharp moves by " + dk + " " + um + "." : "") + " After the last actual: the forecast and the range to plan around.";
+    jumpNote(s, P, pd);
     lineChart($("ch1"), { labels: labels.slice(v0), series: series, bands: bands, xfmt: label, ref: ref, band: [Math.max(0, res.first - 0.5 - v0), n - 1 - v0], bandLabel: "Backtest window",
       aria: "Actual values with backtest and " + H + "-" + one(s) + " forecasts for " + prim.name + " and " + cmp.name + (bands.length ? ", with forecast ranges" : ""), height: 320 });
 
@@ -1983,100 +2056,87 @@ self.onmessage = function (ev) {
 
   // ---- forecast ranges --------------------------------------------------------
   var LEVELS = [0.5, 0.8, 0.95], MAIN = 1; // MAIN: index of the planning range (80%)
+  var FEW = 20; // fewer checked forecasts than this: report the count, not a verdict (binomial s.e. at 80% is about 9 points at 20)
   function pctL(L) { return Math.round(100 * L) + "%"; }
   function pct(x) { return isFinite(x) ? Math.round(100 * x) + "%" : "n/a"; }
   function rangeKpi(s, rg, rows, ref, ready) {
     var H = state.h, r = rows[H - 1], when = label(futureDates(s.dates, H, s)[H - 1]);
-    if (!ready) return kpi("80% range, " + when, "…", "building from older backtests");
-    if (!r) return kpi("80% range, " + when, "n/a", "too few past forecasts");
-    return kpi("80% range, " + when, fmtV(r.lo[MAIN], ref) + " to " + fmtV(r.hi[MAIN], ref), isFinite(rg.cover[0.8]) ? "held " + pct(rg.cover[0.8]) + " of the time in the backtest" : "not yet checked: too little history");
+    if (!ready) return kpi("80% range, " + when, "…", "building from older tests");
+    if (!r) return kpi("80% range, " + when, "n/a", "not enough history");
+    return kpi("80% range, " + when, fmtV(r.lo[MAIN], ref) + " to " + fmtV(r.hi[MAIN], ref), !isFinite(rg.cover[0.8]) ? "not yet checked: too little history" : rg.nCheck < FEW ? "held " + Math.round(rg.cover[0.8] * rg.nCheck) + " of " + rg.nCheck + " times in past tests" : "held " + pct(rg.cover[0.8]) + " of the time in past tests");
   }
   function rangeCard(s, P, dec, prim, rg, rows, ref) {
-    var el = $("ranges"), H = state.h, u = s.short ? " " + esc(s.short) : "", fd = futureDates(s.dates, H, s), job = fitter.busy();
+    var el = $("ranges"), ck = $("rcheck"), H = state.h, fd = futureDates(s.dates, H, s), job = fitter.busy();
     var hz = H + " " + (H > 1 ? many(s) : one(s)) + " ahead";
+    $("monthly").querySelector("summary").textContent = H > 1 ? "Every " + one(s) + " to " + label(fd[H - 1]) : "Full range";
     $("rbusy").hidden = true;
-    $("rhint").innerHTML = "Each range comes from the recommended approach's own past misses at that step ahead: the last " + E.CAL + " it made, with the pool re-picked at each past origin as it is today " +
-      "(Williams &amp; Goodman, 1971; Lee &amp; Scholtes, 2014). The check rebuilds the range at every origin in the backtest window from only the misses known then, and counts how often the actual landed inside.";
-    if (P.calFailed) { el.innerHTML = '<p class="hint" style="margin:0">The ranges could not be built: ' + esc(P.calFailed) + "</p>"; return; }
-    if (!rg) { el.innerHTML = ""; if (job && job.key === keyOf(s) && !job.main) rangeBusy(job); else { $("rbusy").textContent = "Building the ranges from older backtests…"; $("rbusy").hidden = false; } return; }
+    if (P.calFailed) { el.innerHTML = ck.innerHTML = '<p class="hint" style="margin:0">The range could not be built: ' + esc(P.calFailed) + "</p>"; return; }
+    if (!rg) { el.innerHTML = ck.innerHTML = ""; if (job && job.key === keyOf(s) && !job.main) rangeBusy(job); else { $("rbusy").textContent = "Building the range from older tests…"; $("rbusy").hidden = false; } return; }
     var r = rows[H - 1], nmax = rows.reduce(function (a, x) { return x ? Math.max(a, x.n) : a; }, 0);
     if (!r) {
       // how many step-h errors a window w would give: one per origin from (first fitted + w) to n - h
       var n = s.values.length, lo0 = Math.max(E.minTrain(P.m), P.lo), have = rg.future[H - 1] ? rg.future[H - 1].n : Math.max(0, n - H - rg.start + 1);
       var fit = E.WINDOWS.filter(function (w) { return w >= 2 * H && w <= P.W && w < state.test && n - H - (lo0 + w) + 1 >= E.MINCAL; }).pop();
-      el.innerHTML = '<p style="margin:0">This series is too short for a tested range at ' + esc(hz) + ": a range needs at least " + E.MINCAL + " past forecasts of the recommended approach at that step, and there are " + have + "." +
-        (fit ? " With a backtest window of " + fit + " " + esc(many(s)) + " there would be enough." : " A shorter horizon may allow one.") + "</p>";
+      el.innerHTML = ck.innerHTML = '<p style="margin:0">Not enough history for a tested range ' + esc(hz) + ": it needs at least " + E.MINCAL + " past forecasts made that far ahead, and there are " + have + "." +
+        (fit ? " A backtest window of " + fit + " " + esc(many(s)) + " would give enough." : " A shorter horizon may allow one.") + "</p>";
       return;
     }
-    var who = dec.kind === "naive" ? "the naive forecast" : dec.kind === "pick" ? esc(prim.name) : "the top-3 pool";
-    var html = '<p style="margin:0 0 8px"><b>Planning range for ' + esc(label(fd[H - 1])) + "</b> (" + esc(hz) + "): <b>" + fmtV(r.lo[MAIN], ref) + " to " + fmtV(r.hi[MAIN], ref) + "</b>" + u +
-      ", an 80% range around the forecast of " + fmtV(r.f, ref) + ". It is built from " + who + "'s last " + r.n + " forecasts made " + esc(hz) + ".</p>";
-    var c = rg.cover[0.8], ab = rg.above[0.8], bl = rg.below[0.8];
+    var who = dec.kind === "naive" ? "naive" : dec.kind === "pick" ? esc(prim.name) : "the top-3 pool";
+    var c = rg.cover[0.8], ab = rg.above[0.8], bl = rg.below[0.8], html = '<p style="margin:0 0 8px">The range comes from ' + who + "'s last " + r.n + " misses " + esc(hz) + ".";
     if (rg.nCheck) {
-      var verdict = c < 0.7 ? " That is less often than the label says, so expect more surprises than the range suggests." : c > 0.9 ? " That is more often than the label says, so the range is on the cautious side." : "";
-      html += '<p style="margin:0 0 8px">Check: at the ' + (state.test - H + 1) + " origins in the backtest window, 80% ranges built this way held " + pct(c) + " of the time (" + Math.round(c * rg.nCheck) + " of " + rg.nCheck + " forecasts; " + pct(rg.coverH[0.8]) + " at " + esc(hz) + ")." + verdict + "</p>" +
-        '<p style="margin:0 0 10px">For a budget or a price cap, plan on the forecast and treat the top end as the cautious case. In the check the actual came in above the top end ' + pct(ab) + " of the time and below the bottom end " + pct(bl) + "; an 80% range allows 10% each.</p>";
-    } else html += '<p style="margin:0 0 10px">These ranges cannot be checked on this series: the check needs ' + E.CAL + " past forecasts before the backtest window, and the history is too short for that.</p>";
+      var few = rg.nCheck < FEW;
+      html += " Rebuilt at each past point in the backtest window from only the misses known then, the 80% range held " + Math.round(c * rg.nCheck) + " of " + rg.nCheck + " times (" + pct(c) + ")." +
+        (few ? " That is too few to judge." : c < 0.7 ? " That is less often than it should, so expect more surprises than the range suggests." : c > 0.9 ? " That is more often than it should, so the range is on the cautious side." : "") + "</p>";
+      if (!few) html += '<p style="margin:0 0 8px">For a budget or a price cap, treat the top end as the cautious case: the actual came in above it ' + pct(ab) + " of the time and below the bottom " + pct(bl) + " (10% each is the target).</p>";
+    } else html += " There is not enough history to check it.</p>";
+    ck.innerHTML = html;
     var show = LEVELS.map(function (L, li) { return rows.every(function (x) { return !x || x.ok[li]; }); });
-    html += '<div class="tblwrap"><table><thead><tr><th class="l">' + esc(one(s).charAt(0).toUpperCase() + one(s).slice(1)) + "</th><th>Forecast</th>" +
-      LEVELS.map(function (L, li) { return show[li] ? "<th>" + pctL(L) + " range</th>" : ""; }).join("") + '<th title="Past forecasts at this step ahead that the range is built from">Built from</th></tr></thead><tbody>';
+    var t = '<div class="tblwrap"><table><thead><tr><th class="l">' + esc(one(s).charAt(0).toUpperCase() + one(s).slice(1)) + "</th><th>Forecast</th>" +
+      LEVELS.map(function (L, li) { return show[li] ? "<th>" + pctL(L) + " range</th>" : ""; }).join("") + "</tr></thead><tbody>";
     rows.forEach(function (x, i) {
-      html += '<tr><td class="l">' + esc(label(fd[i])) + "</td><td>" + fmtV(prim.future[i], ref) + "</td>" +
-        LEVELS.map(function (L, li) { return show[li] ? "<td>" + (x ? fmtV(x.lo[li], ref) + " to " + fmtV(x.hi[li], ref) : "n/a") + "</td>" : ""; }).join("") + "<td>" + (x ? x.n : "–") + "</td></tr>";
+      t += '<tr><td class="l">' + esc(label(fd[i])) + "</td><td>" + fmtV(prim.future[i], ref) + "</td>" +
+        LEVELS.map(function (L, li) { return show[li] ? "<td>" + (x ? fmtV(x.lo[li], ref) + " to " + fmtV(x.hi[li], ref) : "n/a") + "</td>" : ""; }).join("") + "</tr>";
     });
-    html += "</tbody></table></div>";
-    if (!show[2] && nmax) html += '<div class="hint">A 95% range needs at least 39 past forecasts per step, so it is not shown.</div>';
-    el.innerHTML = html;
+    t += "</tbody></table></div>";
+    if (!show[2] && nmax) t += '<div class="hint">A 95% range needs at least 39 past forecasts per step, so it is not shown.</div>';
+    el.innerHTML = t;
   }
 
   function recommend(s, res, ranked, byId, dec, prim, poolNames, ref) {
     var best = ranked[0], nv = byId.naive, u1 = one(s), unit = s.short ? " " + esc(s.short) : "";
-    var hz = state.h + " " + (state.h > 1 ? many(s) : one(s)) + " ahead", out;
+    var hz = state.h + " " + (state.h > 1 ? many(s) : one(s)) + " ahead", out = "<ul>";
     var honestP = res.pool ? E.holm([E.dmTest(res.pool.loss, nv.loss).p, E.dmTest(res.pick.loss, nv.loss).p]) : null;
-    var why = "Averaging a few strong methods is safer than betting on one, because the top-ranked method is partly there by luck (Kourentzes, Barrow &amp; Petropoulos, 2019).";
-    if (dec.kind === "pool") {
-      out = "<h2>Recommendation: average the top 3 methods</h2><ul>";
-      out += "<li>Average the forecasts of " + nameList(poolNames) + ", the three methods with the lowest error over the last " + state.test + " " + many(s) + ". " + why + "</li>";
-    } else if (dec.kind === "pick") {
-      out = "<h2>Recommendation: use " + esc(best.name) + "</h2><ul>";
-      out += "<li>Picking the single best method at each past " + u1 + " beat the top-3 pool on this series by a margin that is unlikely to be luck (" + pf(dec.pickVsPool.p) + "). Today that method is " + esc(best.name) + ".</li>";
-    } else {
-      out = "<h2>Recommendation: plan on the latest value (naive)</h2><ul>";
-    }
-    var r = dec.row, g = relPct(r.metrics.MAE, nv.metrics.MAE), who = dec.kind === "naive" ? (dec.tried === "pick" ? "the re-picked single best method" : "the top-3 pool") : dec.kind === "pick" ? "this approach" : "the pool";
+    if (dec.kind === "pool") out += "<li><b>Average of the top three</b> (" + nameList(poolNames) + "). Averaging a few strong methods is safer than betting on one, because the #1 spot is partly luck.</li>";
+    else if (dec.kind === "pick") out += "<li><b>" + esc(best.name) + " alone.</b> Picking the single best method each " + u1 + " beat the top-three average on this series by more than luck would explain (" + pf(dec.pickVsPool.p) + ").</li>";
+    var r = dec.row, g = relPct(r.metrics.MAE, nv.metrics.MAE), who = dec.kind === "naive" ? (dec.tried === "pick" ? "the best single method" : "the top-three average") : dec.kind === "pick" ? "it" : "the average";
     if (!dec.honest) {
-      out += "<li>This series is too short to test the choice itself with a " + state.test + "-" + u1 + " window: that needs " + res.needN + " " + many(s) + " and it has " + s.values.length + ". " +
-        "The numbers here come from the window used to choose, so they flatter the result. In that window " + who + " missed by " + fmtV(r.metrics.MAE, ref) + unit + " on average at " + hz + ", " +
-        fmt(Math.abs(g), 1) + "% " + (g <= 0 ? "less" : "more") + " than naive." + (dec.kind === "naive" ? " Even so it did not beat naive, so the latest value is the planning number." : "") + " A shorter backtest window may allow the full test.</li>";
+      out += "<li>The series is too short to test the choice properly (" + res.needN + " " + many(s) + " needed with a " + state.test + "-" + u1 + " window, " + s.values.length + " here), so these numbers are a little flattering. " +
+        "On the window used to choose, " + who + " missed by " + fmtV(r.metrics.MAE, ref) + unit + " on average " + hz + ", " + fmt(Math.abs(g), 1) + "% " + (g <= 0 ? "less" : "more") + " than naive." +
+        (dec.kind === "naive" ? " That is no better than naive, so plan on the latest value." : "") + " A shorter backtest window may allow the full test.</li>";
     } else {
       var pAdj = honestP[dec.tried === "pick" ? 1 : 0];
       if (dec.kind === "naive") {
-        out += "<li>Tested the way you would use it (" + (dec.tried === "pick" ? "the best method" : "the top 3") + " picked again at each past " + u1 + " from only the errors known then), " + who + " did not beat naive: its error was " + fmt(Math.abs(g), 1) + "% " + (g <= 0 ? "lower" : "higher") +
-          " at " + hz + ". For this series the latest value is as good a planning number as any model here, so effort is better spent on contract terms or hedging than on a model.</li>";
+        out += "<li><b>Plan on the latest value.</b> Picked again each " + u1 + " from only what was known then, " + who + " missed " + fmt(Math.abs(g), 1) + "% " + (g <= 0 ? "less" : "more") + " than naive " + hz +
+          ", which is no real gain. On this series, effort is better spent on contract terms or hedging than on a model.</li>";
       } else {
-        out += "<li>Tested the way you would use it (" + (dec.kind === "pool" ? "the top 3 picked" : "the best method picked") + " again at each past " + u1 + " from only the errors known then), " + who + " missed by " + fmtV(r.metrics.MAE, ref) + unit +
-          " on average at " + hz + ", " + fmt(Math.abs(g), 1) + "% less than naive. " +
-          (!isFinite(pAdj) ? "Whether that edge is real cannot be tested here: the errors do not vary enough." : pAdj < 0.05 ? "That edge is <b>statistically significant</b> (" + pf(pAdj) + ")." :
-            "The backtest is too short to tell whether that edge is real (" + pf(pAdj) + "), so naive remains a reasonable fallback.") + "</li>";
-        if (g > -5) out += "<li>An edge under 5% is small. Treat the series as close to a random walk: plan around the latest value and put effort into hedging or contract terms.</li>";
+        out += "<li>Picked again each " + u1 + " from only what was known then, " + who + " missed by " + fmtV(r.metrics.MAE, ref) + unit + " on average " + hz + ", " + fmt(Math.abs(g), 1) + "% less than naive. " +
+          (!isFinite(pAdj) ? "Whether that edge is real cannot be tested here." : pAdj < 0.05 ? "That edge is unlikely to be luck (" + pf(pAdj) + ")." : "The test is too short to tell if that edge is real (" + pf(pAdj) + "), so naive is a fair fallback.") + "</li>";
+        if (g > -5) out += "<li>An edge under 5% is small. Treat the series as close to a random walk and put effort into hedging or contract terms.</li>";
       }
-      out += "<li>The best single method in the table, " + esc(best.name) + ", scored MASE " + fmt(best.metrics.MASE, 3) + " over this window, but that is the score it was picked on, so it flatters it. " +
-        "Picking the single best method at each past " + u1 + " scored " + fmt(res.pick.metrics.MASE, 3) + " on what came next, against " + fmt(res.pool.metrics.MASE, 3) + " for the top-3 pool." +
-        (dec.kind === "pool" && res.pick.metrics.MAE < res.pool.metrics.MAE ? " That difference is too small for the backtest to separate, so the pool stays the safer default." : "") + "</li>";
+      out += "<li>The table's #1, " + esc(best.name) + ", looks better (average miss " + fmtV(best.metrics.MAE, ref) + ") because it is scored on the same misses it was picked on. Picked fresh each " + u1 + ", the best single method missed by " +
+        fmtV(res.pick.metrics.MAE, ref) + " and the top-three average by " + fmtV(res.pool.metrics.MAE, ref) + ".</li>";
     }
     out += tiedText(ranked, res, s);
+    var bias = r.metrics.ME, rel = Math.abs(bias) / r.metrics.MAE;
+    if (dec.kind !== "naive" && rel > 0.5) out += "<li>It tends to " + (bias > 0 ? "under" : "over") + "-forecast (by " + fmtV(Math.abs(bias), ref) + unit + " on average), so " + (bias > 0 ? "budgets and safety stock set from it will run short." : "budgets set from it will be padded.") + "</li>";
     var winners = {};
     ["RMSE", "MAPE", "sMAPE"].forEach(function (k) {
       var w = ranked.filter(function (x) { return x.metrics[k] !== null; }).sort(function (a, b) { return a.metrics[k] - b.metrics[k]; })[0];
       if (w && w.id !== best.id) (winners[w.name] = winners[w.name] || []).push(k);
     });
-    var dis = Object.keys(winners);
-    if (dis.length) out += "<li>Other error measures would rank a different method first: " + dis.map(function (n) { return esc(n) + " on " + winners[n].join(" and "); }).join("; ") +
-      ". The table ranks by MASE, which orders methods the same way as MAE. Use RMSE instead when one large miss costs more than several small ones (Kolassa, 2020).</li>";
-    var bias = r.metrics.ME, rel = Math.abs(bias) / r.metrics.MAE;
-    if (dec.kind !== "naive" && rel > 0.5) out += "<li>Watch the bias: it tends to " + (bias > 0 ? "under" : "over") + "-forecast (mean error " + fmtV(bias, ref) + "). " + (bias > 0 ? "Budget and safety stock set from it will run short." : "Budget set from it will be padded.") + "</li>";
-    out += "<li>Next " + u1 + ": <b>" + fmtV(prim.future[0], ref) + "</b>" + unit + (state.h > 1 ? "; the " + state.h + "-" + u1 + " path and its range are below." : "; its range is below.") + "</li></ul>";
-    return out;
+    var rw = Object.keys(winners).filter(function (n) { return winners[n].indexOf("RMSE") >= 0; })[0];
+    if (rw) out += "<li>If one big miss costs you more than several small ones, RMSE is the better yardstick, and it puts " + esc(rw) + " first (see More measures).</li>";
+    return out + "</ul>";
   }
 
   // Methods not shown to be worse than the table's #1 (Diebold-Mariano, Holm-adjusted across
@@ -2088,13 +2148,10 @@ self.onmessage = function (ev) {
   }
   function tiedText(ranked, res, s) {
     var vb = last.vb = vsBest(ranked), best = ranked[0], others = ranked.slice(1);
-    var worse = others.filter(function (r) { return vb[r.id] < 0.05; }).map(function (r) { return r.name; });
-    var tied = others.length - worse.length, lim = "With " + res.origins + " overlapping origins the significance test only separates large, steady differences";
-    if (!worse.length) return "<li>" + lim + ", and none of the other " + others.length + " methods was shown to be worse than " + esc(best.name) +
-      ". So the ranking is a guide only, which is one reason the page pools the top three.</li>";
-    if (!tied) return "<li>Every other method scored significantly worse than " + esc(best.name) + " in this window.</li>";
-    return "<li>" + (worse.length > 5 ? worse.length + " methods were" : nameList(worse) + (worse.length > 1 ? " were" : " was")) + " shown to be worse than " + esc(best.name) +
-      ". " + lim + ", so the other " + tied + " are statistically tied with it and their order in the table is not reliable.</li>";
+    var worse = others.filter(function (r) { return vb[r.id] < 0.05; }).length, tied = others.length - worse;
+    if (!tied) return "<li>Every other method did clearly worse than " + esc(best.name) + " here.</li>";
+    return "<li>" + (worse ? tied + " of the other " + others.length + " methods are" : "All " + others.length + " other methods are") + " statistically tied with the #1 (only " + res.origins +
+      " test points), so treat the table order as a rough guide.</li>";
   }
 
   // Testing the choice itself: each approach is re-picked at every past origin from the errors
@@ -2102,26 +2159,25 @@ self.onmessage = function (ev) {
   function honestTable(s, res, byId, best) {
     var nv = byId.naive, sn = byId.snaive, el = $("honest");
     if (!res.pool) {
-      el.innerHTML = '<p class="hint" style="margin:0">Testing the choice needs at least ' + res.needN + " " + many(s) + " of history with a " + state.test + "-" + one(s) +
-        " backtest window; this series has " + s.values.length + ". Pick a shorter window, or read the ranking below as optimistic.</p>";
+      el.innerHTML = '<p class="hint" style="margin:0">Needs at least ' + res.needN + " " + many(s) + " of history with a " + state.test + "-" + one(s) +
+        " backtest window; this series has " + s.values.length + ". A shorter window may allow it.</p>";
       return;
     }
     var p = E.holm([E.dmTest(res.pool.loss, nv.loss).p, E.dmTest(res.pick.loss, nv.loss).p]);
     var rows = [
-      { name: "Top-3 pool", note: "Average of the three best methods, re-picked at each origin", r: res.pool, p: p[0], cls: "win" },
-      { name: "Best single method", note: "The top method, re-picked at each origin", r: res.pick, p: p[1] },
+      { name: "Top-3 pool", note: "Average of the three best methods, picked again each time", r: res.pool, p: p[0], cls: "win" },
+      { name: "Best single method", note: "The top method, picked again each time", r: res.pick, p: p[1] },
       { name: "Naive", note: "Benchmark: the latest value", r: nv, p: null }
     ];
     if (sn) rows.push({ name: "Seasonal naive", note: "Benchmark: the value one cycle earlier", r: sn, p: null });
     rows.push({ name: esc(best.name) + ", best in hindsight", note: "Scored on the window it was picked on, so this number is optimistic", r: best, p: null, cls: "dim" });
     var ref = s.values[s.values.length - 1];
-    var h = '<table><thead><tr><th class="l">Approach</th><th title="Mean absolute scaled error">MASE</th><th title="Mean absolute error, in the series\' units">MAE</th><th>RMSE</th><th title="Mean error, actual minus forecast">Bias (ME)</th>' +
+    var h = '<table><thead><tr><th class="l">Approach</th><th title="Mean absolute error, in the series\' units">Average miss</th>' +
       '<th title="MAE relative to naive on the same forecasts (Davydenko &amp; Fildes, 2013)">vs naive</th>' + (sn ? '<th title="MAE relative to seasonal naive on the same forecasts">vs seasonal naive</th>' : "") +
       '<th title="Diebold-Mariano test against naive, fixed-b variance, Holm-adjusted over the two re-picked approaches">p vs naive</th></tr></thead><tbody>';
     rows.forEach(function (o) {
       var m = o.r.metrics, isNv = o.r === nv;
-      h += "<tr" + (o.cls ? ' class="' + o.cls + '"' : "") + '><td class="l"><b>' + o.name + '</b><div class="ref">' + esc(o.note) + "</div></td><td>" + fmt(m.MASE, 3) + "</td><td>" + fmt(m.MAE, digits(ref)) + "</td><td>" + fmt(m.RMSE, digits(ref)) +
-        "</td><td>" + fmt(m.ME, digits(ref)) + "</td><td>" + (isNv ? "–" : relText(relPct(m.MAE, nv.metrics.MAE))) + "</td>" + (sn ? "<td>" + (o.r === sn ? "–" : relText(relPct(m.MAE, sn.metrics.MAE))) + "</td>" : "") +
+      h += "<tr" + (o.cls ? ' class="' + o.cls + '"' : "") + '><td class="l"><b>' + o.name + '</b><div class="ref">' + esc(o.note) + "</div></td><td>" + fmt(m.MAE, digits(ref)) + "</td><td>" + (isNv ? "–" : relText(relPct(m.MAE, nv.metrics.MAE))) + "</td>" + (sn ? "<td>" + (o.r === sn ? "–" : relText(relPct(m.MAE, sn.metrics.MAE))) + "</td>" : "") +
         "<td>" + (o.p === null ? "–" : !isFinite(o.p) ? "n/a" : o.p < 0.05 ? "<b>" + (o.p < 0.001 ? "&lt;0.001" : fmt(o.p, 3)) + "</b>" : fmt(o.p, 3)) + "</td></tr>";
     });
     el.innerHTML = '<div class="tblwrap">' + h + "</tbody></table></div>";
@@ -2145,25 +2201,29 @@ self.onmessage = function (ev) {
       if (x === null) return 1; if (y === null) return -1;
       return state.dir * (x - y);
     });
-    var bestOf = {}, pv = pvCells(ranked), vb = last.vb || vsBest(ranked), pool = last.res.members;
-    COLS.forEach(function (c) {
+    var bestOf = {}, pv = pvCells(ranked), vb = last.vb || vsBest(ranked), pool = last.res.members, more = state.more, nvM = last.byId.naive.metrics.MAE;
+    var cols = more ? COLS : [{ k: "MAE", t: "Average miss", tip: "Mean absolute error over the backtest window, in the series' own units (MAE)." }];
+    $("tblh").textContent = more ? "Ranked by MASE (same order as MAE). These are the scores the ranking was made on, so the #1 is flattered. p-values: Diebold-Mariano test, fixed-b variance, Holm-adjusted across the table. ★ = best in column. Click a column to sort; hover a header for its definition."
+      : "Ranked by average miss over the backtest window, scored on the same misses the ranking was made on, so the #1 looks a little better than it will do next. Click a column to sort.";
+    cols.forEach(function (c) {
       var v = ranked.map(function (r) { var m = r.metrics[c.k]; return m === null ? Infinity : c.k === "ME" ? Math.abs(m) : m; });
       bestOf[c.k] = Math.min.apply(null, v);
     });
     var ref = last.s.values[last.s.values.length - 1];
     var h = '<table><thead><tr><th data-k="rank" class="l">#</th><th class="l">Method</th>' +
-      COLS.map(function (c) { return '<th data-k="' + c.k + '" title="' + esc(c.tip) + '">' + c.t + (state.sort === c.k ? (state.dir > 0 ? " ▲" : " ▼") : "") + "</th>"; }).join("") +
-      '<th title="Diebold-Mariano test against naive (fixed-b variance), Holm-adjusted across the table. Below 0.05 = significantly different.">p vs naive</th>' +
-      '<th title="Diebold-Mariano test against the #1 method, Holm-adjusted. Tied = not shown to be worse; with few origins the test only separates large, steady differences.">vs #1</th><th class="l">Fitted parameters</th></tr></thead><tbody>';
+      cols.map(function (c) { return '<th data-k="' + c.k + '" title="' + esc(c.tip) + '">' + c.t + (state.sort === c.k ? (state.dir > 0 ? " ▲" : " ▼") : "") + "</th>"; }).join("") +
+      (more ? '<th title="Diebold-Mariano test against naive (fixed-b variance), Holm-adjusted across the table. Below 0.05 = significantly different.">p vs naive</th>' +
+        '<th title="Diebold-Mariano test against the #1 method, Holm-adjusted. Tied = not shown to be worse; with few origins the test only separates large, steady differences.">vs #1</th><th class="l">Fitted parameters</th>'
+        : '<th title="Average miss compared with naive (the latest value) on the same dates">vs naive</th>') + "</tr></thead><tbody>";
     rows.forEach(function (o) {
       var r = o.r, m = r.metrics, p1 = vb[r.id];
       var v1 = o.rank === 1 ? "–" : !(p1 < 0.05) ? "tied" : "worse, " + (p1 < 0.001 ? "p<0.001" : "p " + fmt(p1, 3));
-      h += '<tr' + (o.rank === 1 ? ' class="win"' : "") + '><td class="l">' + o.rank + '</td><td class="l"><b>' + esc(r.name) + "</b>" + (pool.indexOf(r.id) >= 0 ? ' <span class="pill">in pool</span>' : "") + '<div class="ref">' + esc(r.note) + " " + esc(r.ref) + "</div></td>" +
-        COLS.map(function (c) {
+      h += '<tr' + (o.rank === 1 ? ' class="win"' : "") + '><td class="l">' + o.rank + '</td><td class="l"><b>' + esc(r.name) + "</b>" + (pool.indexOf(r.id) >= 0 ? ' <span class="pill">in top 3</span>' : "") + '<div class="ref">' + esc(r.note) + (more ? " " + esc(r.ref) : "") + "</div></td>" +
+        cols.map(function (c) {
           var v = m[c.k], isBest = v !== null && (c.k === "ME" ? Math.abs(v) : v) === bestOf[c.k];
           var d = c.k === "MASE" ? 3 : (c.k === "MAPE" || c.k === "sMAPE") ? 2 : c.k === "MSE" ? digits(v) : digits(ref);
-          return "<td" + (isBest ? ' class="best" title="Best in column"' : "") + ">" + (isBest ? "★ " : "") + fmt(v, d) + "</td>";
-        }).join("") + "<td>" + pv[r.id] + "</td><td>" + v1 + '</td><td class="l pm">' + esc(paramText(r.params)) + "</td></tr>";
+          return '<td data-m="' + c.k + '"' + (isBest && more ? ' class="best" title="Best in column"' : "") + ">" + (isBest && more ? "★ " : "") + fmt(v, d) + "</td>";
+        }).join("") + (more ? "<td>" + pv[r.id] + "</td><td>" + v1 + '</td><td class="l pm">' + esc(paramText(r.params)) + "</td>" : "<td>" + (r.id === "naive" ? "–" : relText(relPct(m.MAE, nvM))) + "</td>") + "</tr>";
     });
     $("tbl").innerHTML = h + "</tbody></table>";
     Array.prototype.forEach.call($("tbl").querySelectorAll("th[data-k]"), function (th) {
@@ -2377,6 +2437,8 @@ self.onmessage = function (ev) {
     }); });
     $("cmp").addEventListener("change", function (e) { state.compare = e.target.value; run(); });
     $("view").addEventListener("change", function (e) { state.view = e.target.value; run(); });
+    $("dots").addEventListener("change", function (e) { state.dots = e.target.value; run(); });
+    $("more").addEventListener("click", function () { state.more = !state.more; this.setAttribute("aria-pressed", String(state.more)); this.textContent = state.more ? "Fewer measures" : "More measures"; if (last) table(last.ranked); });
     $("file").addEventListener("change", function (e) {
       var f = e.target.files[0]; if (!f) return;
       e.target.value = "";

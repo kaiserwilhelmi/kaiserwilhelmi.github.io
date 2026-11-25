@@ -55,12 +55,20 @@ input[type=file] { position: absolute; width: 1px; height: 1px; opacity: 0; }
 input[type=search] { font: inherit; font-size: 16px; color: var(--text); background: var(--bg); border: 1px solid var(--border); border-radius: 8px; padding: 7px 10px; min-height: 38px; width: 100%; box-sizing: border-box; }
 .findn { font-size: 12px; color: var(--text-3); }
 input[type=number] { font: inherit; font-size: 14px; color: var(--text); background: var(--bg); border: 1px solid var(--border); border-radius: 8px; padding: 7px 8px; min-height: 38px; }
-.kpis { display: grid; grid-template-columns: repeat(4, minmax(0,1fr)); gap: 12px; margin-bottom: 16px; }
+.kpis { display: grid; grid-template-columns: repeat(3, minmax(0,1fr)); gap: 12px; margin: 12px 0 0; }
+.headline { font-size: 19px; line-height: 1.45; }
+.headline .sub { font-size: 14px; color: var(--text-2); margin-top: 4px; }
+details > summary { cursor: pointer; color: var(--text-2); font-size: 14px; margin-top: 12px; }
+details > summary:hover { color: var(--text); }
+details.big > summary { margin: 0; list-style-position: outside; }
+details.big > summary h2 { display: inline; margin: 0; color: var(--text); }
+details.big[open] > summary { margin-bottom: 10px; }
+#why h3 { margin-top: 14px; }
 .kpi { background: var(--surface); border: 1px solid var(--border); border-radius: 10px; padding: 12px 14px; min-width: 0; }
 .kt { font-size: 12px; color: var(--text-2); }
 .kv { font-size: 22px; font-weight: 650; line-height: 1.25; margin: 2px 0; overflow-wrap: anywhere; }
 .ks { font-size: 12px; color: var(--text-3); }
-#rec { border-left: 3px solid var(--accent); }
+
 #rec ul { margin: 0; padding-left: 20px; }
 #rec li { margin: 4px 0; }
 .chart { position: relative; }
@@ -106,7 +114,7 @@ footer { font-size: 12px; color: var(--text-3); margin-top: 24px; }
 <div class="wrap">
   <nav class="home"><a href="/">Dawson Wilhelmi</a></nav>
   <h1>Forecast Method Comparison</h1>
-  <p class="lede">This page tests which forecasting method to trust for a series. Up to fourteen methods, from simple benchmarks to machine learning, are re-fitted and tested period by period on data they have not seen, then scored on six error measures plus bias. The recommendation, an average of the top three, is tested the same way, and so is the range around its forecast. Pick any of the /*__COUNT__*/ price, wage, freight and currency series from the <a href="/market-watch/">Industry Market Watch</a>, or upload your own.</p>
+  <p class="lede">Pick one of the /*__COUNT__*/ price, wage, freight and currency series from the <a href="/market-watch/">Industry Market Watch</a>, or upload your own. The page tests up to fourteen forecasting methods on the series' own past, recommends the approach that held up best, and gives a range to plan around.</p>
 
   <div class="card">
     <div class="controls">
@@ -121,44 +129,49 @@ footer { font-size: 12px; color: var(--text-3); margin-top: 24px; }
     <div id="err" class="err" hidden></div>
     <div id="mwnote" class="upnote" hidden></div>
     <div id="upnote" class="upnote" hidden></div>
-    <div class="hint">CSV or Excel (.xlsx): a column of numbers, plus a column of dates or periods if you have one. Most date formats and any time unit (hours to years) work. Missing periods are filled by a straight line and not scored. Files are read in your browser and never uploaded.</div>
+    <div class="hint">CSV or Excel: a column of numbers, plus dates if you have them. Files stay in your browser.</div>
   </div>
 
-  <div class="kpis" id="kpis"></div>
-  <div class="card" id="rec"></div>
-  <div class="card" id="rangecard">
-    <h2>Forecast range</h2>
-    <div id="ranges"></div>
+  <div class="card" id="answer">
+    <div class="headline" id="headline"></div>
+    <div class="kpis" id="kpis"></div>
+    <div id="jump" class="upnote" hidden></div>
     <div id="rbusy" class="hint" hidden></div>
-    <div class="hint" id="rhint"></div>
-  </div>
-  <div class="card">
-    <h2>Testing the choice itself</h2>
-    <div id="honest"></div>
-    <div class="hint">Each approach is re-picked at every past origin from only the errors known at that time, then scored on what happened next (Tashman, 2000). The hindsight row is the table's #1 scored on the window it was picked on, shown for contrast: the gap between it and the re-picked rows is the luck in a ranking (Cawley &amp; Talbot, 2010).</div>
+    <details id="monthly"><summary>Month by month</summary><div id="ranges"></div></details>
   </div>
 
   <div class="card">
     <div class="head">
       <div><h2 style="margin:0" id="ch1t">Actuals, backtest and 12-month forecast</h2><div class="hint" id="meta" style="margin-top:2px"></div></div>
-      <div class="controls"><label class="ctl">Compare with<select id="cmp"></select></label><label class="ctl">View<select id="view"><option value="recent" selected>Recent</option><option value="all">All history</option></select></label></div>
+      <div class="controls"><label class="ctl">Compare with<select id="cmp"></select></label><label class="ctl">Past forecasts<select id="dots"><option value="1" selected>Made 1 step before</option><option value="h">Made h steps before</option></select></label><label class="ctl">View<select id="view"><option value="recent" selected>Recent</option><option value="all">All history</option></select></label></div>
     </div>
     <div class="legend" id="lg1"></div>
     <div class="chart" id="ch1"></div>
-    <div class="hint">Dots inside the shaded window are backtest forecasts made as many steps before each date as the horizon you picked, which is what the table scores; for the pool they come from the version re-picked at each origin. The line after the last actual is the forecast from all the data, out to that horizon, and the shading around it is the forecast range.</div>
+    <div class="hint" id="ch1h"></div>
+  </div>
+
+  <div class="card">
+    <details class="big" id="why"><summary><h2>Why this method</h2></summary>
+      <div id="rec"></div>
+      <h3>How often the range held</h3>
+      <div id="rcheck"></div>
+      <h3>Testing the choice</h3>
+      <div id="honest"></div>
+      <div class="hint">Each approach is picked again at every past point from only the errors known then, and scored on what happened next. The last row is the table's #1 scored on the same errors it was picked on, for contrast.</div>
+    </details>
   </div>
 
   <div class="card">
     <div class="head">
-      <h2 style="margin:0">Error metrics, all methods</h2>
-      <button class="btn" id="dl" type="button">Download forecast and backtest CSV</button>
+      <h2 style="margin:0">All methods, ranked</h2>
+      <div style="display:flex;gap:8px;flex-wrap:wrap"><button class="btn" id="more" type="button" aria-pressed="false">More measures</button><button class="btn" id="dl" type="button">Download CSV</button></div>
     </div>
     <div class="tblwrap" id="tbl"></div>
-    <div class="hint">Ranked by MASE over the backtest window (lowest first). These are the scores the ranking was made on, so the #1 method is flattered; the check above shows what the choice earned. p-values come from the Diebold-Mariano test with fixed-b variance and are Holm-adjusted across the table. ★ marks the best value in each column. Click a column to sort. Hover a header for its definition.</div>
+    <div class="hint" id="tblh"></div>
   </div>
 
   <div class="card" id="hz">
-    <h2>Error grows with horizon</h2>
+    <h2>Misses grow further ahead</h2>
     <div class="legend" id="lg2"></div>
     <div class="chart" id="ch2"></div>
     <div class="hint">MAE at each step ahead. A method that wins at 1 step can lose at 6; match the horizon to your purchasing lead time.</div>
