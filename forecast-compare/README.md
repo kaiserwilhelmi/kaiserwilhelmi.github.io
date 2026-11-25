@@ -4,6 +4,12 @@
 
 The page backtests up to fourteen methods (statistical and machine learning) on a series with a rolling origin, scores them on seven error measures, and lets the data pick the winner. No method is favoured in advance. The recommended forecast comes with a 50/80/95% range built from its own past errors, and the page shows how often that range held in the backtest. Pick any of the 100 Industry Market Watch series (grouped, with search) or upload your own CSV or Excel file. Everything runs in the browser; uploaded files never leave it.
 
+## Page layout (Nov 2026 readability pass)
+- **Answer first:** one line with the forecast for the chosen horizon and its 80% range, then three tiles (forecast, range and how often it held, error vs naive). If past ranges held less than 70% of the time, the line says so instead of "8 times in 10". The step-by-step table is folded under it.
+- **Chart:** dots in the backtest window are the forecasts made one step before each date (every date in the window has one); a switch shows the forecasts made h steps before, which is what the table scores. For the pool they are re-picked at each origin exactly as in the backtest. A note appears when the recommended forecast's latest one-step misses are bigger than any earlier one in the window, because every method lags a sudden move and a range built from calmer errors understates the risk (Barber et al., 2023).
+- **Why this method:** the reasons, the range check and the "testing the choice" table are in one collapsed section, one line each.
+- **Table:** average miss (MAE) and change vs naive by default; MASE, RMSE, MSE, MAPE, sMAPE, bias, p-values and fitted parameters under "More measures". Ranking is unchanged (MASE, which orders methods as MAE does).
+
 ## Methods
 | Method | Reference |
 |---|---|

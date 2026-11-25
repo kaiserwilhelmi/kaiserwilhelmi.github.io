@@ -27,10 +27,10 @@ const expected = fs.existsSync(expFile) ? JSON.parse(fs.readFileSync(expFile, "u
     await p.setInputFiles("#file", path.join(dir, f)); await p.waitForTimeout(400);
     await p.waitForFunction(() => document.getElementById("busy").hidden, null, { timeout: 120000 }); await p.waitForTimeout(200);
     // the forecast range is built in a second stage; wait until it shows or the page says why not
-    await p.waitForFunction(() => !document.getElementById("err").hidden || document.querySelector("#ranges table") || /too short|could not|cannot/.test(document.getElementById("ranges").innerText), null, { timeout: 120000 }).catch(() => {});
+    await p.waitForFunction(() => !document.getElementById("err").hidden || document.querySelector("#ranges table") || /history|could not|cannot/.test(document.getElementById("ranges").textContent), null, { timeout: 120000 }).catch(() => {});
     r.page = await p.evaluate(() => {
       const err = document.getElementById("err"), k = document.getElementById("kpis").innerText;
-      const cell = document.querySelector("#tbl tbody tr td:nth-child(3)"), rel = (/(?:Error|pool) vs naive\s*\n?\s*([^\n|]+)/.exec(k) || [])[1];
+      const cell = document.querySelector("#tbl tbody tr td[data-m]"), rel = (/(?:Error|pool) vs naive\s*\n?\s*([^\n|]+)/.exec(k) || [])[1];
       const rng = (/80% range[^\n]*\n\s*([^\n]+)/.exec(k) || [])[1];
       return { err: err.hidden ? "" : err.innerText, mase: cell ? cell.textContent.replace("★", "").trim() : null, rel: rel ? rel.trim() : null,
         range: rng ? rng.trim() : null, fit: document.documentElement.getAttribute("data-fit") };
@@ -46,7 +46,7 @@ const expected = fs.existsSync(expFile) ? JSON.parse(fs.readFileSync(expFile, "u
       for (const s of e.noteHas || []) if (!(r.notes || []).some(x => x.includes(s))) bad.push(`missing note "${s}"`);
       for (const s of e.warnHas || []) if (!(r.warnings || []).some(x => x.includes(s))) bad.push(`missing warning "${s}"`);
       if (!e.error && r.page.err) bad.push(`page error: ${r.page.err}`);
-      if (!e.error && !(r.page.mase && /^[\d.,]+$/.test(r.page.mase))) bad.push(`#1 MASE not finite on page: ${r.page.mase}`);
+      if (!e.error && !(r.page.mase && /^[\d.,]+$/.test(r.page.mase))) bad.push(`#1 average miss not finite on page: ${r.page.mase}`);
       if (!e.error && !(r.page.rel && /^[−+]?[\d.,]+%$/.test(r.page.rel))) bad.push(`error vs naive not finite on page: ${r.page.rel}`);
       if (!e.error && !(r.page.range && /^(?:[−-]?[\d.,]+ to [−-]?[\d.,]+|n\/a)$/.test(r.page.range))) bad.push(`80% range not shown on page: ${r.page.range}`);
     }
