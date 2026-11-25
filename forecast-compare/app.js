@@ -391,7 +391,7 @@
         lo: [[n - 1, s.values[n - 1]]].concat(rows.map(function (r, i) { return [n + i, r.lo[li]]; })),
         hi: [[n - 1, s.values[n - 1]]].concat(rows.map(function (r, i) { return [n + i, r.hi[li]]; })) });
     });
-    bands.slice().reverse().forEach(function (b) { lgs.push({ name: b.name, color: "rgba(76,154,255," + (0.15 + b.opacity * 2).toFixed(2) + ")", block: true }); });
+    bands.slice().reverse().forEach(function (b) { lgs.push({ name: b.name, color: "rgba(156,192,220," + (0.15 + b.opacity * 2).toFixed(2) + ")", block: true }); });
     lgs.push({ name: cmp.name, color: C2, dash: true });
     $("lg1").innerHTML = legend(lgs);
     function cut(pts) { return pts.filter(function (p) { return p[0] >= v0; }).map(function (p) { return [p[0] - v0, p[1]]; }); }
@@ -592,8 +592,14 @@
       bestOf[c.k] = Math.min.apply(null, v);
     });
     var ref = last.ref;
-    var h = '<table><thead><tr><th data-k="rank" class="l">#</th><th class="l">Method</th>' +
-      cols.map(function (c) { return '<th data-k="' + c.k + '" title="' + esc(c.tip) + '">' + c.t + (state.sort === c.k ? (state.dir > 0 ? " ▲" : " ▼") : "") + "</th>"; }).join("") +
+    // sortable headers hold a real button so they work from the keyboard (WCAG 2.1.1)
+    var sortTh = function (k, cls, title, label) {
+      var on = state.sort === k;
+      return '<th data-k="' + k + '"' + (cls ? ' class="' + cls + '"' : "") + (title ? ' title="' + esc(title) + '"' : "") +
+        ' aria-sort="' + (on ? (state.dir > 0 ? "ascending" : "descending") : "none") + '"><button type="button" class="sortb">' + label + (on ? (state.dir > 0 ? " ▲" : " ▼") : "") + "</button></th>";
+    };
+    var h = '<table><thead><tr>' + sortTh("rank", "l", "", "#") + '<th class="l">Method</th>' +
+      cols.map(function (c) { return sortTh(c.k, "", c.tip, c.t); }).join("") +
       (more ? '<th title="Diebold-Mariano test against naive (fixed-b variance), Holm-adjusted across the table. Below 0.05 = significantly different.">p vs naive</th>' +
         '<th title="Diebold-Mariano test against the #1 method, Holm-adjusted. Tied = not shown to be worse; with few origins the test only separates large, steady differences.">vs #1</th><th class="l">Fitted parameters</th>'
         : '<th title="Average miss compared with naive (the latest value) on the same dates">vs naive</th>') + "</tr></thead><tbody>";
@@ -610,9 +616,10 @@
     $("tbl").innerHTML = h + "</tbody></table>";
     Array.prototype.forEach.call($("tbl").querySelectorAll("th[data-k]"), function (th) {
       th.addEventListener("click", function () {
-        var k = th.getAttribute("data-k");
+        var k = th.getAttribute("data-k"), kb = th.contains(document.activeElement);
         if (state.sort === k) state.dir = -state.dir; else { state.sort = k; state.dir = 1; }
         table(last.ranked);
+        if (kb) { var b = $("tbl").querySelector('th[data-k="' + k + '"] button'); if (b) b.focus({ preventScroll: true }); }  // the table was redrawn
       });
     });
   }
@@ -846,4 +853,9 @@
     run();
   }
   document.addEventListener("DOMContentLoaded", init);
+  // the explanation cards start open on wider screens and closed on phones, to keep the page short there
+  document.addEventListener("DOMContentLoaded", function () {
+    var wide = window.matchMedia("(min-width: 601px)").matches;
+    Array.prototype.forEach.call(document.querySelectorAll("details.fold"), function (d) { d.open = wide; });
+  });
 })();

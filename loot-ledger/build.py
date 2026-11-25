@@ -13,8 +13,17 @@ maps = {os.path.basename(f)[:-4]: 'data:image/png;base64,' + base64.b64encode(op
 if maps: json.dump(maps, open('data/maps.json', 'w'), separators=(',', ':'))  # rebuilt only when build_maps.py output is present
 else: maps = json.load(open('data/maps.json'))
 if os.path.abspath(OUT) != os.path.abspath('.'): shutil.copy('data/maps.json', os.path.join(OUT,'data/maps.json'))
-HOME = '<nav class="home" style="padding-top:14px"><a href="/" style="font-weight:700;font-size:15px;color:var(--fg);text-decoration:none">Dawson Wilhelmi</a></nav>\n'
-open(os.path.join(OUT,'index.html'), 'w', encoding='utf-8').write(page('').replace('<header class="top">', HOME + '<header class="top">', 1))
+# hosted page only: the site header (same as the home page), a skip link and the site's own font files;
+# the single-file copy stays standalone and keeps Google Fonts
+FONTS = '<link rel="stylesheet" href="/fonts/fonts.css">\n<link rel="stylesheet" href="/fonts/loot-ledger.css">'
+SKIP = '<a class="dw-skip" href="#main">Skip to content</a>'
+SITE = '<header class="dw-site">\n  <a class="dw-me" href="/">Dawson Wilhelmi</a>\n  <nav aria-label="Site"><a href="/" class="on">Projects</a><a href="/about/">About</a></nav>\n</header>'
+hosted = page('')
+GOOGLE = hosted[hosted.index('<link rel="preconnect" href="https://fonts.googleapis.com">'):hosted.index('display=swap">') + len('display=swap">')]
+hosted = hosted.replace(GOOGLE, FONTS, 1)
+hosted = hosted.replace('<div class="wrap">\n<main', SKIP + '\n<div class="wrap">\n' + SITE + '\n<main', 1)
+assert SITE in hosted and FONTS in hosted
+open(os.path.join(OUT,'index.html'), 'w', encoding='utf-8').write(hosted)
 if OUT == 'dist':
   data = open('data/items.json', encoding='utf-8').read().replace('</', '<\\/')
   open(os.path.join(OUT,'loot-ledger.html'), 'w', encoding='utf-8').write(page('<script>window.LOOT_DATA=' + data + ';window.LOOT_MAPS=' + json.dumps(maps) + ';</script>'))
