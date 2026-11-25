@@ -19,18 +19,34 @@ The page backtests up to fourteen methods (statistical and machine learning) on 
 | Holt linear trend | Holt (2004 [1957]); FPP3 §8.2 |
 | Damped trend | Gardner & McKenzie (1985); FPP3 §8.2 |
 | Holt-Winters additive (weights + starting states fitted) | Winters (1960); FPP3 §8.3 |
-| Seasonal ARIMA(0,1,1)(0,1,1)m, the "airline model" | Box & Jenkins (1970); FPP3 §9.9 |
+| Airline model (seasonal ARIMA(0,1,1)(0,1,1)m); the page flags \|Θ\| > 0.95 | Box & Jenkins (1970); FPP3 §9.9 |
 | Regression: linear trend + seasonal dummies | FPP3 §7.4 |
-| Theta method (SES + half the trend; seasonal adjustment when a 90% ACF test finds seasonality) | Assimakopoulos & Nikolopoulos (2000); Hyndman & Billah (2003) |
-| ML: ridge regression on the last p scaled changes (λ chosen on a holdout), recursive forecasts | Hoerl & Kennard (1970) |
-| ML: gradient-boosted trees (150 depth-2 trees, learning rate 0.05) on the same features | Friedman (2001) |
+| Theta method (SES with fitted starting level + half the trend; seasonal adjustment when a 90% ACF test finds seasonality) | Assimakopoulos & Nikolopoulos (2000); Hyndman & Billah (2003); Fiorucci et al. (2016) |
+| ML: ridge regression on the last p scaled changes (log changes for always-positive series; λ from 0.1 to 10⁴ chosen on a holdout), recursive forecasts | Hoerl & Kennard (1970) |
+| ML: gradient-boosted trees (25/50/100/150 depth-2 trees chosen on the same holdout, learning rate 0.05) on the same features | Friedman (2001) |
 | Combination: average of Holt-Winters + seasonal ARIMA (seasonal data) | Bates & Granger (1969); Makridakis et al. (2020) |
 | Combination: average of SES + Holt + damped (no seasonality; the M4 "Comb" benchmark) | Makridakis et al. (2020) |
 
 **Fitting.**
 - Holt-Winters: α, β, γ and the starting level, trend and m seasonal terms are fitted together by minimising one-step squared error with a Nelder–Mead search (Nelder & Mead, 1965). This is the least-squares version of the ETS(A,A,A) fit in FPP3.
 - Seasonal ARIMA: θ and Θ fitted by conditional sum of squares (Nelder–Mead).
-- SES / Holt / damped: weights from a grid (α, β ∈ {0.05, …, 0.95}; φ ∈ {0.80, …, 0.98}). Full optimisation changed their accuracy by under 1% on these series, so the simpler, faster fit was kept.
+- SES / Holt / damped: α, β ∈ [0.0001, 0.9999], φ ∈ [0.80, 0.98] and the starting level and trend fitted together by least squares (the `forecast::ets` bounds; Hyndman & Khandakar, 2008), with Nelder–Mead started from the best point of the old grid and restarted until it stops improving. `test/test_statsmodels.py` checks the fit against statsmodels with the same bounds (in-sample SSE within 1%; on the repo series the worst ratio is 1.0003).
+- Holt-Winters keeps its Phase 1 fit: the audit's normalised-seasonals-plus-restarts version fitted closer in sample but forecast 1–2% worse at 6 and 12 months (below).
+
+**Acceptance test (Phase 4, fitting).** Rule written before running (`forecast-compare/phase4/acceptance/RULE.md` in the project files): keep a change only if the method's MAE over the last 36 origins of the 80 Market Watch monthly series does not get worse (geometric mean ratio new/old ≤ 1.005 at h = 1, 6 and 12). Results, m = 12 (geometric mean ratio at h = 1 / 6 / 12):
+| Change | Ratio | Kept |
+|---|---|---|
+| SES: continuous α, fitted start | 0.985 / 0.996 / 0.999 | yes |
+| Holt: continuous α, β, fitted starts | 0.977 / 0.954 / 0.934 | yes |
+| Damped: continuous α, β, φ, fitted starts | 0.991 / 0.987 / 0.983 | yes |
+| Theta: fitted starting level | 0.998 / 0.9995 / 0.9998 | yes |
+| Ridge: log changes, λ to 10⁴ | 0.989 / 0.986 / 0.976 | yes |
+| Boosted trees: tree count on holdout | 0.948 / 0.955 / 0.957 | yes |
+| Holt-Winters: m−1 seasonals, restarts | 1.001 / 1.022 / 1.023 | **no**, reverted |
+| Top-3 pool (the recommendation), all kept changes | 0.997 / 0.995 / 0.993 | not worse |
+
+With seasonality none the kept changes also helped (pool 0.992 / 0.998 / 0.991). The forecast ranges hold as often as before: 80% ranges 81.2 / 79.2 / 76.8% at h = 1 / 6 / 12 (Phase 3: 81.3 / 79.1 / 76.8%).
+
 
 **Why these choices (tested before building).** On the five series (24-month window, 6 steps ahead), fitting Holt-Winters' starting states lowered its average MASE from 0.581 to 0.498, and seasonal ARIMA was the best method on both real seasonal series. Accuracy matches the statsmodels maximum-likelihood fits closely (Cass freight: Holt-Winters 0.408 here vs 0.404; seasonal ARIMA 0.393 vs 0.404). A nested test (choose the method on an older 24-month window, score it on the newest 12 months) beat the naive forecast on every series, which supports letting the backtest choose.
 
@@ -63,7 +79,7 @@ Upload a CSV/TSV/text export or an Excel workbook (.xlsx). Everything is read in
 - `test/uploads/` holds 31 test files (Excel-style CSVs, UTF-16, .xlsx, multi-sheet, quarterly, weekly, hourly, business-day, ambiguous dates, plus one file for each upload bug fixed in the Nov 2026 audit). `node test/test_uploads.js` loads each into the page in headless Chromium and checks count, first and last date, values, time unit, filled periods and messages against `test/expected_uploads.json`, and that the page renders with a finite MASE; it exits 1 on any mismatch. `node test/test_engine.js` checks engine edge cases (flat histories, non-numbers, filled values not scored, NaN-safe ranking, MASE unchanged by units) and the Phase 2 logic: complete origins, no look-ahead in the re-picked pool, pool = average of the methods picked at that origin, a 4,000-run Monte Carlo of the Diebold–Mariano false-alarm rate, Holm, lazy fitting, and the short-history fallback; and the Phase 3 ranges: chunked fitting matches one-pass fitting, conformal ranks for 48 and 19 errors, no look-ahead in the range check, coverage equals the share of actuals inside, short histories never throw, a 400-run random walk where the naive 80% range covers 78–86%, and the zero floor (coverage identical to the same series shifted below zero). The upload test also waits for the ranges and checks the 80% range figure.
 
 ## Verification
-`verify.py` is an independent Python re-implementation (regression via numpy least squares, a different solver from the JS; the Diebold–Mariano p-values via scipy). `node dump_js.js` runs `engine.js` over 5 series × 2 seasonality settings × 3 windows × 4 horizons (every window of at least 2h) plus daily, business-day, hourly, weekly and quarterly test series, 120 cases; `python3 verify.py` re-fits every method at every origin and compares every metric, MAE-by-horizon value, per-origin loss, 12-step future forecast and fitted parameter, the ranking, every EWC Diebold–Mariano p-value and its Holm adjustment, the re-picked top-3 pool and single pick (their members at every origin, metrics, losses and forecasts), and the forecast ranges for the pool, the single pick and naive (every future and check-row bound, P50, error count, zero floor, origins checked and coverage): **365,412 values, worst relative difference 9.0e-10, rankings and picks identical** (Holm-adjusted p-values are allowed 1e-9 × the family size, because the adjustment multiplies a raw p-value by up to that factor). The Python check uses plain left-to-right sums because Python 3.12+ `sum()` is compensated and would make the optimiser drift from JavaScript's.
+`verify.py` is an independent Python re-implementation (regression via numpy least squares, a different solver from the JS; the Diebold–Mariano p-values via scipy). `node dump_js.js` runs `engine.js` over 5 series × 2 seasonality settings × 3 windows × 4 horizons (every window of at least 2h) plus daily, business-day, hourly, weekly and quarterly test series, 120 cases; `python3 verify.py` re-fits every method at every origin and compares every metric, MAE-by-horizon value, per-origin loss, 12-step future forecast and fitted parameter, the ranking, every EWC Diebold–Mariano p-value and its Holm adjustment, the re-picked top-3 pool and single pick (their members at every origin, metrics, losses and forecasts), and the forecast ranges for the pool, the single pick and naive (every future and check-row bound, P50, error count, zero floor, origins checked and coverage): **365,532 values, worst relative difference 9.0e-10, rankings and picks identical** (Holm-adjusted p-values are allowed 1e-9 × the family size, because the adjustment multiplies a raw p-value by up to that factor). The Python check uses plain left-to-right sums because Python 3.12+ `sum()` is compensated and would make the optimiser drift from JavaScript's.
 
 ## Data
 - **Industry Market Watch series (100).** The Series menu lists every series the [Market Watch](https://dawsonwilhelmi.com/market-watch/) tracks, grouped by type and searchable by name, ID, publisher or industry. Only the catalog is built into the page; the numbers are fetched from the Market Watch site (`/market-watch/data/...`) when a series is picked, so they stay current with its daily refresh and no API key is needed in the browser.

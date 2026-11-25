@@ -181,7 +181,7 @@ footer { font-size: 12px; color: var(--text-3); margin-top: 24px; }
     <div class="card doc">
       <h2>How the test works</h2>
       <p><b>Rolling origin.</b> At each origin in the backtest window, every method is fitted only on data before that point and forecasts the next <i>h</i> periods, which are then compared with what actually happened (Tashman, 2000; Hyndman &amp; Athanasopoulos, 2021, §5.10). Only origins whose whole <i>h</i>-step path can be checked are scored, so every step ahead counts the same number of times. The window must therefore be at least twice the horizon.</p>
-      <p><b>Fitting.</b> Holt-Winters fits its three weights and its starting level, trend and seasonal pattern together by minimising one-step squared error (Nelder–Mead search). Seasonal ARIMA is fitted by conditional least squares. The simpler smoothing methods pick their weights from a grid (0.05 to 0.95); full fitting changed their accuracy by under 1% on these series. Every number was re-computed by an independent Python implementation and matches; accuracy is in line with the statsmodels library's maximum-likelihood fits.</p>
+      <p><b>Fitting.</b> Every smoothing method fits its weights and its starting values together by minimising one-step squared error with a Nelder–Mead search. For simple, Holt and damped smoothing the weights may run from 0.0001 to 0.9999 and damping from 0.80 to 0.98, the bounds of the R forecast package (Hyndman &amp; Khandakar, 2008), and the fits match the statsmodels library's. A Holt-Winters fit with restarts matched statsmodels more closely but forecast 1 to 2% worse on the 80 Market Watch series, so the simpler search was kept. The airline model (seasonal ARIMA) is fitted by conditional least squares. Ridge regression works on percentage changes when a series is always positive, and the boosted trees choose how many trees to use on a holdout. Every number was re-computed by an independent Python implementation and matches; accuracy is in line with the statsmodels library's maximum-likelihood fits.</p>
       <p><b>Testing the choice.</b> The top score in any ranking is partly luck, so the method that tops it usually does worse afterwards (Cawley &amp; Talbot, 2010). On the 80 Market Watch monthly series at 6 months ahead, picking the #1 method from earlier data and scoring it on what came next gave 24% more error than the #1's own score in the table. So the page also tests its own advice: at each past origin it ranks the methods on the errors known then, takes the top one and the top three, and scores what they forecast next.</p>
       <p><b>Recommendation.</b> The page recommends the equal-weight average of the three best-ranked methods, because pooling a few top methods is more reliable than betting on one (Kourentzes, Barrow &amp; Petropoulos, 2019) and equal weights are hard to beat (Smith &amp; Wallis, 2009). Tested that way on the 80 Market Watch series with a 24-month window, the pool beat the re-picked single best method at 6 months ahead (50 of 80 series, Wilcoxon p = 0.001) and at 12 months ahead (p = 0.015), and matched it at 1 month. The page switches to the single best method only if that beat the pool by a margin unlikely to be luck, and to naive if the chosen approach did not beat naive. Neither rule changed average accuracy in a test a year back, but naive is the simpler plan when no model earns its place.</p>
       <p><b>Forecast ranges.</b> A range comes from the recommended approach's own misses at each step ahead: the last 48 it made in the backtest, with the pool re-picked at each past origin exactly as it is today. These are empirical prediction intervals (Williams &amp; Goodman, 1971; Lee &amp; Scholtes, 2014). The bounds are the split-conformal order statistics of those misses (Lei, G'Sell, Rinaldo, Tibshirani &amp; Wasserman, 2018), which sit a little outside the plain percentiles so that a range built from a few dozen misses is not too narrow. Nine ways of building the ranges were tested on the 80 Market Watch series over the last five years, each range scored only on what happened after it was built. Ranges from the last 24 misses held only 62 to 73% of the time at a nominal 80%, and ranges from every past miss 67 to 68%: ranges that are too narrow are a long-known problem (Chatfield, 1993), and old misses understate recent volatility (Barber, Candès, Ramdas &amp; Tibshirani, 2023). The last 48 with conformal bounds came closest, holding 77 to 81% of the time at 80% and 87 to 95% at 95%. No rule is right on every series, so the page also shows how often the ranges held on yours.</p>
@@ -242,6 +242,8 @@ footer { font-size: 12px; color: var(--text-3); margin-top: 24px; }
       <li>Lei, J., G'Sell, M., Rinaldo, A., Tibshirani, R. J., &amp; Wasserman, L. (2018). Distribution-free predictive inference for regression. <i>Journal of the American Statistical Association, 113</i>(523), 1094–1111. <a href="https://ideas.repec.org/a/taf/jnlasa/v113y2018i523p1094-1111.html">ideas.repec.org record</a></li>
       <li>Barber, R. F., Candès, E. J., Ramdas, A., &amp; Tibshirani, R. J. (2023). Conformal prediction beyond exchangeability. <i>Annals of Statistics, 51</i>(2), 816–845. <a href="https://doi.org/10.1214/23-AOS2276">doi:10.1214/23-AOS2276</a></li>
       <li>Chatfield, C. (1993). Calculating interval forecasts. <i>Journal of Business &amp; Economic Statistics, 11</i>(2), 121–135. <a href="https://ideas.repec.org/a/bes/jnlbes/v11y1993i2p121-35.html">ideas.repec.org record</a></li>
+      <li>Hyndman, R. J., &amp; Khandakar, Y. (2008). Automatic time series forecasting: The forecast package for R. <i>Journal of Statistical Software, 27</i>(3), 1–22. <a href="https://www.jstatsoft.org/article/view/v027i03">jstatsoft.org</a></li>
+      <li>Fiorucci, J. A., Pellegrini, T. R., Louzada, F., Petropoulos, F., &amp; Koehler, A. B. (2016). Models for optimising the theta method and their relationship to state space models. <i>International Journal of Forecasting, 32</i>(4), 1151–1161. <a href="https://ideas.repec.org/a/eee/intfor/v32y2016i4p1151-1161.html">ideas.repec.org record</a></li>
       <li>Gardner, E. S., Jr., &amp; McKenzie, E. (1985). Forecasting trends in time series. <i>Management Science, 31</i>(10), 1237–1246. <a href="https://doi.org/10.1287/mnsc.31.10.1237">doi:10.1287/mnsc.31.10.1237</a></li>
     </ol>
     <h2 style="margin-top:14px">Data</h2>
@@ -295,14 +297,37 @@ footer { font-size: 12px; color: var(--text-3); margin-top: 24px; }
     for (var t = 1; t < y.length; t++) { var e = y[t] - l; sse += e * e; l = l + a * e; }
     return { sse: sse, l: l };
   }
+  // Fitted as in forecast::ets (Hyndman & Khandakar, 2008): the smoothing weight on [1e-4, 0.9999]
+  // and the starting level, by least squares (Nelder-Mead from the best grid value; the grid start
+  // gives the old fit's SSE, so the fit can only improve).
+  var LO = 1e-4, HI = 0.9999;
+  function sesObj(y, p, keep) {
+    var a = p[0], l = p[1], sse = 0;
+    if (!(a >= LO && a <= HI)) return BIG;
+    for (var t = 0; t < y.length; t++) { var e = y[t] - l; sse += e * e; l = l + a * e; }
+    return keep ? l : sse;
+  }
+  function polish(f, x, steps, maxIter) { // Nelder-Mead, restarted from its own result until it stops improving
+    var r = nelderMead(f, x, steps, maxIter, 1e-10);
+    for (var i = 0; i < 5; i++) {
+      var r2 = nelderMead(f, r.x, steps, maxIter, 1e-10);
+      var done = !(r2.f < r.f - 1e-10 * (Math.abs(r.f) + 1e-10));
+      if (r2.f <= r.f) r = r2;
+      if (done) break;
+    }
+    return r;
+  }
+  function scaleOf(y) { return Math.max.apply(null, y) - Math.min.apply(null, y) || 1; }
   function ses(y, h) {
     var best = null, ba = 0;
     for (var i = 0; i < GRID.length; i++) {
       var r = sesRun(y, GRID[i]);
       if (best === null || r.sse < best.sse) { best = r; ba = GRID[i]; }
     }
-    var o = []; for (var k = 0; k < h; k++) o.push(best.l);
-    return { f: o, params: { alpha: ba } };
+    var f = function (p) { return sesObj(y, p, false); };
+    var r1 = polish(f, [ba, y[0]], [0.05, 0.05 * scaleOf(y)], 1000), l = sesObj(y, r1.x, true);
+    var o = []; for (var k = 0; k < h; k++) o.push(l);
+    return { f: o, params: { alpha: r1.x[0] } };
   }
 
   // Holt's linear trend (phi = 1) and Gardner-McKenzie damped trend.
@@ -316,17 +341,35 @@ footer { font-size: 12px; color: var(--text-3); margin-top: 24px; }
     }
     return { sse: sse, l: l, b: tr };
   }
+  // Weights on [1e-4, 0.9999], phi on [0.80, 0.98] (damped) and the starting level and trend, fitted
+  // together by least squares from the best grid point. The start l0 = y0 - (y1 - y0),
+  // b0 = (y1 - y0) / phi reproduces the grid fit exactly, so the fit can only improve.
+  function holtObj(y, p, damped, keep) {
+    var a = p[0], b = p[1], phi = damped ? p[2] : 1, j = damped ? 3 : 2, l = p[j], tr = p[j + 1], sse = 0;
+    if (!(a >= LO && a <= HI && b >= LO && b <= HI && (!damped || (phi >= 0.8 && phi <= 0.98)))) return BIG;
+    for (var t = 0; t < y.length; t++) {
+      var f = l + phi * tr, e = y[t] - f; sse += e * e;
+      var ln = a * y[t] + (1 - a) * f;
+      tr = b * (ln - l) + (1 - b) * phi * tr;
+      l = ln;
+    }
+    return keep ? { l: l, b: tr, phi: phi } : sse;
+  }
   function holtFit(y, h, phis) {
-    var best = null, bp = null;
+    var best = null, bp = null, damped = phis.length > 1;
     for (var p = 0; p < phis.length; p++)
       for (var i = 0; i < GRID.length; i++)
         for (var j = 0; j < GRID.length; j++) {
           var r = holtRun(y, GRID[i], GRID[j], phis[p]);
           if (best === null || r.sse < best.sse) { best = r; bp = { alpha: GRID[i], beta: GRID[j], phi: phis[p] }; }
         }
+    var d0 = y[1] - y[0], sc = scaleOf(y), x0 = [bp.alpha, bp.beta], st = [0.05, 0.05];
+    if (damped) { x0.push(bp.phi); st.push(0.02); }
+    x0.push(y[0] - d0, d0 / bp.phi); st.push(0.05 * sc, 0.01 * sc);
+    var r1 = polish(function (q) { return holtObj(y, q, damped, false); }, x0, st, 2000), fin = holtObj(y, r1.x, damped, true);
     var o = [], damp = 0, pk = 1;
-    for (var k = 1; k <= h; k++) { pk *= bp.phi; damp += pk; o.push(best.l + damp * best.b); }
-    return { f: o, params: bp };
+    for (var k = 1; k <= h; k++) { pk *= fin.phi; damp += pk; o.push(fin.l + damp * fin.b); }
+    return { f: o, params: { alpha: r1.x[0], beta: r1.x[1], phi: fin.phi } };
   }
   function holt(y, h) { var r = holtFit(y, h, [1]); delete r.params.phi; return r; }
   function damped(y, h) { return holtFit(y, h, PHI); }
@@ -386,6 +429,8 @@ footer { font-size: 12px; color: var(--text-3); margin-top: 24px; }
     }
     return keep ? { l: l, b: tr, s: s, sse: sse } : sse;
   }
+  // Phase 4 tested m - 1 free seasonal terms with restarts: a closer in-sample fit but 1-2% worse
+  // forecasts on the 80 Market Watch series at 6 and 12 months, so this fit was kept.
   function hw(y, h, m) {
     var i, l0 = mean(y.slice(0, m)), b0 = (mean(y.slice(m, 2 * m)) - l0) / m;
     var x0 = [0.3, 0.1, 0.1, l0 - (m + 1) / 2 * b0, b0];
@@ -460,6 +505,10 @@ footer { font-size: 12px; color: var(--text-3); margin-top: 24px; }
       for (t = 1; t < n; t++) { var e = x[t] - l; sse += e * e; l += a * e; }
       if (best === null || sse < best.sse) best = { sse: sse, l: l, a: a };
     }
+    // the SES part with its starting level fitted too (as in the optimised Theta method of
+    // Fiorucci, Pellegrini, Louzada, Petropoulos & Koehler, 2016), from the best grid value
+    var fr = polish(function (p) { return sesObj(x, p, false); }, [best.a, x[0]], [0.05, 0.05 * scaleOf(x)], 1000);
+    best = { l: sesObj(x, fr.x, true), a: fr.x[0] };
     var o = [], decay = Math.pow(1 - best.a, n);
     for (var k = 1; k <= h; k++) {
       var v = best.l + 0.5 * b0 * ((1 - decay) / best.a + k - 1);
@@ -476,6 +525,10 @@ footer { font-size: 12px; color: var(--text-3); margin-top: 24px; }
   function lagsFor(m) { var L = [], p = m > 1 ? Math.min(m, 13) : 6; for (var i = 1; i <= p; i++) L.push(i); if (m > 13) L.push(m); return L; }
   function mlDesign(y, m) {
     var d = [], t; for (t = 1; t < y.length; t++) d.push(y[t] - y[t - 1]);
+    return designFrom(d, m);
+  }
+  function designFrom(d, m) {
+    var t;
     var L = lagsFor(m), maxL = L[L.length - 1], ss = 0;
     for (t = 0; t < d.length; t++) ss += d[t] * d[t];
     var sd = Math.sqrt(ss / d.length) || 1, z = d.map(function (v) { return v / sd; }), X = [], Y = [];
@@ -503,24 +556,27 @@ footer { font-size: 12px; color: var(--text-3); margin-top: 24px; }
   function ridgePredict(w, x) { var s = w[0]; for (var j = 0; j < x.length; j++) s += w[j + 1] * x[j]; return s; }
   // Ridge regression (Hoerl & Kennard, 1970): a linear autoregression with shrinkage; the
   // penalty is chosen on the last 20% of the training rows.
+  // For a series that is always positive the changes are taken in logs (percentage changes), which
+  // suits prices that grow in proportion; the forecast is turned back with exp.
   function ridge(y, h, m) {
-    var D = mlDesign(y, m), N = D.X.length;
+    var pos = y.every(function (v) { return v > 0; }), ly = pos ? y.map(Math.log) : y, D = mlDesign(ly, m), N = D.X.length;
     if (N < 10) return naive(y, h);
     var nv = Math.max(4, Math.floor(N * 0.2)), Xt = D.X.slice(0, N - nv), Yt = D.Y.slice(0, N - nv), bestL = 1, bestE = null;
-    [0.1, 1, 10, 100].forEach(function (lam) {
+    [0.1, 1, 10, 100, 1000, 10000].forEach(function (lam) {
       var w = ridgeFit(Xt, Yt, lam), e = 0;
       for (var i = N - nv; i < N; i++) { var r = ridgePredict(w, D.X[i]) - D.Y[i]; e += r * r; }
       if (bestE === null || e < bestE) { bestE = e; bestL = lam; }
     });
-    var w = ridgeFit(D.X, D.Y, bestL);
-    return { f: mlForecast(y, h, D, function (x) { return ridgePredict(w, x); }), params: { lambda: bestL } };
+    var w = ridgeFit(D.X, D.Y, bestL), f = mlForecast(ly, h, D, function (x) { return ridgePredict(w, x); });
+    return { f: pos ? f.map(Math.exp) : f, params: { lambda: bestL, logs: pos ? 1 : 0 } };
   }
-  // Gradient-boosted regression trees (Friedman, 2001): 150 depth-2 trees, learning rate 0.05,
-  // squared loss, minimum leaf size max(3, n/20). Exhaustive, deterministic splits.
-  function gbm(y, h, m) {
-    var D = mlDesign(y, m), X = D.X, Y = D.Y, n = X.length;
-    if (n < 10) return naive(y, h);
-    var p = X[0].length, T = 150, lr = 0.05, minLeaf = Math.max(3, Math.floor(n / 20)), i, j, k;
+  // Gradient-boosted regression trees (Friedman, 2001): depth-2 trees, learning rate 0.05, squared
+  // loss, minimum leaf size max(3, n/20). Exhaustive, deterministic splits. The number of trees
+  // (25, 50, 100 or 150) is chosen on the last 20% of the training rows, the holdout ridge uses:
+  // with a few hundred rows, 150 trees can overfit (early stopping; Friedman, 2001).
+  var TREES = [25, 50, 100, 150];
+  function gbmFit(X, Y, T, onTree) {
+    var n = X.length, p = X[0].length, lr = 0.05, minLeaf = Math.max(3, Math.floor(n / 20)), i, j;
     var base = mean(Y), pred = new Array(n).fill(base), trees = [], order = [];
     for (j = 0; j < p; j++) {
       var ix = []; for (i = 0; i < n; i++) ix.push(i);
@@ -556,8 +612,23 @@ footer { font-size: 12px; color: var(--text-3); margin-top: 24px; }
       var tree = { j: s0.j, thr: s0.thr, kids: kids };
       trees.push(tree);
       for (i = 0; i < n; i++) pred[i] += lr * treeEval(tree, X[i]);
+      if (onTree) onTree(trees.length, base, trees);
     }
-    return { f: mlForecast(y, h, D, function (x) { var s = base; for (k = 0; k < trees.length; k++) s += lr * treeEval(trees[k], x); return s; }), params: { trees: trees.length } };
+    return { base: base, trees: trees, lr: lr };
+  }
+  function gbmPredict(g, x) { var s = g.base; for (var k = 0; k < g.trees.length; k++) s += g.lr * treeEval(g.trees[k], x); return s; }
+  function gbm(y, h, m) {
+    var D = mlDesign(y, m), X = D.X, Y = D.Y, n = X.length;
+    if (n < 10) return naive(y, h);
+    var nv = Math.max(4, Math.floor(n * 0.2)), Xt = X.slice(0, n - nv), Yt = Y.slice(0, n - nv), bestT = TREES[TREES.length - 1], bestE = null;
+    var hold = []; for (var i = n - nv; i < n; i++) hold.push(0);
+    if (Xt.length >= 10) gbmFit(Xt, Yt, bestT, function (cnt, base, trees) {
+      var tr = trees[cnt - 1], e = 0;
+      for (var q = 0; q < nv; q++) { if (cnt === 1) hold[q] = base; hold[q] += 0.05 * treeEval(tr, X[n - nv + q]); var d = hold[q] - Y[n - nv + q]; e += d * d; }
+      if (TREES.indexOf(cnt) >= 0 && (bestE === null || e < bestE)) { bestE = e; bestT = cnt; }
+    });
+    var g = gbmFit(X, Y, bestT);
+    return { f: mlForecast(y, h, D, function (x) { return gbmPredict(g, x); }), params: { trees: g.trees.length } };
   }
   function treeEval(tr, x) { var kd = tr.kids[x[tr.j] <= tr.thr ? 0 : 1]; return "v" in kd ? kd.v : (x[kd.j] <= kd.thr ? kd.l : kd.r); }
 
@@ -678,7 +749,7 @@ footer { font-size: 12px; color: var(--text-3); margin-top: 24px; }
     { id: "holt", name: "Holt linear trend", seasonal: false, fn: holt, ref: "Holt (1957/2004); FPP3 §8.2", note: "Smoothed level plus smoothed trend." },
     { id: "damped", name: "Damped trend", seasonal: false, fn: damped, ref: "Gardner & McKenzie (1985); FPP3 §8.2", note: "Holt with the trend flattening out by φ each period." },
     { id: "hw", name: "Holt-Winters additive", seasonal: true, fn: hw, ref: "Winters (1960); FPP3 §8.3", note: "Level, trend and a repeating seasonal pattern; weights and starting values fitted together." },
-    { id: "sarima", name: "Seasonal ARIMA", seasonal: true, fn: sarima, ref: "Box & Jenkins (1970); FPP3 §9.9", note: "ARIMA(0,1,1)(0,1,1)m: differences out trend and season, models what is left." },
+    { id: "sarima", name: "Airline model (seasonal ARIMA)", seasonal: true, fn: sarima, ref: "Box & Jenkins (1970); FPP3 §9.9", note: "ARIMA(0,1,1)(0,1,1)m, one fixed model rather than a search: differences out trend and season, models what is left. Θ near −1 means the seasonal pattern barely changes." },
     { id: "theta", name: "Theta method", seasonal: false, fn: theta, ref: "Assimakopoulos & Nikolopoulos (2000); Hyndman & Billah (2003)", note: "Smoothed level plus half the long-run trend; seasonally adjusted when a test finds seasonality. M3 competition winner." },
     { id: "ridge", name: "ML: ridge regression", seasonal: false, ml: true, fn: ridge, ref: "Hoerl & Kennard (1970); FPP3 §9.3", note: "Machine learning: linear model of the next change from recent changes, with shrinkage. Handles exponential growth well." },
     { id: "gbm", name: "ML: boosted trees", seasonal: false, ml: true, fn: gbm, ref: "Friedman (2001); Makridakis et al. (2022)", note: "Machine learning: 150 small decision trees on recent changes; can capture non-linear patterns. The same model family won the M5 competition, but there it learned from thousands of related series; here it sees only this one." },
@@ -1758,7 +1829,11 @@ self.onmessage = function (ev) {
   function paramText(p) {
     if (!p) return "";
     var sym = { alpha: "α", beta: "β", gamma: "γ", phi: "φ", slope: "slope", theta: "θ", Theta: "Θ", lambda: "λ", trees: "trees" };
-    return Object.keys(p).map(function (k) { return sym[k] + " " + (k === "slope" ? fmtV(p[k]) : Number.isInteger(p[k]) ? String(p[k]) : p[k].toFixed(2)); }).join(", ");
+    return Object.keys(p).map(function (k) {
+      if (k === "logs") return p[k] ? "log changes" : "";
+      var v = k === "slope" ? fmtV(p[k]) : Number.isInteger(p[k]) ? String(p[k]) : Math.abs(p[k]) < 0.01 && p[k] !== 0 ? p[k].toExponential(0) : p[k].toFixed(2);
+      return sym[k] + " " + v + (k === "Theta" && Math.abs(p[k]) > 0.95 ? " (seasonal pattern close to fixed)" : "");
+    }).filter(Boolean).join(", ");
   }
 
   // ---- background fitting --------------------------------------------------
