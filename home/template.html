@@ -1,0 +1,536 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Dawson Wilhelmi · Projects</title>
+<meta name="description" content="Procurement and supply chain analytics projects by Dawson Wilhelmi: forecast method comparison, industry input-cost tracking and supplier scorecard.">
+<link rel="icon" href="/favicon.svg" type="image/svg+xml">
+<meta property="og:type" content="website">
+<meta property="og:site_name" content="Dawson Wilhelmi">
+<meta property="og:title" content="Dawson Wilhelmi · Projects">
+<meta property="og:description" content="Procurement and supply chain analytics projects by Dawson Wilhelmi: forecast method comparison, industry input-cost tracking and supplier scorecard.">
+<meta property="og:url" content="https://dawsonwilhelmi.com/">
+<link rel="canonical" href="https://dawsonwilhelmi.com/">
+<meta property="og:image" content="https://dawsonwilhelmi.com/og.png">
+<meta property="og:image:width" content="1200">
+<meta property="og:image:height" content="630">
+<meta name="twitter:card" content="summary_large_image">
+<link rel="preload" href="/fonts/space-grotesk-latin-wght-normal.woff2" as="font" type="font/woff2" crossorigin>
+<link rel="preload" href="/fonts/ibm-plex-sans-latin-400-normal.woff2" as="font" type="font/woff2" crossorigin>
+<link rel="stylesheet" href="/fonts/fonts.css">
+<script>document.documentElement.className = "js";</script>
+<style>
+/* Built by home/build.py from home/template.html. Edit the template, not index.html.
+   Layout: one ruled column on a night-sky ground. A full-width cost map opens the page; each tool row carries a working preview on the right. */
+:root { color-scheme: dark;
+  --ink: #080c15; --ink-2: #0e1422; --ink-3: #172135; --rule: #25324a;
+  --paper: #eef2f8; --pencil: #aab5c7; --faint: #7d89a1; --steel: #7cc7f2;
+  --alert: #f08079; --watch: #e9b23c; --opp: #5cc46a; --stable: #6f7b92;
+  --f-head: "Space Grotesk", "IBM Plex Sans", -apple-system, "Segoe UI", Arial, sans-serif;
+  --f-body: "IBM Plex Sans", -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Arial, sans-serif;
+  --f-num: "IBM Plex Mono", ui-monospace, Menlo, Consolas, monospace; }
+h1, h2 { letter-spacing: -0.015em; }
+#sky { position: absolute; inset: 0 0 auto 0; width: 100%; height: 980px; pointer-events: none;
+  -webkit-mask-image: linear-gradient(#000 55%, transparent); mask-image: linear-gradient(#000 55%, transparent); }
+/* without JavaScript the page is the plain list of tools */
+#globe { position: absolute; left: 0; top: 0; pointer-events: none; }
+html:not(.js) .map, html:not(.js) .try, html:not(.js) .find, html:not(.js) #sky, html:not(.js) #globe { display: none; }
+html:not(.js) .tool, html:not(.js) .side { grid-template-columns: 1fr; }
+.dw-skip { position: absolute; left: 12px; top: -80px; z-index: 1000; padding: 10px 16px; border-radius: 4px; background: var(--paper); color: var(--ink); font: 600 15px/1.2 var(--f-body); text-decoration: none; }
+.dw-skip:focus { top: 12px; outline: 2px solid var(--steel); outline-offset: 2px; }
+main:focus { outline: none; }
+.page { position: relative; } .page > .wrap { position: relative; }
+/* a click on About flies the Earth in to San Diego (space.js); the page content steps back while it does */
+.page main, .page footer { transition: opacity .45s; } .page.leaving main, .page.leaving footer { opacity: 0; }
+@view-transition { navigation: auto; }
+* { box-sizing: border-box; min-width: 0; }
+body { margin: 0; background: var(--ink); color: var(--paper); font: 16px/1.6 var(--f-body); overflow-x: clip; }
+a { color: var(--steel); text-underline-offset: 3px; text-decoration-thickness: 1px; }
+:focus-visible { outline: 2px solid var(--steel); outline-offset: 2px; border-radius: 3px; }
+.wrap { max-width: 1120px; margin: 0 auto; padding: 0 max(16px, 4vw); }
+h1, h2, h3 { font-family: var(--f-head); font-weight: 600; text-wrap: balance; margin: 0; }
+p { margin: 0; }
+button, select, input { font: inherit; color: inherit; }
+.num { font-family: var(--f-num); font-variant-numeric: tabular-nums; }
+
+
+.site { display: flex; justify-content: space-between; align-items: center; gap: 12px 20px; flex-wrap: wrap; padding: 18px 0 14px; border-bottom: 1px solid var(--rule); }
+.site .me { font-family: var(--f-head); font-weight: 600; font-size: 19px; color: var(--paper); text-decoration: none; }
+.site nav { display: flex; gap: 22px; font-size: 15px; align-items: center; }
+.site nav a { color: var(--pencil); text-decoration: none; padding: 8px 0; }
+.site nav a:hover { color: var(--paper); }
+.site nav a.on { color: var(--paper); box-shadow: inset 0 -2px 0 var(--steel); }
+.find { display: inline-flex; align-items: center; gap: 10px; min-height: 36px; padding: 0 10px 0 12px; background: var(--ink-2); border: 1px solid var(--rule); border-radius: 6px; color: var(--faint); font-size: 14px; cursor: pointer; }
+@media (max-width: 560px) { .find .wide { display: none; } }
+.find:hover { border-color: var(--faint); color: var(--pencil); }
+.find kbd { font: 12px var(--f-num); border: 1px solid var(--rule); border-radius: 4px; padding: 1px 6px; color: var(--pencil); }
+
+.intro { padding: 44px 0 26px; max-width: 42em; }
+html.js .intro { display: flex; flex-direction: column; justify-content: center; min-height: 340px; max-width: 35em; padding: 40px 0; }
+@media (max-width: 760px) { html.js .intro { min-height: 300px; } }
+.intro h1 { font-size: clamp(30px, 4.4vw, 44px); line-height: 1.12; margin-bottom: 14px; }
+.intro p { color: var(--pencil); font-size: 18px; }
+
+/* cost map */
+.map { border-top: 1px solid var(--rule); padding: 22px 0 30px; }
+.maphead { display: flex; justify-content: space-between; align-items: baseline; gap: 6px 24px; flex-wrap: wrap; margin-bottom: 4px; }
+.maphead h2 { font-size: 22px; }
+.maphead .asof { color: var(--faint); font-size: 13px; }
+.map .lede { color: var(--pencil); font-size: 15px; max-width: 46em; margin-bottom: 12px; }
+.legend { display: flex; flex-wrap: wrap; gap: 6px 18px; font-size: 13px; color: var(--pencil); margin-bottom: 8px; }
+.legend span { display: inline-flex; align-items: center; gap: 7px; }
+.legend i { width: 18px; height: 3px; border-radius: 2px; display: inline-block; }
+.stage { position: relative; }
+.stage svg { display: block; width: 100%; height: auto; overflow: visible; }
+.lk { fill: none; stroke-width: 1; stroke: var(--rule); opacity: .55; transition: opacity .2s; }
+.lk.Alert { stroke: var(--alert); opacity: .5; } .lk.Watch { stroke: var(--watch); opacity: .38; } .lk.Opportunity { stroke: var(--opp); opacity: .6; }
+.fl { fill: none; stroke-width: 2; stroke-linecap: round; stroke-dasharray: 1 26; opacity: .95; transition: opacity .2s; }
+.fl.Alert { stroke: var(--alert); } .fl.Watch { stroke: var(--watch); } .fl.Opportunity { stroke: var(--opp); }
+@keyframes flow { to { stroke-dashoffset: -27; } }
+@media (prefers-reduced-motion: no-preference) { .fl { animation: flow var(--d, 2s) linear infinite; } }
+.dn { fill: var(--stable); } .dn.Alert { fill: var(--alert); } .dn.Watch { fill: var(--watch); } .dn.Opportunity { fill: var(--opp); }
+.glab { fill: var(--faint); font: 11px var(--f-body); letter-spacing: .04em; text-transform: uppercase; }
+.ilab { fill: var(--pencil); font: 14px var(--f-body); transition: fill .15s; }
+.ipct { fill: var(--pencil); font: 13px var(--f-num); }
+.inode { fill: var(--ink); stroke: var(--pencil); stroke-width: 1.5; }
+.ihit { fill: transparent; cursor: pointer; }
+.ihit:focus-visible { outline: 2px solid var(--steel); outline-offset: -1px; }
+.irow.sel .ilab { fill: var(--paper); font-weight: 600; } .irow.sel .inode { fill: var(--steel); stroke: var(--steel); }
+svg.focus .lk, svg.focus .fl { opacity: .06; } svg.focus .dn { opacity: .25; } svg.focus .irow .ilab, svg.focus .irow .ipct { opacity: .4; }
+svg.focus .lk.on { opacity: .9; stroke-width: 1.4; } svg.focus .fl.on { opacity: 1; } svg.focus .dn.on { opacity: 1; } svg.focus .irow.on .ilab, svg.focus .irow.on .ipct { opacity: 1; fill: var(--paper); }
+.tip { position: absolute; z-index: 5; pointer-events: none; background: #050810; border: 1px solid var(--rule); border-radius: 6px; padding: 8px 10px; font-size: 13px; line-height: 1.4; color: var(--pencil); max-width: 240px; box-shadow: 0 6px 20px rgba(0,0,0,.35); }
+.tip b { color: var(--paper); font-weight: 600; display: block; }
+.readout { min-height: 3.2em; margin-top: 10px; font-size: 15px; color: var(--pencil); border-left: 2px solid var(--steel); padding-left: 12px; }
+.readout b { color: var(--paper); font-weight: 600; }
+
+/* tool rows */
+.tools { border-top: 1px solid var(--rule); }
+.tool { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1.9fr); gap: 16px 48px; padding: 36px 0; border-bottom: 1px solid var(--rule); scroll-margin-top: 12px; }
+@media (max-width: 900px) { .tool { grid-template-columns: 1fr; } }
+.tool h2 { font-size: clamp(24px, 2.8vw, 30px); line-height: 1.2; margin-bottom: 6px; }
+.tool h2 a { color: var(--paper); text-decoration: none; }
+.tool h2 a:hover { text-decoration: underline; text-decoration-color: var(--steel); }
+.meta { font-size: 15px; color: var(--faint); }
+.desc { color: var(--pencil); margin: 14px 0 18px; }
+.open { display: inline-flex; align-items: center; min-height: 44px; padding: 0 18px; border: 1px solid var(--steel); color: var(--paper); border-radius: 4px; text-decoration: none; font-weight: 600; font-size: 15px; transition: background .15s; }
+.open:hover { background: rgba(156, 192, 220, .12); }
+dl.facts { display: grid; grid-template-columns: auto minmax(0, 1fr); gap: 4px 14px; font-size: 14px; margin: 16px 0 0; }
+dl.facts dt { color: var(--faint); } dl.facts dd { margin: 0; color: var(--pencil); }
+
+.try { background: rgba(14, 20, 34, .82); border: 1px solid var(--rule); border-radius: 8px; padding: 16px; display: grid; gap: 14px; }
+.bar { display: flex; flex-wrap: wrap; gap: 10px 14px; align-items: center; justify-content: space-between; }
+.bar label { font-size: 13px; color: var(--faint); display: inline-flex; align-items: center; gap: 8px; }
+select { background: var(--ink); border: 1px solid var(--rule); border-radius: 6px; padding: 8px 10px; min-height: 40px; max-width: 100%; }
+.seg { display: inline-flex; border: 1px solid var(--rule); border-radius: 6px; overflow: hidden; }
+.seg button { background: var(--ink); border: 0; border-left: 1px solid var(--rule); padding: 0 14px; min-height: 40px; color: var(--pencil); cursor: pointer; font-size: 14px; }
+.seg button:first-child { border-left: 0; }
+.seg button[aria-pressed="true"] { background: var(--steel); color: #10151a; font-weight: 600; }
+.cap { font-size: 13px; color: var(--faint); }
+
+.sig { display: inline-flex; align-items: center; gap: 6px; font-size: 13px; color: var(--pencil); white-space: nowrap; }
+.sig i { width: 16px; height: 16px; border-radius: 50%; display: inline-grid; place-items: center; font: 700 10px var(--f-body); font-style: normal; color: #10151a; background: var(--stable); }
+.sig.Alert i { background: var(--alert); } .sig.Watch i { background: var(--watch); } .sig.Opportunity i { background: var(--opp); }
+.chg { white-space: nowrap; } .chg .a { font-size: 10px; margin-right: 3px; } .chg.up .a { color: var(--alert); } .chg.dn2 .a { color: var(--opp); } .chg.fl2 .a { color: var(--faint); }
+
+.drivers { display: grid; }
+.drv { display: grid; grid-template-columns: minmax(0, 1fr) 96px 78px 100px; gap: 10px; align-items: center; text-align: left; background: none; border: 0; border-top: 1px solid var(--rule); padding: 8px 8px; min-height: 44px; cursor: pointer; border-radius: 0; }
+.drv:first-child { border-top: 0; }
+.drv:hover { background: var(--ink-3); }
+.drv[aria-pressed="true"] { background: var(--ink-3); box-shadow: inset 2px 0 0 var(--steel); }
+.drv .nm { font-size: 14px; color: var(--paper); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.drv .chg { font-size: 13px; text-align: right; }
+.drv svg { display: block; }
+@media (max-width: 520px) { .drv { grid-template-columns: minmax(0, 1fr) 78px 72px; } .drv .sig { display: none; } .drv svg { width: 72px; } }
+
+.chartbox { position: relative; }
+.chartbox h3 { font: 600 14px var(--f-body); color: var(--paper); margin-bottom: 2px; }
+.chartbox svg { display: block; width: 100%; height: auto; overflow: visible; touch-action: pan-y; }
+.ax { fill: var(--faint); font: 11px var(--f-num); }
+.grid { stroke: var(--rule); stroke-width: 1; opacity: .6; }
+
+.split { display: grid; grid-template-columns: minmax(0, 1.25fr) minmax(0, 1fr); gap: 18px 24px; align-items: start; }
+@media (max-width: 640px) { .split { grid-template-columns: 1fr; } }
+.kp h3 { font: 600 15px var(--f-body); color: var(--paper); }
+.kp .who { font-size: 13px; color: var(--pencil); margin: 2px 0 10px; }
+.kpi { display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 2px 10px; font-size: 13px; color: var(--pencil); margin-top: 8px; }
+.kpi .track { grid-column: 1 / -1; height: 6px; border-radius: 3px; background: var(--ink); overflow: hidden; }
+.kpi .track i { display: block; height: 100%; border-radius: 3px; background: var(--steel); transition: width .35s; }
+.dot { stroke: var(--ink-2); stroke-width: 2; cursor: pointer; transition: r .15s; }
+.dot.Preferred { fill: var(--opp); } .dot.Approved { fill: var(--steel); } .dot.Watch { fill: var(--watch); } .dot.Probation { fill: var(--alert); }
+.tiers { display: flex; flex-wrap: wrap; gap: 4px 14px; font-size: 12px; color: var(--pencil); }
+.tiers span { display: inline-flex; align-items: center; gap: 6px; } .tiers i { width: 9px; height: 9px; border-radius: 50%; }
+
+.race { display: grid; position: relative; }
+.mrow { display: grid; grid-template-columns: 20px minmax(0, 1fr) 46px; gap: 2px 8px; align-items: center; font-size: 13px; color: var(--pencil); padding: 3px 0; }
+.mrow .rk { color: var(--faint); text-align: right; } .mrow .mn { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.mrow .mb { grid-column: 2 / 4; height: 4px; border-radius: 2px; background: var(--ink); } .mrow .mb i { display: block; height: 100%; border-radius: 2px; background: var(--stable); transition: width .4s; }
+.mrow.in .mn { color: var(--paper); font-weight: 600; } .mrow.in .mb i { background: var(--steel); }
+.mrow .er { text-align: right; }
+
+.side { padding: 30px 0 8px; display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1.9fr); gap: 12px 48px; }
+@media (max-width: 900px) { .side { grid-template-columns: 1fr; } }
+.side .kicker { font-size: 12px; letter-spacing: .08em; text-transform: uppercase; color: var(--faint); font-weight: 600; margin-bottom: 6px; }
+.side h2 { font-size: 22px; } .side h2 a { color: var(--paper); text-decoration: none; }
+.side p { color: var(--pencil); font-size: 15px; } .side p + p { margin-top: 8px; font-size: 14px; color: var(--faint); }
+footer { margin-top: 40px; padding: 24px 0 48px; border-top: 1px solid var(--rule); color: var(--faint); font-size: 14px; display: flex; justify-content: space-between; flex-wrap: wrap; gap: 8px; }
+
+dialog.pal { background: var(--ink-2); color: var(--paper); border: 1px solid var(--rule); border-radius: 10px; padding: 0; width: min(560px, calc(100vw - 32px)); margin-top: 12vh; box-shadow: 0 20px 60px rgba(0,0,0,.5); }
+dialog.pal::backdrop { background: rgba(8, 10, 12, .6); }
+.pal input { width: 100%; background: none; border: 0; border-bottom: 1px solid var(--rule); padding: 16px; font-size: 17px; outline: none; }
+.pal ul { list-style: none; margin: 0; padding: 6px; max-height: min(52vh, 380px); overflow: auto; }
+.pal li { display: flex; justify-content: space-between; gap: 12px; padding: 9px 10px; border-radius: 6px; cursor: pointer; font-size: 15px; }
+.pal li[aria-selected="true"] { background: var(--ink-3); box-shadow: inset 2px 0 0 var(--steel); }
+.pal li small { color: var(--faint); font-size: 12px; white-space: nowrap; }
+.pal .hint { padding: 8px 16px 12px; font-size: 12px; color: var(--faint); border-top: 1px solid var(--rule); }
+@media (prefers-reduced-motion: reduce) { * { transition: none !important; } }
+</style>
+</head>
+<body>
+<a class="dw-skip" href="#main">Skip to content</a>
+<div class="page"><canvas id="sky" aria-hidden="true"></canvas><canvas id="globe" aria-hidden="true"></canvas>
+<div class="wrap">
+  <header class="site">
+    <a class="me" href="/">Dawson Wilhelmi</a>
+    <nav aria-label="Site">
+      <button class="find" id="find" type="button" aria-haspopup="dialog"><span>Search<span class="wide"> industries and costs</span></span><kbd>/</kbd></button>
+      <a href="/" class="on">Projects</a><a href="/about/">About</a>
+    </nav>
+  </header>
+
+  <main id="main" tabindex="-1">
+  <section class="intro">
+    <h1>Purchasing and supply chain tools</h1>
+    <p>I built these while studying supply chain at CSU San Marcos and working as a controller. Most run on public government data. Where the data is made up, the page says so.</p>
+  </section>
+
+  <section class="map" aria-labelledby="map-h">
+    <div class="maphead"><h2 id="map-h">Cost pressure by industry</h2><span class="asof" id="asof"></span></div>
+    <p class="lede">The costs I track are on the left. The industries that pay for them are on the right, with the hardest hit at the top. Point at either side to follow the lines, and click an industry to see its costs further down.</p>
+    <div class="legend" aria-hidden="true">
+      <span><i style="background:var(--alert)"></i>Alert: rising unusually fast</span>
+      <span><i style="background:var(--watch)"></i>Watch</span>
+      <span><i style="background:var(--opp)"></i>Opportunity: unusual drop</span>
+      <span><i style="background:var(--stable)"></i>Stable</span>
+    </div>
+    <div class="stage" id="stage"></div>
+    <p class="readout" id="readout" aria-live="polite"></p>
+  </section>
+
+  <div class="tools">
+    <article class="tool" id="t-fc">
+      <div class="name">
+        <h2><a href="/forecast-compare/">Forecast Method Comparison</a></h2>
+        <p class="meta">Up to 14 methods · any of the 100 Market Watch series, or your own file</p>
+        <p class="desc">Give it a history and each method has to forecast months it hasn't seen, using nothing but the series' own past. Then it ranks them by how far off they were. The winner changes from one series to the next, so I don't pick a favorite ahead of time. I checked the numbers against a separate Python version.</p>
+        <a class="open" href="/forecast-compare/">Open Forecast Comparison</a>
+        <dl class="facts"><dt>Data</dt><dd>Market Watch series, or a CSV or Excel file you upload</dd></dl>
+      </div>
+      <div class="try">
+        <div class="bar"><label>Series <select id="fc-ser"></select></label><span class="cap">Tested on the last 24 months, 6 months ahead</span></div>
+        <div class="split">
+          <div class="chartbox"><h3 id="fc-ct"></h3><p class="cap" id="fc-cs"></p><div id="fc-chart"></div></div>
+          <div><p class="cap" style="margin-bottom:6px">Ranked by error, lower is better. The forecast is the average of the top three.</p><div class="race" id="fc-race"></div></div>
+        </div>
+      </div>
+    </article>
+
+    <article class="tool" id="t-mw">
+      <div class="name">
+        <h2><a href="/market-watch/">Industry Market Watch</a></h2>
+        <p class="meta" id="mw-meta">17 industries · 80 cost series</p>
+        <p class="desc">Every industry has a page for the costs behind its prices, like materials, wages, fuel, freight and exchange rates. Each cost gets a 6-month forecast, a rating of Alert, Watch or Opportunity, and a short note on what a buyer could do about it.</p>
+        <a class="open" id="mw-open" href="/market-watch/">Open Market Watch</a>
+        <dl class="facts"><dt>Data</dt><dd>BLS, EIA, Federal Reserve, World Bank, BTS, USDA, Census and USAspending</dd></dl>
+      </div>
+      <div class="try">
+        <div class="bar"><label>Industry <select id="mw-ind"></select></label><span class="cap" id="mw-sum"></span></div>
+        <div class="drivers" id="mw-list"></div>
+        <div class="chartbox"><h3 id="mw-ct"></h3><p class="cap" id="mw-cs"></p><div id="mw-chart"></div></div>
+      </div>
+    </article>
+
+    <article class="tool" id="t-sc">
+      <div class="name">
+        <h2><a href="/supplier-scorecard/">Supplier Scorecard</a></h2>
+        <p class="meta">Sample data, or upload your own purchase orders</p>
+        <p class="desc">I made up 12 office-supply suppliers and about 2,000 purchase orders, then scored each one for on-time delivery, fill rate, defects, invoice accuracy and price compliance. The chart shows which low scorers are getting the most money.</p>
+        <a class="open" href="/supplier-scorecard/">Open Supplier Scorecard</a>
+        <dl class="facts"><dt>Data</dt><dd>Made-up sample, labeled on the page</dd></dl>
+      </div>
+      <div class="try">
+        <div class="bar"><div class="seg" id="sc-per" role="group" aria-label="Period"><button type="button" data-m="3">Last 3 mo</button><button type="button" data-m="6">Last 6 mo</button><button type="button" data-m="12">Last 12 mo</button></div>
+          <div class="tiers" aria-hidden="true"><span><i style="background:var(--opp)"></i>Preferred</span><span><i style="background:var(--steel)"></i>Approved</span><span><i style="background:var(--watch)"></i>Watch</span><span><i style="background:var(--alert)"></i>Probation</span></div></div>
+        <div class="split">
+          <div class="chartbox"><div id="sc-chart"></div><p class="cap">A dot is a supplier. Right means more spend, down means a worse score. Pick one to see why.</p></div>
+          <div class="kp" id="sc-kp" aria-live="polite"></div>
+        </div>
+      </div>
+    </article>
+
+  </div>
+
+  <section class="side">
+    <div class="name">
+      <p class="kicker">Side project</p>
+      <h2><a href="/loot-ledger/">Loot Ledger</a></h2>
+    </div>
+    <div class="body">
+      <p>Search any of the 5,111 items in the online game Tibia and it lists every NPC that buys it, highest price first, with a map to each one. Paste your loot after a hunt and it tells you who to sell each item to.</p>
+      <p>Item and map data come from TibiaWiki (CC BY-SA 3.0) and TibiaMaps.io.</p>
+    </div>
+  </section>
+  </main>
+
+  <footer><span>© 2026 Dawson Wilhelmi</span><span>Hosted on GitHub Pages</span></footer>
+</div>
+</div>
+
+<dialog class="pal" id="pal" aria-label="Search">
+  <input id="pal-q" type="search" placeholder="Search a tool, an industry or a cost, like diesel or copper" autocomplete="off" aria-controls="pal-list">
+  <ul id="pal-list" role="listbox"></ul>
+  <div class="hint">Up and down to move, Enter to open, Esc to close</div>
+</dialog>
+
+<script src="/space.js"></script>
+<script>
+const D = /*__DATA__*/null;   // build.py puts the data here
+const $ = id => document.getElementById(id);
+const esc = s => String(s).replace(/[&<>"]/g, c => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c]));
+const MON = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
+const mAdd = (ym, k) => { let [y, m] = ym.split("-").map(Number); m += k - 1; y += Math.floor(m / 12); m = ((m % 12) + 12) % 12; return y + "-" + String(m + 1).padStart(2, "0"); };
+const mLab = ym => MON[+ym.slice(5) - 1] + " " + ym.slice(0, 4);
+const pct = v => (v > 0 ? "+" : v < 0 ? "−" : "") + Math.abs(v).toFixed(1) + "%";
+function fmt(v, u) {
+  if (u === "index") return v.toFixed(1);
+  if (u === "units") return Math.round(v).toLocaleString("en-US");
+  if (u[0] === "$") return "$" + (Math.abs(v) >= 1000 ? Math.round(v).toLocaleString("en-US") : v.toFixed(2)) + u.slice(1);
+  return (Math.abs(v) >= 100 ? v.toFixed(1) : v.toFixed(Math.abs(v) < 10 ? 3 : 2)) + " " + u;
+}
+const SIGC = { Alert: "!", Watch: "▲", Opportunity: "↓", Stable: "–" };
+const sigHtml = s => `<span class="sig ${s}"><i aria-hidden="true">${SIGC[s]}</i>${s}</span>`;
+const chgHtml = v => `<span class="chg num ${v > 0.05 ? "up" : v < -0.05 ? "dn2" : "fl2"}"><span class="a" aria-hidden="true">${v > 0.05 ? "▲" : v < -0.05 ? "▼" : "●"}</span>${pct(v)}</span>`;
+const reduce = matchMedia("(prefers-reduced-motion: reduce)").matches;
+const state = { ind: null, drv: null, per: 6, sup: null, fc: 0 };
+
+/* ---------- shared line chart: history, forecast band, crosshair ---------- */
+function lineChart(el, o) {
+  const W = Math.max(260, el.clientWidth), H = o.h || 190, L = 52, R = 10, T = 12, B = 24;
+  const n = o.vals.length, fc = o.fc || [], N = n + fc.length;
+  const all = o.vals.concat(fc.flatMap(f => [f[1], f[2]]));
+  let lo = Math.min(...all), hi = Math.max(...all); const pad = (hi - lo) * 0.08 || 1; lo -= pad; hi += pad;
+  const x = i => L + (W - L - R) * i / (N - 1), y = v => T + (H - T - B) * (1 - (v - lo) / (hi - lo));
+  const step = (() => { const raw = (hi - lo) / 3, p = Math.pow(10, Math.floor(Math.log10(raw))), f = raw / p; return (f < 1.5 ? 1 : f < 3.5 ? 2 : f < 7.5 ? 5 : 10) * p; })();
+  let g = "";
+  for (let t = Math.ceil(lo / step) * step; t <= hi; t += step) g += `<line class="grid" x1="${L}" x2="${W - R}" y1="${y(t)}" y2="${y(t)}"/><text class="ax" x="${L - 8}" y="${y(t) + 4}" text-anchor="end">${esc(o.tick ? o.tick(t) : (Math.abs(t) >= 1000 ? Math.round(t).toLocaleString("en-US") : +t.toFixed(2)))}</text>`;
+  for (let i = 0; i < N; i++) { const ym = mAdd(o.start, i); if (ym.slice(5) === "01" && x(i) > L + 14 && x(i) < W - R - 14) g += `<text class="ax" x="${x(i)}" y="${H - 6}" text-anchor="middle">${ym.slice(0, 4)}</text>`; }
+  const path = o.vals.map((v, i) => (i ? "L" : "M") + x(i).toFixed(1) + " " + y(v).toFixed(1)).join("");
+  let f = "";
+  if (fc.length) {
+    const pts = [[n - 1, o.vals[n - 1], o.vals[n - 1], o.vals[n - 1]]].concat(fc.map((q, k) => [n + k, q[0], q[1], q[2]]));
+    f = `<path d="${pts.map((p, i) => (i ? "L" : "M") + x(p[0]).toFixed(1) + " " + y(p[3]).toFixed(1)).join("") + pts.slice().reverse().map(p => "L" + x(p[0]).toFixed(1) + " " + y(p[2]).toFixed(1)).join("")}Z" fill="var(--steel)" opacity=".16"/>
+      <path d="${pts.map((p, i) => (i ? "L" : "M") + x(p[0]).toFixed(1) + " " + y(p[1]).toFixed(1)).join("")}" fill="none" stroke="var(--steel)" stroke-width="2" stroke-dasharray="4 4"/>
+      <line x1="${x(n - 1)}" x2="${x(n - 1)}" y1="${T}" y2="${H - B}" stroke="var(--faint)" stroke-dasharray="2 3"/>
+      <text class="ax" x="${x(n - 1) + 6}" y="${T + 8}">forecast</text>`;
+  }
+  el.innerHTML = `<svg viewBox="0 0 ${W} ${H}" role="img" aria-label="${esc(o.aria)}">${g}${f}
+    <path d="${path}" fill="none" stroke="var(--paper)" stroke-width="2" stroke-linejoin="round"/>
+    <circle cx="${x(n - 1)}" cy="${y(o.vals[n - 1])}" r="4" fill="var(--paper)" stroke="var(--ink-2)" stroke-width="2"/>
+    <g class="ch" style="display:none"><line y1="${T}" y2="${H - B}" stroke="var(--faint)"/><circle r="4.5" fill="var(--steel)" stroke="var(--ink-2)" stroke-width="2"/></g>
+    <rect x="${L}" y="${T}" width="${W - L - R}" height="${H - T - B}" fill="transparent"/></svg><div class="tip" hidden></div>`;
+  const svg = el.firstChild, ch = svg.querySelector(".ch"), tip = el.lastChild;
+  const move = e => {
+    const r = svg.getBoundingClientRect(), px = (e.clientX - r.left) * W / r.width;
+    const i = Math.max(0, Math.min(N - 1, Math.round((px - L) / (W - L - R) * (N - 1))));
+    const isF = i >= n, v = isF ? fc[i - n][0] : o.vals[i];
+    ch.style.display = ""; ch.firstChild.setAttribute("x1", x(i)); ch.firstChild.setAttribute("x2", x(i));
+    ch.lastChild.setAttribute("cx", x(i)); ch.lastChild.setAttribute("cy", y(v));
+    tip.hidden = false;
+    tip.innerHTML = `<b>${mLab(mAdd(o.start, i))}${isF ? " (forecast)" : ""}</b><span class="num">${esc(fmt(v, o.unit))}</span>${isF ? `<br>8 in 10 range: <span class="num">${esc(fmt(fc[i - n][1], o.unit))} to ${esc(fmt(fc[i - n][2], o.unit))}</span>` : ""}`;
+    const sx = x(i) * r.width / W, left = sx > r.width / 2 ? sx - tip.offsetWidth - 12 : sx + 12;
+    tip.style.left = Math.max(0, left) + "px"; tip.style.top = "4px";
+  };
+  svg.addEventListener("pointermove", move); svg.addEventListener("pointerdown", move);
+  svg.addEventListener("pointerleave", () => { ch.style.display = "none"; tip.hidden = true; });
+}
+function spark(vals, fc, sig) {
+  const W = 100, H = 26, all = vals.concat(fc.map(f => f[0])), lo = Math.min(...all), hi = Math.max(...all), N = all.length;
+  const x = i => 2 + (W - 4) * i / (N - 1), y = v => 3 + (H - 6) * (1 - (v - lo) / ((hi - lo) || 1));
+  const d = a => a.map((p, i) => (i ? "L" : "M") + x(p[0]).toFixed(1) + " " + y(p[1]).toFixed(1)).join("");
+  const n = vals.length;
+  return `<svg viewBox="0 0 ${W} ${H}" width="100" height="26" aria-hidden="true"><path d="${d(vals.map((v, i) => [i, v]))}" fill="none" stroke="var(--pencil)" stroke-width="1.5"/><path d="${d([[n - 1, vals[n - 1]]].concat(fc.map((f, k) => [n + k, f[0]])))}" fill="none" stroke="var(--steel)" stroke-width="1.5" stroke-dasharray="2 2"/><circle cx="${x(n - 1)}" cy="${y(vals[n - 1])}" r="2.5" class="dn ${sig}"/></svg>`;
+}
+
+/* ---------- cost map ---------- */
+const GROUPS = ["Energy", "Commodities", "Materials", "Freight & services", "Labor", "Currency"];
+const SHORT = { "Food & beverage manufacturing": "Food & beverage", "Electronics & semiconductors": "Electronics & semis", "Airlines, air cargo & ocean": "Air cargo & ocean", "Machinery & metal fabrication": "Machinery & metals", "Retail & e-commerce fulfillment": "Retail & e-commerce", "Restaurants & food service": "Restaurants" };
+let inds, drivers;
+function indexMW() {
+  inds = D.ind.slice().sort((a, b) => b.p12 - a.p12);
+  const used = new Set(inds.flatMap(i => i.s));
+  drivers = GROUPS.flatMap(g => Object.keys(D.series).filter(k => used.has(k) && D.series[k].g === g).sort((a, b) => D.series[b].m12 - D.series[a].m12));
+}
+indexMW();
+function drawMap() {
+  const st = $("stage"), W = Math.max(300, st.clientWidth), narrow = W < 640, rowH = narrow ? 25 : 27, H = inds.length * rowH + 16;
+  const xd = narrow ? 80 : 150, labW = narrow ? 198 : 300, xi = W - labW;
+  const slots = drivers.length + (GROUPS.length - 1) * 2, sp = (H - 20) / (slots - 1);
+  const dy = {}; let slot = 0, glabs = "";
+  GROUPS.forEach((g, gi) => { const ks = drivers.filter(k => D.series[k].g === g); if (!ks.length) return;
+    const y0 = 10 + slot * sp; ks.forEach(k => { dy[k] = 10 + slot * sp; slot++; }); const y1 = 10 + (slot - 1) * sp; slot += 2;
+    glabs += `<text class="glab" x="${xd - 12}" y="${(y0 + y1) / 2 + 4}" text-anchor="end">${esc(narrow && g === "Freight & services" ? "Freight" : g)}</text><line x1="${xd - 6}" x2="${xd - 6}" y1="${y0 - 2}" y2="${y1 + 2}" stroke="var(--rule)"/>`; });
+  const iy = i => 8 + rowH * i + rowH / 2;
+  let links = "", flows = "", nodes = "", rows = "";
+  inds.forEach((d, i) => d.s.forEach(k => { const s = D.series[k], y0 = dy[k], y1 = iy(i), mx = (xd + xi) / 2;
+    const p = `M${xd + 5} ${y0.toFixed(1)}C${mx} ${y0.toFixed(1)} ${mx} ${y1} ${xi - 9} ${y1}`;
+    links += `<path class="lk ${s.sig}" d="${p}" data-s="${k}" data-i="${d.slug}"/>`;
+    if (s.sig !== "Stable") flows += `<path class="fl ${s.sig}" d="${p}" data-s="${k}" data-i="${d.slug}" style="--d:${Math.max(0.9, 3.2 - Math.min(2.2, Math.abs(s.m12) / 12)).toFixed(2)}s"/>`; }));
+  drivers.forEach(k => { nodes += `<circle class="dn ${D.series[k].sig}" cx="${xd}" cy="${dy[k].toFixed(1)}" r="${Math.min(3, sp * 0.42).toFixed(1)}" data-s="${k}"/>`; });
+  inds.forEach((d, i) => { const nm = narrow ? (SHORT[d.name] || d.name) : d.name;
+    rows += `<g class="irow${d.slug === state.ind ? " sel" : ""}" data-i="${d.slug}"><circle class="inode" cx="${xi}" cy="${iy(i)}" r="5"/><text class="ilab" x="${xi + 14}" y="${iy(i) + 5}"${narrow ? ' style="font-size:12.5px"' : ""}>${esc(nm)}</text><text class="ipct" x="${W}" y="${iy(i) + 5}" text-anchor="end">${pct(d.p12)}</text>
+      <rect class="ihit" x="${xi - 10}" y="${iy(i) - rowH / 2}" width="${labW + 10}" height="${rowH}" tabindex="0" role="button" aria-label="${esc(d.name)}: typical cost ${pct(d.p12)} over 12 months, ${d.a} on Alert. Show in the preview."/></g>`; });
+  st.innerHTML = `<svg viewBox="0 0 ${W} ${H}" role="group" aria-label="Map of ${drivers.length} cost series feeding ${inds.length} industries">${glabs}${links}${flows}${nodes}${rows}<rect id="dhit" x="0" y="0" width="${xd + 14}" height="${H}" fill="transparent"/></svg><div class="tip" hidden></div>`;
+  const svg = st.firstChild, tip = st.lastChild;
+  const indLine = (d, top) => `<b>${esc(d.name)}.</b> ${d.s.length} costs, and the typical one is ${pct(d.p12)} over 12 months. ${d.a} on Alert, ${d.w} on Watch${d.o ? ", " + d.o + " on Opportunity" : ""}.${top.m12 > 0 ? ` Up the most: ${esc(top.n)} (${pct(top.m12)}).` : ""}`;
+  const focus = (sel, on) => { svg.classList.toggle("focus", !!sel); svg.querySelectorAll(".on").forEach(e => e.classList.remove("on")); if (sel) svg.querySelectorAll(sel).forEach(e => e.classList.add("on")); if (on) on(); };
+  const overInd = d => { focus(`[data-i="${d.slug}"]`, () => d.s.forEach(k => svg.querySelector(`.dn[data-s="${k}"]`).classList.add("on")));
+    const top = D.series[d.s.slice().sort((a, b) => D.series[b].m12 - D.series[a].m12)[0]];
+    $("readout").innerHTML = indLine(d, top); };
+  const rest = () => { focus(null); tip.hidden = true; overIndRest(); };
+  const overIndRest = () => { const d = inds.find(q => q.slug === state.ind); if (d) { const top = D.series[d.s.slice().sort((a, b) => D.series[b].m12 - D.series[a].m12)[0]];
+    $("readout").innerHTML = indLine(d, top); } };
+  svg.querySelectorAll(".irow").forEach(g => { const d = inds.find(q => q.slug === g.dataset.i), hit = g.querySelector(".ihit");
+    hit.addEventListener("pointerenter", () => overInd(d)); hit.addEventListener("focus", () => overInd(d));
+    hit.addEventListener("pointerleave", rest); hit.addEventListener("blur", rest);
+    const pick = () => { setInd(d.slug, true); };
+    hit.addEventListener("click", pick); hit.addEventListener("keydown", e => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); pick(); } }); });
+  const dh = svg.querySelector("#dhit");
+  const overDrv = e => { const r = svg.getBoundingClientRect(), py = (e.clientY - r.top) * H / r.height;
+    let best = drivers[0]; drivers.forEach(k => { if (Math.abs(dy[k] - py) < Math.abs(dy[best] - py)) best = k; });
+    const s = D.series[best], feeds = inds.filter(d => d.s.includes(best));
+    focus(`[data-s="${best}"]`, () => feeds.forEach(d => svg.querySelector(`.irow[data-i="${d.slug}"]`).classList.add("on")));
+    tip.hidden = false; tip.innerHTML = `<b>${esc(s.n)}</b>${sigHtml(s.sig)}<br><span class="num">${esc(fmt(s.l, s.u))}</span> in ${mLab(s.lm)}<br><span class="num">${pct(s.raw12)}</span> over 12 months<br>Feeds ${feeds.length} ${feeds.length === 1 ? "industry" : "industries"}`;
+    tip.style.left = ((xd + 16) * r.width / W) + "px"; tip.style.top = Math.max(0, Math.min(r.height - tip.offsetHeight, dy[best] * r.height / H - 20)) + "px"; return best; };
+  dh.addEventListener("pointermove", overDrv); dh.addEventListener("pointerleave", rest);
+  dh.addEventListener("click", e => { const k = overDrv(e), d = inds.find(q => q.s.includes(k)); if (d) { setInd(inds.find(q => q.slug === state.ind && q.s.includes(k)) ? state.ind : d.slug, true, k); } });
+  overIndRest();
+}
+
+/* ---------- Market Watch preview ---------- */
+function setInd(slug, scroll, drv) {
+  state.ind = slug; const d = inds.find(q => q.slug === slug);
+  state.drv = drv && d.s.includes(drv) ? drv : d.s.slice().sort((a, b) => Math.abs(D.series[b].m12) - Math.abs(D.series[a].m12))[0];
+  $("mw-ind").value = slug; renderMW();
+  document.querySelectorAll("#stage .irow").forEach(g => g.classList.toggle("sel", g.dataset.i === slug));
+  if (scroll) $("t-mw").scrollIntoView({ behavior: reduce ? "auto" : "smooth", block: "start" });
+}
+function renderMW() {
+  const d = inds.find(q => q.slug === state.ind);
+  $("mw-sum").textContent = `${d.a} Alert · ${d.w} Watch · ${d.o} Opportunity`;
+  $("mw-open").textContent = "Open " + (SHORT[d.name] || d.name); $("mw-open").href = "/market-watch/" + d.slug + "/";
+  const ord = d.s.slice().sort((a, b) => D.series[b].m12 - D.series[a].m12);
+  $("mw-list").innerHTML = ord.map(k => { const s = D.series[k];
+    return `<button type="button" class="drv" data-s="${k}" aria-pressed="${k === state.drv}"><span class="nm">${esc(s.n)}</span>${sigHtml(s.sig)}${chgHtml(s.m12)}${spark(s.h, s.f, s.sig)}</button>`; }).join("");
+  const s = D.series[state.drv];
+  $("mw-ct").textContent = s.n;
+  $("mw-cs").innerHTML = `<span class="num">${esc(fmt(s.l, s.u))}</span> in ${mLab(s.lm)} · <span class="num">${pct(s.raw12)}</span> over 12 months${s.p12 !== null ? " · a bigger 12-month move than " + s.p12 + " of every 100 since 2004" : ""}`;
+  lineChart($("mw-chart"), { vals: s.h, start: s.h0, fc: s.f, unit: s.u, aria: `${s.n}, last 48 months and a 6-month forecast` });
+}
+$("mw-list").addEventListener("click", e => { const b = e.target.closest(".drv"); if (b) { state.drv = b.dataset.s; renderMW(); } });
+
+/* ---------- Supplier Scorecard preview ---------- */
+function renderSC() {
+  const P = D.sc[state.per], rows = P.rows, el = $("sc-chart");
+  document.querySelectorAll("#sc-per button").forEach(b => b.setAttribute("aria-pressed", +b.dataset.m === state.per));
+  if (!rows.find(r => r.n === state.sup)) state.sup = rows.filter(r => r.score < 70).sort((a, b) => b.spend - a.spend)[0]?.n || rows[0].n;
+  const W = Math.max(240, el.clientWidth), H = 230, L = 34, R = 12, T = 10, B = 28;
+  const mx = Math.max(...rows.map(r => r.spend)) * 1.08, lo = 40, hi = 100;
+  const x = v => L + (W - L - R) * v / mx, y = v => T + (H - T - B) * (1 - (Math.max(lo, v) - lo) / (hi - lo));
+  const med = rows.map(r => r.spend).sort((a, b) => a - b)[Math.floor(rows.length / 2)];
+  let g = `<rect x="${x(med)}" y="${y(70)}" width="${W - R - x(med)}" height="${y(lo) - y(70)}" fill="var(--alert)" opacity=".09"/><text class="ax" x="${W - R - 6}" y="${y(lo) - 8}" text-anchor="end" style="fill:var(--pencil)">High spend, low score</text>`;
+  [40, 55, 70, 85, 100].forEach(t => g += `<line class="grid" x1="${L}" x2="${W - R}" y1="${y(t)}" y2="${y(t)}"/><text class="ax" x="${L - 8}" y="${y(t) + 4}" text-anchor="end">${t}</text>`);
+  const kstep = mx > 160000 ? 50000 : mx > 60000 ? 25000 : 10000;
+  for (let t = 0; t <= mx; t += kstep) g += `<text class="ax" x="${x(t)}" y="${H - 8}" text-anchor="${t ? "middle" : "start"}">$${t / 1000}K</text>`;
+  g += rows.map(r => `<circle class="dot ${r.tier}" cx="${x(r.spend).toFixed(1)}" cy="${y(r.score).toFixed(1)}" r="${r.n === state.sup ? 9 : 6.5}" data-n="${esc(r.n)}" tabindex="0" role="button" aria-label="${esc(r.n)}: score ${r.score}, ${r.tier}, spend $${r.spend.toLocaleString("en-US")}"${r.n === state.sup ? ' style="stroke:var(--paper)"' : ""}/>`).join("");
+  el.innerHTML = `<svg viewBox="0 0 ${W} ${H}" role="group" aria-label="Supplier spend against score, ${mLab(P.from)} to ${mLab(P.to)}">${g}</svg><div class="tip" hidden></div>`;
+  const tip = el.lastChild, svg = el.firstChild;
+  svg.querySelectorAll(".dot").forEach(c => { const r = rows.find(q => q.n === c.dataset.n);
+    const show = () => { const b = svg.getBoundingClientRect(), cx = +c.getAttribute("cx") * b.width / W, cy = +c.getAttribute("cy") * b.height / H;
+      tip.hidden = false; tip.innerHTML = `<b>${esc(r.n)}</b>Score <span class="num">${r.score}</span> · ${r.tier}<br>Spend <span class="num">$${r.spend.toLocaleString("en-US")}</span>`;
+      tip.style.left = Math.max(0, cx > b.width / 2 ? cx - tip.offsetWidth - 12 : cx + 12) + "px"; tip.style.top = Math.max(0, cy - 30) + "px"; };
+    c.addEventListener("pointerenter", show); c.addEventListener("focus", show);
+    c.addEventListener("pointerleave", () => tip.hidden = true); c.addEventListener("blur", () => tip.hidden = true);
+    const pick = () => { state.sup = r.n; renderSC(); };
+    c.addEventListener("click", pick); c.addEventListener("keydown", e => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); pick(); } }); });
+  const r = rows.find(q => q.n === state.sup), tot = rows.reduce((a, q) => a + q.spend, 0);
+  const KV = { otd: v => v.toFixed(1) + "%", fill: v => v.toFixed(1) + "%", quality: v => v.toFixed(2) + "%", invoice: v => v.toFixed(1) + "%", price: v => (v > 0 ? "+" : "") + v.toFixed(2) + "%" };
+  $("sc-kp").innerHTML = `<h3>${esc(r.n)}</h3><p class="who">${esc(r.c)} · score <span class="num">${r.score}</span> (${r.tier}) · <span class="num">$${Math.round(r.spend / 1000)}K</span>, ${(r.spend / tot * 100).toFixed(0)}% of spend</p>` +
+    Object.keys(D.kpis).filter(k => r.k[k]).map(k => `<div class="kpi"><span>${esc(D.kpis[k][0].replace(" %", ""))}</span><span class="num">${KV[k](r.k[k][0])} · ${r.k[k][1]} pts</span><div class="track"><i style="width:${r.k[k][1]}%${r.k[k][1] < 55 ? ";background:var(--alert)" : r.k[k][1] < 70 ? ";background:var(--watch)" : ""}"></i></div></div>`).join("") +
+    `<p class="cap" style="margin-top:10px">Each measure scores 0 at its floor and 100 at its target.</p>`;
+}
+$("sc-per").addEventListener("click", e => { const b = e.target.closest("button"); if (b) { state.per = +b.dataset.m; renderSC(); } });
+
+/* ---------- Forecast preview ---------- */
+function renderFC() {
+  const F = D.fc[state.fc], race = $("fc-race");
+  $("fc-ct").textContent = F.label;
+  const last = F.fc[F.fc.length - 1], n = F.months.length;
+  $("fc-cs").innerHTML = `Plan on <span class="num">${esc(fmt(last.mid, F.unit))}</span> for ${mLab(mAdd(F.months[n - 1], 6))}. 8 times in 10 it should land between <span class="num">${esc(fmt(last.lo, F.unit))}</span> and <span class="num">${esc(fmt(last.hi, F.unit))}</span>.`;
+  lineChart($("fc-chart"), { vals: F.y, start: F.months[0], fc: F.fc.map(q => [q.mid, q.lo, q.hi]), unit: F.unit, aria: `${F.label}, last 48 months and a 6-month forecast` });
+  const old = {}; race.querySelectorAll(".mrow").forEach(r => old[r.dataset.id] = r.getBoundingClientRect().top);
+  const mx = Math.max(...F.methods.map(m => m.err));
+  F.methods.forEach((m, i) => { let r = race.querySelector(`[data-id="${m.id}"]`);
+    if (!r) { r = document.createElement("div"); r.dataset.id = m.id; r.innerHTML = `<span class="rk num"></span><span class="mn"></span><span class="er num"></span><div class="mb"><i></i></div>`; }
+    r.className = "mrow" + (m.in ? " in" : ""); r.children[0].textContent = i + 1; r.children[1].textContent = m.name; r.children[1].title = m.name; r.children[2].textContent = m.err.toFixed(2); r.querySelector("i").style.width = (m.err / mx * 100) + "%";
+    race.appendChild(r); });
+  if (!reduce) race.querySelectorAll(".mrow").forEach(r => { const o = old[r.dataset.id]; if (o === undefined) return; const dyy = o - r.getBoundingClientRect().top; if (!dyy) return;
+    r.animate([{ transform: `translateY(${dyy}px)` }, { transform: "none" }], { duration: 450, easing: "cubic-bezier(.2,.7,.2,1)" }); });
+}
+$("fc-ser").innerHTML = D.fc.map((f, i) => `<option value="${i}">${esc(f.label)}</option>`).join("");
+$("fc-ser").addEventListener("change", e => { state.fc = +e.target.value; renderFC(); });
+
+/* ---------- search palette ---------- */
+const itemsFor = () => [
+  { t: "Forecast Method Comparison", k: "Tool", go: () => $("t-fc").scrollIntoView({ behavior: "smooth" }) },
+  { t: "Industry Market Watch", k: "Tool", go: () => $("t-mw").scrollIntoView({ behavior: "smooth" }) },
+  { t: "Supplier Scorecard", k: "Tool", go: () => $("t-sc").scrollIntoView({ behavior: "smooth" }) },
+].concat(inds.map(d => ({ t: d.name, k: "Industry · " + pct(d.p12), go: () => setInd(d.slug, true) })),
+  drivers.map(k => ({ t: D.series[k].n, k: D.series[k].sig + " · " + pct(D.series[k].m12), go: () => setInd(inds.find(d => d.s.includes(k)).slug, true, k) })));
+let ITEMS = itemsFor(), palSel = 0, palHits = [];
+function palRender() { const q = $("pal-q").value.trim().toLowerCase();
+  palHits = ITEMS.filter(i => !q || i.t.toLowerCase().includes(q)).slice(0, 40); palSel = Math.min(palSel, Math.max(0, palHits.length - 1));
+  $("pal-list").innerHTML = palHits.map((i, n) => `<li role="option" aria-selected="${n === palSel}" data-n="${n}"><span>${esc(i.t)}</span><small>${esc(i.k)}</small></li>`).join("") || `<li><span style="color:var(--faint)">Nothing matches that.</span></li>`;
+  const cur = $("pal-list").querySelector('[aria-selected="true"]'); if (cur) cur.scrollIntoView({ block: "nearest" }); }
+function palOpen() { const p = $("pal"); if (p.open) return; $("pal-q").value = ""; palSel = 0; palRender(); p.showModal(); $("pal-q").focus(); }
+function palGo(n) { const i = palHits[n]; if (!i) return; $("pal").close(); i.go(); }
+$("find").addEventListener("click", palOpen);
+$("pal-q").addEventListener("input", () => { palSel = 0; palRender(); });
+$("pal-q").addEventListener("keydown", e => { if (e.key === "ArrowDown") { e.preventDefault(); palSel = Math.min(palHits.length - 1, palSel + 1); palRender(); } else if (e.key === "ArrowUp") { e.preventDefault(); palSel = Math.max(0, palSel - 1); palRender(); } else if (e.key === "Enter") { e.preventDefault(); palGo(palSel); } });
+$("pal-list").addEventListener("click", e => { const li = e.target.closest("li[data-n]"); if (li) palGo(+li.dataset.n); });
+$("pal").addEventListener("click", e => { if (e.target === $("pal")) $("pal").close(); });
+document.addEventListener("keydown", e => { const tag = (e.target.tagName || "").toLowerCase();
+  if ((e.key === "/" && tag !== "input" && tag !== "select" && tag !== "textarea") || ((e.metaKey || e.ctrlKey) && e.key.toLowerCase() === "k")) { e.preventDefault(); palOpen(); } });
+
+/* ---------- start ---------- */
+function headMW() {
+  $("mw-ind").innerHTML = inds.map(d => `<option value="${d.slug}">${esc(d.name)}</option>`).join("");
+  const cnt = s => drivers.filter(k => D.series[k].sig === s).length, b = D.built.slice(0, 10);
+  $("asof").textContent = `${drivers.length} cost series · ${cnt("Alert")} Alert · ${cnt("Watch")} Watch · ${cnt("Opportunity")} Opportunity · updated ${MON[+b.slice(5, 7) - 1]} ${+b.slice(8, 10)}, ${b.slice(0, 4)}`;
+  $("mw-meta").textContent = `${inds.length} industries · ${drivers.length} cost series`;
+}
+$("mw-ind").addEventListener("change", e => setInd(e.target.value));
+headMW(); state.ind = inds[0].slug;
+DWSpace.init({ mode: "hero" }); drawMap(); setInd(inds[0].slug); renderSC(); renderFC();
+/* The page ships with a copy of the Market Watch numbers from its last build, then swaps in the
+   current ones. Market Watch publishes them at /market-watch/data/home.json on every data update. */
+fetch("/market-watch/data/home.json", { cache: "no-cache" }).then(r => r.ok ? r.json() : null).then(j => {
+  if (!j || j.schema !== 1 || j.built <= D.built || !j.ind || !j.ind.length) return;
+  const keepInd = state.ind, keepDrv = state.drv;
+  D.built = j.built; D.series = j.series; D.ind = j.ind; indexMW(); headMW(); ITEMS = itemsFor();
+  state.ind = inds.find(d => d.slug === keepInd) ? keepInd : inds[0].slug;
+  drawMap(); setInd(state.ind, false, keepDrv);
+}).catch(() => {});
+let rt, lastW = innerWidth; addEventListener("resize", () => { if (innerWidth === lastW) return; lastW = innerWidth; clearTimeout(rt); rt = setTimeout(() => { drawMap(); renderMW(); renderSC(); renderFC(); }, 150); });
+</script>
+</body>
+</html>
