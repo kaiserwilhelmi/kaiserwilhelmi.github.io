@@ -397,8 +397,7 @@ def tslm(y, h, m):
     return [float(np.dot(row(len(y) + k), beta)) for k in range(h)], {"slope": float(beta[1])}
 
 
-# ---- intermittent demand (Croston 1972; Syntetos & Boylan 2005; Teunter, Syntetos & Babai 2011;
-# fitted as in Kourentzes 2014: two weights on (0, 1], starting values fitted, MAR / MSR cost)
+# ---- intermittent demand (Syntetos, Boylan & Croston 2005): ranked by squared error, forecasts floored at 0
 def demand_pattern(y):
     if any(v < 0 for v in y): return None
     nz = [v for v in y if v > 0]
@@ -412,59 +411,9 @@ def is_intermittent(y):
     d = demand_pattern(y); return bool(d and d["intermittent"])
 
 
-IGRID = [0.05, 0.1, 0.2, 0.3]
-
-
-def id_start(y):
-    first, last, gaps, nz = -1, -1, [], 0
-    for i, v in enumerate(y):
-        if v > 0:
-            gaps.append(i - last); last = i; nz += 1
-            if first < 0: first = i
-    return {"z0": 0 if first < 0 else y[first], "x0": psum(gaps) / len(gaps) if nz else 1, "p0": nz / len(y), "nz": nz}
-
-
-def croston_obj(y, p, sba, keep=False):
-    az, ax, z, x = p; q = 1; cum = 0.0; cost = 0.0
-    if not (LO <= az <= 1 and LO <= ax <= 1 and z > 0 and x >= 1): return BIG
-    adj = 1 - ax / 2 if sba else 1
-    for t, v in enumerate(y):
-        cum += v; cost += abs(adj * z / x - cum / (t + 1))
-        if v > 0: z += az * (v - z); x += ax * (q - x); q = 1
-        else: q += 1
-    return adj * z / x if keep else cost
-
-
-def tsb_obj(y, p, keep=False):
-    az, ap, z, pr = p; cum = 0.0; cost = 0.0
-    if not (LO <= az <= 1 and LO <= ap <= 1 and z > 0 and 0 <= pr <= 1): return BIG
-    for t, v in enumerate(y):
-        cum += v; r = pr * z - cum / (t + 1); cost += r * r
-        if v > 0: z += az * (v - z); pr += ap * (1 - pr)
-        else: pr += ap * (0 - pr)
-    return pr * z if keep else cost
-
-
-def id_fit(y, h, obj, second, step2, k2):
-    st = id_start(y)
-    if st["nz"] == 0: return [0.0] * h, None
-    best, bx = None, None
-    for a in IGRID:
-        for b in IGRID:
-            x0 = [a, b, st["z0"], second]; c = obj(x0, False)
-            if best is None or c < best: best, bx = c, x0
-    r = polish(lambda q: obj(q, False), bx, [0.05, 0.05, 0.1 * st["z0"], step2], 1000)
-    return [obj(r[0], True)] * h, {"size_alpha": r[0][0], k2: r[0][1]}
-
-
-def croston(y, h, m): return id_fit(y, h, lambda q, k: croston_obj(y, q, False, k), id_start(y)["x0"], 0.5, "gap_alpha")
-def sba(y, h, m): return id_fit(y, h, lambda q, k: croston_obj(y, q, True, k), id_start(y)["x0"], 0.5, "gap_alpha")
-def tsb(y, h, m): return id_fit(y, h, lambda q, k: tsb_obj(y, q, k), id_start(y)["p0"], 0.05, "chance_alpha")
-
-
 METHODS = [("naive", naive, False), ("snaive", snaive, True), ("drift", drift, False), ("ma3", ma3, False),
            ("ses", ses, False), ("holt", holt, False), ("damped", damped, False), ("theta", theta, False), ("ridge", ridge, False), ("gbm", gbm, False), ("hw", hw, True), ("sarima", sarima, True),
-           ("tslm", tslm, False), ("croston", croston, "I"), ("sba", sba, "I"), ("tsb", tsb, "I"), ("combS", combo([hw, sarima]), True), ("combN", combo([ses, holt, damped]), "N")]
+           ("tslm", tslm, False), ("combS", combo([hw, sarima]), True), ("combN", combo([ses, holt, damped]), "N")]
 
 
 def metrics(rec, scale):
@@ -472,14 +421,14 @@ def metrics(rec, scale):
     mae = np.mean(np.abs(e)); mse = np.mean(e ** 2)
     return {"n": len(rec), "ME": float(np.mean(e)), "MAE": float(mae), "MSE": float(mse), "RMSE": math.sqrt(mse),
             "MAPE": None if np.any(a == 0) else float(100 * np.mean(np.abs(e / a))),
-            "sMAPE": float(100 * np.mean(2 * np.abs(e) / (np.abs(a) + np.abs(f)))), "MASE": float(mae / scale)}
+            "sMAPE": float(100 * np.mean([0.0 if d == 0 else 2 * abs(x) / d for x, d in zip(e, np.abs(a) + np.abs(f))])), "MASE": float(mae / scale)}
 
 
 def load(path):
     with open(path) as fh: return [float(r["value"]) for r in csv.DictReader(fh)]
 
 
-JS_ORDER = ["naive", "snaive", "drift", "ma3", "ses", "holt", "damped", "hw", "sarima", "theta", "ridge", "gbm", "tslm", "croston", "sba", "tsb", "combS", "combN"]
+JS_ORDER = ["naive", "snaive", "drift", "ma3", "ses", "holt", "damped", "hw", "sarima", "theta", "ridge", "gbm", "tslm", "combS", "combN"]
 
 
 def run_all(y, m, lo, max_h, future):
@@ -495,7 +444,7 @@ def run_all(y, m, lo, max_h, future):
             fc[mid] = {T: [psum(fc[q][T][k] for q in ps) / len(ps) for k in range(max_h)] for T in range(lo, n)}
             fc[mid]["future"] = ([psum(fc[q]["future"][0][k] for q in ps) / len(ps) for k in range(future)], None)
             continue
-        if (seas is True and m == 1) or (seas == "N" and m > 1) or (seas == "I" and not inter): continue
+        if (seas is True and m == 1) or (seas == "N" and m > 1): continue
         fc[mid] = {T: clip(fn(y[:T], max_h, m)[0]) for T in range(lo, n)}
         f, p = fn(y, future, m)
         fc[mid]["future"] = (clip(f), p)
@@ -666,6 +615,7 @@ def main():
                 if a is not b: print("MISMATCH", case["label"], name, a, b); worst = math.inf
                 continue
             rel = abs(a - b) / max(1.0, abs(a)) / k
+            if not math.isfinite(rel): rel = math.inf  # NaN on either side is a mismatch, never a silent pass
             worst = max(worst, rel)
             if rel > 1e-9: print("MISMATCH", case["label"], name, a, b)
     print(f"checked {checked} values across {len(js)} cases; worst relative difference {worst:.2e}")

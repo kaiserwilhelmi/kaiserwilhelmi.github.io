@@ -112,7 +112,7 @@
 
   function paramText(p) {
     if (!p) return "";
-    var sym = { alpha: "α", beta: "β", gamma: "γ", phi: "φ", slope: "slope", theta: "θ", Theta: "Θ", lambda: "λ", trees: "trees", size_alpha: "α size", gap_alpha: "α gap", chance_alpha: "α chance" };
+    var sym = { alpha: "α", beta: "β", gamma: "γ", phi: "φ", slope: "slope", theta: "θ", Theta: "Θ", lambda: "λ", trees: "trees" };
     return Object.keys(p).map(function (k) {
       if (k === "logs") return p[k] ? "log changes" : "";
       var v = k === "slope" ? fmtV(p[k]) : Number.isInteger(p[k]) ? String(p[k]) : Math.abs(p[k]) < 0.01 && p[k] !== 0 ? p[k].toExponential(0) : p[k].toFixed(2);
@@ -287,9 +287,9 @@
     el.hidden = !(d && d.intermittent);
     if (el.hidden) return;
     var per10 = Math.round(10 * d.nonzero / d.n), u1 = one(s);
-    el.innerHTML = "Demand here is <b>" + d.kind + "</b>: there is any demand in only about " + per10 + " of every 10 " + esc(many(s)) +
-      (d.kind === "lumpy" ? ", and the amounts vary a lot" : "") + " (ADI " + fmt(d.adi, 2) + ", CV² " + fmt(d.cv2, 2) + "). So three methods built for this are added (Croston, SBA and TSB), " +
-      "and methods are ranked by typical miss (RMSE), because the average miss would favour forecasting zero. The forecast is an average rate per " + esc(u1) +
+    el.innerHTML = "Demand here is <b>" + d.kind + "</b>: there is demand in only about " + per10 + " of every 10 " + esc(many(s)) +
+      (d.kind === "lumpy" ? ", and the amounts vary a lot" : "") + " (ADI " + fmt(d.adi, 2) + ", CV² " + fmt(d.cv2, 2) + "). So methods are ranked by typical miss (RMSE), because the average miss would favour forecasting zero, " +
+      "and no forecast goes below zero. The forecast is an average rate per " + esc(u1) +
       ", which is what reorder points and budgets need; most single " + esc(many(s)) + " will be zero or well above it.";
   }
   function headline(s, dec, prim, poolNames, rows, ref, ready) {
