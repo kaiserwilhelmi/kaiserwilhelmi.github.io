@@ -31,6 +31,31 @@ def drift(y, h, m):
 def ma3(y, h, m): return [(y[-1] + y[-2] + y[-3]) / 3] * h, None
 
 
+LO, HI = 1e-4, 0.9999
+
+
+def ses_obj(y, p, keep=False):
+    a, l = p[0], p[1]; sse = 0.0
+    if not (LO <= a <= HI): return BIG
+    for t in range(len(y)):
+        e = y[t] - l; sse += e * e; l = l + a * e
+    return l if keep else sse
+
+
+def polish(f, x, steps, max_iter):
+    """Nelder-Mead, restarted from its own result until it stops improving (max 5 restarts)."""
+    x, fx = nelder_mead(f, x, steps, max_iter)
+    for _ in range(5):
+        x2, f2 = nelder_mead(f, x, steps, max_iter)
+        done = not (f2 < fx - 1e-10 * (abs(fx) + 1e-10))
+        if f2 <= fx: x, fx = x2, f2
+        if done: break
+    return x, fx
+
+
+def scale_of(y): return (max(y) - min(y)) or 1.0
+
+
 def ses(y, h, m):
     best = None
     for a in GRID:
@@ -38,7 +63,8 @@ def ses(y, h, m):
         for t in range(1, len(y)):
             e = y[t] - l; sse += e * e; l += a * e
         if best is None or sse < best[0]: best = (sse, l, a)
-    return [best[1]] * h, {"alpha": best[2]}
+    x, fx = polish(lambda p: ses_obj(y, p), [best[2], y[0]], [0.05, 0.05 * scale_of(y)], 1000)
+    return [ses_obj(y, x, True)] * h, {"alpha": x[0], "_sse": fx}
 
 
 def _holt(y, h, phis):
@@ -54,8 +80,25 @@ def _holt(y, h, phis):
                     l = ln
                 if best is None or sse < best[0]: best = (sse, l, tr, a, b, phi)
     _, l, tr, a, b, phi = best
-    out = [l + sum(phi ** j for j in range(1, k + 1)) * tr for k in range(1, h + 1)]
-    return out, {"alpha": a, "beta": b, "phi": phi}
+    damped = len(phis) > 1; d0 = y[1] - y[0]; sc = scale_of(y)
+    x0 = [a, b] + ([phi] if damped else []) + [y[0] - d0, d0 / phi]
+    st = [0.05, 0.05] + ([0.02] if damped else []) + [0.05 * sc, 0.01 * sc]
+    x, fx = polish(lambda q: holt_obj(y, q, damped), x0, st, 2000)
+    l, tr, phi = holt_obj(y, x, damped, True)
+    out = []; dmp = 0.0; pk = 1.0
+    for k in range(1, h + 1): pk *= phi; dmp += pk; out.append(l + dmp * tr)
+    return out, {"alpha": x[0], "beta": x[1], "phi": phi, "_sse": fx}
+
+
+def holt_obj(y, p, damped, keep=False):
+    a, b = p[0], p[1]; phi = p[2] if damped else 1.0; j = 3 if damped else 2; l, tr = p[j], p[j + 1]; sse = 0.0
+    if not (LO <= a <= HI and LO <= b <= HI and (not damped or 0.8 <= phi <= 0.98)): return BIG
+    for t in range(len(y)):
+        f = l + phi * tr; e = y[t] - f; sse += e * e
+        ln = a * y[t] + (1 - a) * f
+        tr = b * (ln - l) + (1 - b) * phi * tr
+        l = ln
+    return (l, tr, phi) if keep else sse
 
 
 def holt(y, h, m):
@@ -176,7 +219,8 @@ def theta(y, h, m):
         a = i / 100; l = x[0]; sse = 0.0
         for t in range(1, n): e = x[t] - l; sse += e * e; l += a * e
         if best is None or sse < best[0]: best = (sse, l, a)
-    _, l, a = best; decay = (1 - a) ** n; out = []
+    fx, _ = polish(lambda p: ses_obj(x, p), [best[2], x[0]], [0.05, 0.05 * scale_of(x)], 1000)
+    l, a = ses_obj(x, fx, True), fx[0]; decay = (1 - a) ** n; out = []
     for k in range(1, h + 1):
         v = l + 0.5 * b0 * ((1 - decay) / a + k - 1)
         if seas: v = v * idx[(n + k - 1) % m] if mult else v + idx[(n + k - 1) % m]
@@ -191,6 +235,7 @@ def lags_for(m):
 
 def ml_design(y, m):
     d = [y[t] - y[t - 1] for t in range(1, len(y))]; L = lags_for(m); maxL = L[-1]
+    if len(d) <= maxL: return None, [], [], L, 1.0
     sd = math.sqrt(psum(v * v for v in d) / len(d)) or 1.0
     z = [v / sd for v in d]
     X = [[z[t - l] for l in L] for t in range(maxL, len(z))]; Y = [z[t] for t in range(maxL, len(z))]
@@ -240,15 +285,16 @@ def ridge_pred(w, x):
 
 
 def ridge(y, h, m):
-    z, X, Y, L, sd = ml_design(y, m); N = len(X)
+    pos = all(v > 0 for v in y); ly = [math.log(v) for v in y] if pos else y
+    z, X, Y, L, sd = ml_design(ly, m); N = len(X)
     if N < 10: return naive(y, h, m)
     nv = max(4, N // 5); bestL, bestE = 1, None
-    for lam in (0.1, 1, 10, 100):
+    for lam in (0.1, 1, 10, 100, 1000, 10000):
         w = ridge_fit(X[:N - nv], Y[:N - nv], lam); e = 0.0
         for i in range(N - nv, N): r = ridge_pred(w, X[i]) - Y[i]; e += r * r
         if bestE is None or e < bestE: bestE, bestL = e, lam
-    w = ridge_fit(X, Y, bestL)
-    return ml_forecast(y, h, z, L, sd, lambda x: ridge_pred(w, x)), {"lambda": bestL}
+    w = ridge_fit(X, Y, bestL); f = ml_forecast(ly, h, z, L, sd, lambda x: ridge_pred(w, x))
+    return ([math.exp(v) for v in f] if pos else f), {"lambda": bestL, "logs": 1 if pos else 0}
 
 
 def tree_eval(tr, x):
@@ -257,10 +303,11 @@ def tree_eval(tr, x):
     return kd["l"] if x[kd["j"]] <= kd["thr"] else kd["r"]
 
 
-def gbm(y, h, m):
-    z, X, Y, L, sd = ml_design(y, m); n = len(X)
-    if n < 10: return naive(y, h, m)
-    p = len(X[0]); T = 150; lr = 0.05; min_leaf = max(3, n // 20)
+TREES = (25, 50, 100, 150)
+
+
+def gbm_fit(X, Y, T, on_tree=None):
+    n = len(X); p = len(X[0]); lr = 0.05; min_leaf = max(3, n // 20)
     base = psum(Y) / n; pred = [base] * n; trees = []
     order = [sorted(range(n), key=lambda i, j=j: (X[i][j], i)) for j in range(p)]
     def split(sset, r):
@@ -294,6 +341,22 @@ def gbm(y, h, m):
                 kids.append({"j": j1, "thr": t1, "l": leaf([q for q in sset if X[q][j1] <= t1], r), "r": leaf([q for q in sset if X[q][j1] > t1], r)})
         tree = {"j": j0, "thr": t0, "kids": kids}; trees.append(tree)
         for i in range(n): pred[i] += lr * tree_eval(tree, X[i])
+        if on_tree: on_tree(len(trees), base, trees)
+    return base, trees, lr
+
+
+def gbm(y, h, m):
+    z, X, Y, L, sd = ml_design(y, m); n = len(X)
+    if n < 10: return naive(y, h, m)
+    nv = max(4, n // 5); Xt, Yt = X[:n - nv], Y[:n - nv]; best = {"T": TREES[-1], "E": None}; hold = [0.0] * nv
+    def on_tree(cnt, base, trees):
+        tr = trees[cnt - 1]; e = 0.0
+        for q in range(nv):
+            if cnt == 1: hold[q] = base
+            hold[q] += 0.05 * tree_eval(tr, X[n - nv + q]); d = hold[q] - Y[n - nv + q]; e += d * d
+        if cnt in TREES and (best["E"] is None or e < best["E"]): best["E"], best["T"] = e, cnt
+    if len(Xt) >= 10: gbm_fit(Xt, Yt, TREES[-1], on_tree)
+    base, trees, lr = gbm_fit(X, Y, best["T"])
     def predict(x):
         s = base
         for tr in trees: s += lr * tree_eval(tr, x)

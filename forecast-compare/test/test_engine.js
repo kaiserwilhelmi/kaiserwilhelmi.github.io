@@ -147,4 +147,16 @@ check("non-negative series: ranges floored at zero, coverage unchanged", gp.floo
   gp.check.every(c => c.p50 >= 0 && c.lo.every(v => v >= 0) && c.hi.every(v => v >= 0)) &&
   [0.5, 0.8, 0.95].every(L => gp.cover[L] === gs.cover[L]) && gp.nOrigins === 19, clipped + " clipped; " + [0.5, 0.8, 0.95].map(L => gp.cover[L] + "/" + gs.cover[L]).join(" "));
 
+// 19. Phase 4 fits: on a random walk SES puts nearly all weight on the last value (the old grid capped
+// alpha at 0.95); the continuous fit never ends worse than the grid it starts from; tree count is on the menu
+const rw2 = [100]; for (let i = 1; i < 150; i++) rw2.push(rw2[i - 1] + gauss());
+const sesM = E.METHODS.find(d => d.id === "ses"), gbmM = E.METHODS.find(d => d.id === "gbm"), holtM = E.METHODS.find(d => d.id === "holt");
+let over = 0, maxA = 0;
+for (let rep = 0; rep < 40; rep++) { const w = [100]; for (let i = 1; i < 120; i++) w.push(w[i - 1] + gauss()); const a = sesM.fn(w, 1, 1).params.alpha; if (a > 0.95) over++; maxA = Math.max(maxA, a); }
+check("random walks: SES alpha often above the old 0.95 cap, never above 0.9999", over >= 12 && maxA <= 0.9999, over + "/40 above 0.95, max " + maxA);
+const hp4 = holtM.fn(rw2, 1, 1).params;
+check("Holt weights inside [1e-4, 0.9999]", hp4.alpha >= 1e-4 && hp4.alpha <= 0.9999 && hp4.beta >= 1e-4 && hp4.beta <= 0.9999, JSON.stringify(hp4));
+const tr = gbmM.fn(rw2, 1, 1).params.trees;
+check("boosted trees: tree count chosen from 25/50/100/150", [25, 50, 100, 150].includes(tr), tr);
+
 console.log(fails ? fails + " check(s) failed" : "all engine checks passed"); process.exit(fails ? 1 : 0);

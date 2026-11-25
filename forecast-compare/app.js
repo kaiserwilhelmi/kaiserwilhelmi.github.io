@@ -89,7 +89,7 @@
       if (!rows) { tip.hidden = true; return; }
       tip.innerHTML = '<div class="tt">' + esc(cfg.xfmt(cfg.labels[i])) + "</div>" + rows;
       tip.hidden = false;
-      var left = X(i) * r.width / W; tip.style.left = Math.min(left + 12, r.width - tip.offsetWidth - 4) + "px"; tip.style.top = "8px";
+      var left = X(i) * r.width / W; tip.style.left = Math.min(left + 12, r.width - tip.offsetWidth - 4) + "px"; tip.style.top = -(tip.offsetHeight + 6) + "px"; // sits above the plot so it never hides the lines
     }
     svg.addEventListener("pointermove", move);
     svg.addEventListener("pointerleave", function () { tip.hidden = true; xh.setAttribute("visibility", "hidden"); });
@@ -113,7 +113,11 @@
   function paramText(p) {
     if (!p) return "";
     var sym = { alpha: "α", beta: "β", gamma: "γ", phi: "φ", slope: "slope", theta: "θ", Theta: "Θ", lambda: "λ", trees: "trees" };
-    return Object.keys(p).map(function (k) { return sym[k] + " " + (k === "slope" ? fmtV(p[k]) : Number.isInteger(p[k]) ? String(p[k]) : p[k].toFixed(2)); }).join(", ");
+    return Object.keys(p).map(function (k) {
+      if (k === "logs") return p[k] ? "log changes" : "";
+      var v = k === "slope" ? fmtV(p[k]) : Number.isInteger(p[k]) ? String(p[k]) : Math.abs(p[k]) < 0.01 && p[k] !== 0 ? p[k].toExponential(0) : p[k].toFixed(2);
+      return sym[k] + " " + v + (k === "Theta" && Math.abs(p[k]) > 0.95 ? " (seasonal pattern close to fixed)" : "");
+    }).filter(Boolean).join(", ");
   }
 
   // ---- background fitting --------------------------------------------------
