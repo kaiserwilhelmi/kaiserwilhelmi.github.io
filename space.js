@@ -194,7 +194,7 @@ const root = document.documentElement, TITLE = { hero: "Dawson Wilhelmi · Proje
 const view = () => root.dataset.view === "about" ? "about" : "hero";
 const want = () => /^\/about\/?$/.test(location.pathname) ? "about" : "hero";
 const wait = ms => new Promise(r => setTimeout(r, ms));
-let busy = false;
+let busy = false, next = null;       // next: a view asked for while a switch was under way
 function show(v) {       // swap which view is in the page; the caller handles the fading
   root.dataset.view = v; document.title = TITLE[v];
   document.querySelectorAll("a[data-go]").forEach(a => { if (a.dataset.go === v && a.closest("nav")) a.setAttribute("aria-current", "page"); else a.removeAttribute("aria-current"); });
@@ -202,9 +202,10 @@ function show(v) {       // swap which view is in the page; the caller handles t
 }
 async function go(to, push) {
   if (to !== "about") to = "hero";
-  if (busy || to === view()) return;
-  busy = true;
-  if (push && !api.noHistory) { try { history.pushState({ view: to }, "", to === "about" ? "/about/" : "/"); } catch (err) {} }
+  if (push && !api.noHistory && to !== want()) { try { history.pushState({ view: to }, "", to === "about" ? "/about/" : "/"); } catch (err) {} }
+  if (busy) { next = to; return; }          // picked up when the current switch ends
+  if (to === view()) return;
+  busy = true; next = null;
   const hasGlobe = !!geo, quick = reduce || !hasGlobe;
   if (pageEl) pageEl.classList.add("leaving");                      // the showing view fades out
   if (to === "about") {
@@ -221,7 +222,8 @@ async function go(to, push) {
   const m = document.getElementById("main"); if (m && push) m.focus({ preventScroll: true });
   if (!quick) await wait(to === "about" ? 450 : 1300);
   busy = false;
-  if (want() !== view() && !api.noHistory) go(want(), false);      // Back or Forward was pressed mid-move
+  const then = api.noHistory ? next : want();                       // a second click, Back or Forward arrived mid-move
+  if (then && then !== view()) go(then, false);
 }
 
 const api = window.DWSpace = {

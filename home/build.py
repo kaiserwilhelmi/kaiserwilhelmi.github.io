@@ -56,6 +56,17 @@ blob = json.dumps(D, separators=(",", ":")).replace("</", "<\\/")
 page = (HERE / "template.html").read_text()
 assert page.count("/*__DATA__*/null") == 1
 page = page.replace("/*__DATA__*/null", blob)
+
+# Browsers keep each file for a few minutes. Stamp the shared script and font list with a short hash of their
+# contents, so a page never runs with an older copy of either one after an update.
+import hashlib   # noqa: E402
+space = (HERE / "space.src.js").read_text()
+assert space.count("/*__LAND__*/null") == 1
+space = space.replace("/*__LAND__*/null", (HERE / "land.json").read_text().strip())
+(HERE.parent / "space.js").write_text(space)
+for ref, text in (("/space.js", space), ("/fonts/fonts.css", (HERE.parent / "fonts" / "fonts.css").read_text())):
+    assert page.count(f'"{ref}"') == 1, ref
+    page = page.replace(f'"{ref}"', f'"{ref}?v={hashlib.sha256(text.encode()).hexdigest()[:10]}"')
 (HERE.parent / "index.html").write_text(page)
 
 # the same page, opened on the About view
@@ -73,8 +84,5 @@ for old, new, n in swaps:
     assert about.count(old) == n, old
     about = about.replace(old, new)
 (HERE.parent / "about" / "index.html").write_text(about)
-space = (HERE / "space.src.js").read_text()
-assert space.count("/*__LAND__*/null") == 1
-(HERE.parent / "space.js").write_text(space.replace("/*__LAND__*/null", (HERE / "land.json").read_text().strip()))
 print(f"index.html and about/index.html written ({len(page):,} bytes each; Market Watch data built {D['built']}, "
       f"{len(D['series'])} series, {len(D['ind'])} industries)")
