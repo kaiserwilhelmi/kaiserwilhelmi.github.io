@@ -17,7 +17,7 @@ Data is saved in the browser (localStorage). Use Setup → Backup to keep a copy
 ## The look and the dragon
 The page is styled like an early-2000s game window: a stone wall, grey stone frames with beveled edges, a parchment strip for today's news and pixel lettering (Pixelify Sans, SIL Open Font License 1.1). It does not use the site's night-sky theme; that was Dawson's choice for this page only. A bar at the top links back to the site.
 
-On the first visit in a browser session a dragon comes out of the dark, opens its mouth and the page appears from its throat (about 3 seconds). Any click, tap or key skips it. It does not play when the device is set to reduce motion. "Meet the dragon again" at the bottom of the page replays it.
+Every time the page is opened a dragon comes out of the dark, opens its mouth and the page appears from its throat (about 3 seconds). Any click, tap or key skips it. It does not play when the device is set to reduce motion. "Meet the dragon again" at the bottom of the page replays it.
 
 All of the art is original and drawn in code in `template.html`: the dragon on a small canvas that is cut to the 216 web-safe colors with an ordered dither and scaled up with hard pixels, the stone as two small generated tiles. No CipSoft artwork or sprites are used.
 
