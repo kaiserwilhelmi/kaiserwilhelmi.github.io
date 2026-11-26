@@ -12,7 +12,7 @@ The page carries a copy of the numbers it shows so it is complete on first paint
     (SC_REPO, default ../../supplier-scorecard), for the last 3, 6 and 12 months.
   - Forecast preview: fc.json, written by `node prep_fc.js` from the Forecast tool's own engine.
 
-It also writes ../space.js (night sky and Earth graphic, shared with the About page) from space.src.js plus
+It also writes ../space.js (Earth graphic, shared with the About page; the stars come from /theme.js) from space.src.js plus
 land.json, a land/sea grid written by `node prep_globe.js` from Natural Earth (public domain). The grid only
 needs rebuilding if the grid itself should change.
 
@@ -57,14 +57,15 @@ page = (HERE / "template.html").read_text()
 assert page.count("/*__DATA__*/null") == 1
 page = page.replace("/*__DATA__*/null", blob)
 
-# Browsers keep each file for a few minutes. Stamp the shared script and font list with a short hash of their
+# Browsers keep each file for a few minutes. Stamp the shared scripts, the theme and the font list with a short hash of their
 # contents, so a page never runs with an older copy of either one after an update.
 import hashlib   # noqa: E402
 space = (HERE / "space.src.js").read_text()
 assert space.count("/*__LAND__*/null") == 1
 space = space.replace("/*__LAND__*/null", (HERE / "land.json").read_text().strip())
 (HERE.parent / "space.js").write_text(space)
-for ref, text in (("/space.js", space), ("/fonts/fonts.css", (HERE.parent / "fonts" / "fonts.css").read_text())):
+for ref, text in (("/space.js", space), ("/fonts/fonts.css", (HERE.parent / "fonts" / "fonts.css").read_text()),
+                  ("/theme.css", (HERE.parent / "theme.css").read_text()), ("/theme.js", (HERE.parent / "theme.js").read_text())):
     assert page.count(f'"{ref}"') == 1, ref
     page = page.replace(f'"{ref}"', f'"{ref}?v={hashlib.sha256(text.encode()).hexdigest()[:10]}"')
 (HERE.parent / "index.html").write_text(page)

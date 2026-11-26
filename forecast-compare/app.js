@@ -391,7 +391,7 @@
         lo: [[n - 1, s.values[n - 1]]].concat(rows.map(function (r, i) { return [n + i, r.lo[li]]; })),
         hi: [[n - 1, s.values[n - 1]]].concat(rows.map(function (r, i) { return [n + i, r.hi[li]]; })) });
     });
-    bands.slice().reverse().forEach(function (b) { lgs.push({ name: b.name, color: "rgba(156,192,220," + (0.15 + b.opacity * 2).toFixed(2) + ")", block: true }); });
+    bands.slice().reverse().forEach(function (b) { lgs.push({ name: b.name, color: "rgba(124,199,242," + (0.15 + b.opacity * 2).toFixed(2) + ")", block: true }); });
     lgs.push({ name: cmp.name, color: C2, dash: true });
     $("lg1").innerHTML = legend(lgs);
     function cut(pts) { return pts.filter(function (p) { return p[0] >= v0; }).map(function (p) { return [p[0] - v0, p[1]]; }); }

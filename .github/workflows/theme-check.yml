@@ -1,0 +1,16 @@
+name: Site theme check
+# Every page loads /theme.css and /theme.js, has the shared header and skip link, and uses none of the old colors.
+on:
+  pull_request:
+  push:
+    branches: [main]
+jobs:
+  theme:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/setup-python@v6
+        with:
+          python-version: "3.12"
+      - run: python3 tools/check_theme.py

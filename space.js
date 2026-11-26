@@ -1,4 +1,4 @@
-/* Night-sky backdrop and Earth graphic shared by the home and About pages.
+/* Earth graphic shared by the home and About pages. The stars behind it are drawn by /theme.js, the site theme.
    This file is home/space.src.js; home/build.py adds the land grid and writes /space.js.
 
    The page needs: <div class="page"> holding <canvas id="sky"> and <canvas id="globe">, a header.site and, in each view,
@@ -14,22 +14,6 @@ const rad = d => d * Math.PI / 180, clamp = (v, a, b) => Math.max(a, Math.min(b,
 const HOME = { lat: 32.72, lon: -117.16, name: "San Diego County, CA", pos: "32.7°N 117.2°W" };
 const ZOOM = 2.3, FLY_MS = 1500;
 const $ = id => document.getElementById(id);
-
-/* ---------- stars: fixed positions, a few that twinkle ---------- */
-function sky() {
-  const c = $("sky"); if (!c || getComputedStyle(c).display === "none") return;
-  const W = c.clientWidth, H = c.clientHeight, dpr = Math.min(2, devicePixelRatio || 1); c.width = W * dpr; c.height = H * dpr;
-  const g = c.getContext("2d"); g.scale(dpr, dpr);
-  let seed = 7; const rnd = () => (seed = (seed * 16807) % 2147483647) / 2147483647;
-  const glow = (x, y, r, col) => { const q = g.createRadialGradient(x, y, 0, x, y, r); q.addColorStop(0, col); q.addColorStop(1, "rgba(0,0,0,0)"); g.fillStyle = q; g.fillRect(0, 0, W, H); };
-  const stars = [], n = Math.round(W * H / 5200);
-  for (let i = 0; i < n; i++) stars.push({ x: rnd() * W, y: rnd() * H, r: rnd() < 0.08 ? 1.3 : rnd() * 0.7 + 0.3, a: rnd() * 0.6 + 0.2, tw: rnd() < 0.12, ph: rnd() * 6.28 });
-  const paint = t => { g.clearRect(0, 0, W, H);
-    glow(W * 0.82, 120, Math.max(420, W * 0.45), "rgba(56,104,190,.20)"); glow(W * 0.12, 520, Math.max(360, W * 0.35), "rgba(96,70,170,.12)");
-    for (const s of stars) { g.globalAlpha = s.tw ? s.a * (0.55 + 0.45 * Math.sin(t / 900 + s.ph)) : s.a; g.fillStyle = "#dfe8ff"; g.beginPath(); g.arc(s.x, s.y, s.r, 0, 6.3); g.fill(); } g.globalAlpha = 1; };
-  cancelAnimationFrame(sky.raf); paint(0);
-  if (!reduce) { let last = 0; const loop = t => { sky.raf = requestAnimationFrame(loop); if (document.hidden || t - last < 80) return; last = t; paint(t); }; sky.raf = requestAnimationFrame(loop); }
-}
 
 /* ---------- land grid and the points drawn on it ---------- */
 let cells = null;
@@ -186,7 +170,7 @@ function wire() {
     const dx = e.clientX - G.drag.x, dy = e.clientY - G.drag.y; G.drag = { x: e.clientX, y: e.clientY }; G.lon -= dx / geo.R; G.vel = -dx / geo.R; G.tilt = clamp(G.tilt + dy / geo.R, -0.5, 0.9); G.dirty = true; });
   const end = () => { if (G.drag) { G.drag = null; pageEl.style.cursor = ""; } }; pageEl.addEventListener("pointerup", end); pageEl.addEventListener("pointercancel", end);
   if ("IntersectionObserver" in window) new IntersectionObserver(es => { G.on = es[0].isIntersecting; }).observe(c);
-  let rt, lastW = innerWidth; addEventListener("resize", () => { if (innerWidth === lastW) return; lastW = innerWidth; clearTimeout(rt); rt = setTimeout(() => { sky(); if (layout()) paint(0); }, 150); });
+  let rt, lastW = innerWidth; addEventListener("resize", () => { if (innerWidth === lastW) return; lastW = innerWidth; clearTimeout(rt); rt = setTimeout(() => { if (layout()) paint(0); }, 150); });
 }
 
 /* ---------- switching between the Projects view and the About view ---------- */
@@ -227,7 +211,7 @@ async function go(to, push) {
 }
 
 const api = window.DWSpace = {
-  init() { sky(); pageEl = document.querySelector(".page"); const ok = layout();
+  init() { pageEl = document.querySelector(".page"); const ok = layout();
     addEventListener("click", e => { const a = e.target.closest && e.target.closest("a[data-go]"); if (!a || e.button !== 0 || e.metaKey || e.ctrlKey || e.shiftKey || e.altKey) return;
       e.preventDefault(); e.stopImmediatePropagation(); go(a.dataset.go, true); }, true);
     addEventListener("popstate", () => go(want(), false));

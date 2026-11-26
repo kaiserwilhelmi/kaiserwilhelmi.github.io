@@ -17,33 +17,35 @@
 <meta property="og:image:height" content="630">
 <meta name="twitter:card" content="summary_large_image">
 <link rel="stylesheet" href="/fonts/fonts.css">
+<link rel="stylesheet" href="/theme.css">
 <style>
 :root {
-  /* dark only; same slate, text and steel-blue link colors as the home page */
-  --bg: #161a1f; --surface: #1b2026; --border: #303741; --grid: #262c34;
-  --text: #ebe8e1; --text-2: #aeb3b9; --text-3: #8f969f;
-  --accent: #9cc0dc; --accent-soft: rgba(156,192,220,.16);
-  --s1: #9cc0dc; --s2: #e07a45; --band: rgba(156,192,220,.10);
-  --warn-ink: #f0c060; --warn-soft: rgba(250,178,25,.16); --crit-ink: #e66767;
-  --font: "IBM Plex Sans", -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
-  --head: "Source Serif 4", Georgia, "Times New Roman", serif;
+  /* Colors and fonts come from /theme.css, the site theme. The value after each comma is only a fallback. */
+  --bg: var(--ink, #080c15); --surface: var(--ink-2, #0e1422); --border: var(--rule, #25324a); --grid: var(--rule-soft, #1a2438);
+  --text: var(--paper, #eef2f8); --text-2: var(--pencil, #aab5c7); --text-3: var(--faint, #7d89a1);
+  --accent: var(--steel, #7cc7f2); --accent-soft: var(--steel-soft, rgba(124,199,242,.16));
+  --s1: var(--steel, #7cc7f2); --s2: #e07a45; --band: rgba(124,199,242,.10);
+  --warn-ink: var(--watch, #e9b23c); --warn-soft: rgba(233,178,60,.16); --crit-ink: var(--alert, #f08079);
+  --font: var(--f-body, "IBM Plex Sans", -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif);
+  --head: var(--f-head, "Space Grotesk", "IBM Plex Sans", -apple-system, "Segoe UI", Arial, sans-serif);
   color-scheme: dark;
 }
 * { box-sizing: border-box; }
 html { -webkit-text-size-adjust: 100%; }
 body { margin: 0; background: var(--bg); color: var(--text); font: 16px/1.55 var(--font); }
-.wrap { max-width: 1240px; margin: 0 auto; padding: 20px 16px 48px; }
+.wrap { max-width: 1240px; margin: 0 auto; padding: 0 16px 48px; }
+.dw-site { margin-bottom: 20px; }
 a { color: var(--accent); }
-h1 { font-family: var(--head); font-weight: 600; font-size: clamp(28px, 3.4vw, 34px); line-height: 1.2; margin: 0 0 6px; }
+h1 { font-family: var(--head); font-weight: 600; letter-spacing: -0.015em; font-size: clamp(28px, 3.4vw, 34px); line-height: 1.2; margin: 0 0 6px; }
 .lede { color: var(--text-2); margin: 0 0 18px; max-width: 760px; }
 .lede.uni { margin-top: -8px; border-left: 3px solid var(--border); padding-left: 12px; }
-h2 { font-family: var(--head); font-weight: 600; font-size: 21px; margin: 0 0 10px; }
+h2 { font-family: var(--head); font-weight: 600; letter-spacing: -0.015em; font-size: 21px; margin: 0 0 10px; }
 h3 { font-size: 15px; margin: 0 0 6px; }
-.card { background: var(--surface); border: 1px solid var(--border); border-radius: 10px; padding: 16px; margin-bottom: 16px; }
+.card { background: var(--surface); border: 1px solid var(--border); border-radius: 8px; padding: 16px; margin-bottom: 16px; }
 .controls { display: flex; flex-wrap: wrap; gap: 12px 16px; align-items: flex-end; }
 .ctl { display: flex; flex-direction: column; gap: 4px; font-size: 12px; color: var(--text-2); min-width: 0; }
 .ctl.grow { flex: 1 1 260px; }
-select, .btn { font: inherit; font-size: 14px; color: var(--text); background: var(--bg); border: 1px solid var(--border); border-radius: 8px; padding: 7px 10px; min-height: 38px; max-width: 100%; }
+select, .btn { font: inherit; font-size: 14px; color: var(--text); background: var(--bg); border: 1px solid var(--border); border-radius: 6px; padding: 7px 10px; min-height: 38px; max-width: 100%; }
 .btn { cursor: pointer; display: inline-flex; align-items: center; gap: 6px; }
 .btn:hover, select:hover { border-color: var(--text-3); }
 input[type=file] { position: absolute; width: 1px; height: 1px; opacity: 0; }
@@ -53,9 +55,9 @@ input[type=file] { position: absolute; width: 1px; height: 1px; opacity: 0; }
 .upnote { margin-top: 10px; font-size: 13px; color: var(--text-2); border-left: 3px solid var(--accent); padding: 4px 0 4px 10px; }
 .upnote > div { margin: 2px 0; }
 .upwarn { color: var(--warn-ink); }
-input[type=search] { font: inherit; font-size: 16px; color: var(--text); background: var(--bg); border: 1px solid var(--border); border-radius: 8px; padding: 7px 10px; min-height: 38px; width: 100%; box-sizing: border-box; }
+input[type=search] { font: inherit; font-size: 16px; color: var(--text); background: var(--bg); border: 1px solid var(--border); border-radius: 6px; padding: 7px 10px; min-height: 38px; width: 100%; box-sizing: border-box; }
 .findn { font-size: 12px; color: var(--text-3); }
-input[type=number] { font: inherit; font-size: 14px; color: var(--text); background: var(--bg); border: 1px solid var(--border); border-radius: 8px; padding: 7px 8px; min-height: 38px; }
+input[type=number] { font: inherit; font-size: 14px; color: var(--text); background: var(--bg); border: 1px solid var(--border); border-radius: 6px; padding: 7px 8px; min-height: 38px; }
 .kpis { display: grid; grid-template-columns: repeat(3, minmax(0,1fr)); gap: 12px; margin: 12px 0 0; }
 .headline { font-size: 19px; line-height: 1.45; }
 .headline .sub { font-size: 14px; color: var(--text-2); margin-top: 4px; }
@@ -65,7 +67,7 @@ details.big > summary { margin: 0; list-style-position: outside; }
 details.big > summary h2 { display: inline; margin: 0; color: var(--text); }
 details.big[open] > summary { margin-bottom: 10px; }
 #why h3 { margin-top: 14px; }
-.kpi { background: var(--surface); border: 1px solid var(--border); border-radius: 10px; padding: 12px 14px; min-width: 0; }
+.kpi { background: var(--surface); border: 1px solid var(--border); border-radius: 8px; padding: 12px 14px; min-width: 0; }
 .kt { font-size: 12px; color: var(--text-2); }
 .kv { font-size: 22px; font-weight: 650; line-height: 1.25; margin: 2px 0; overflow-wrap: anywhere; }
 .ks { font-size: 12px; color: var(--text-3); }
@@ -74,7 +76,7 @@ details.big[open] > summary { margin-bottom: 10px; }
 #rec li { margin: 4px 0; }
 .chart { position: relative; }
 .ax { font-size: 12px; fill: var(--text-3); font-family: var(--font); }
-.tip { position: absolute; pointer-events: none; background: var(--surface); border: 1px solid var(--border); border-radius: 8px; padding: 8px 10px; font-size: 12px; box-shadow: 0 4px 14px rgba(0,0,0,.14); white-space: nowrap; z-index: 2; }
+.tip { position: absolute; pointer-events: none; background: #050810; border: 1px solid var(--border); border-radius: 8px; padding: 8px 10px; font-size: 12px; box-shadow: 0 4px 14px rgba(0,0,0,.14); white-space: nowrap; z-index: 2; }
 .tip .tt { font-weight: 600; margin-bottom: 2px; }
 .tip i, .lg i { display: inline-block; width: 14px; height: 3px; border-radius: 2px; vertical-align: middle; margin-right: 6px; }
 .legend { display: flex; flex-wrap: wrap; gap: 6px 16px; font-size: 13px; color: var(--text-2); margin-bottom: 8px; }
@@ -93,8 +95,9 @@ td.l .ref { font-size: 12px; color: var(--text-3); max-width: 300px; }
 td.pm { font-size: 12px; color: var(--text-2); white-space: nowrap; }
 td.best { font-weight: 700; }
 tr.win td { background: var(--accent-soft); }
+tr.win td.l .ref { color: var(--text-2); }   /* small print on the tinted row: --faint is under 4.5:1 there */
 tr.dim td { color: var(--text-3); }
-.pill { display: inline-block; font-size: 12px; font-weight: 600; color: #d6e6f2; background: var(--accent-soft); border-radius: 5px; padding: 1px 6px; margin-left: 4px; white-space: nowrap; }
+.pill { display: inline-block; font-size: 12px; font-weight: 600; color: var(--text); background: var(--accent-soft); border-radius: 5px; padding: 1px 6px; margin-left: 4px; white-space: nowrap; }
 .grid2 { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
 .doc p, .doc li { color: var(--text-2); font-size: 15px; }
 .doc ul { padding-left: 20px; margin: 6px 0; }
@@ -112,18 +115,7 @@ footer { font-size: 12px; color: var(--text-3); margin-top: 24px; }
   .ctl { flex: 1 1 140px; }
   .ctl.grow { flex-basis: 100%; }
 }
-/* Site header and skip link: same as the home page header */
-.dw-skip { position: absolute; left: 12px; top: -80px; z-index: 1000; padding: 10px 16px; border-radius: 4px; background: #ebe8e1; color: #161a1f; font: 600 15px/1.2 "IBM Plex Sans", -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Arial, sans-serif; text-decoration: none; }
-.dw-skip:focus { top: 12px; outline: 2px solid #9cc0dc; outline-offset: 2px; }
-.dw-site { display: flex; justify-content: space-between; align-items: baseline; gap: 12px; flex-wrap: wrap; padding: 22px 0 18px; margin: 0 0 20px; border-bottom: 1px solid #303741; font: 16px/1.6 "IBM Plex Sans", -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Arial, sans-serif; }
-.dw-site .dw-me { font-family: "Source Serif 4", Georgia, "Times New Roman", serif; font-weight: 600; font-size: 19px; color: #ebe8e1; text-decoration: none; }
-.dw-site nav { display: flex; gap: 22px; font-size: 15px; }
-.dw-site nav a { color: #aeb3b9; text-decoration: none; padding: 6px 0; }
-.dw-site nav a:hover { color: #ebe8e1; }
-.dw-site nav a.on { color: #ebe8e1; box-shadow: inset 0 -2px 0 #9cc0dc; }
-.dw-site a:focus-visible { outline: 2px solid #9cc0dc; outline-offset: 3px; border-radius: 2px; }
 main:focus { outline: none; }
-.dw-site { padding-top: 2px; }
 </style>
 </head>
 <body>
@@ -320,5 +312,6 @@ main:focus { outline: none; }
 <script>/*__UPLOAD__*/</script>
 <script>/*__MW__*/</script>
 <script>/*__APP__*/</script>
+<script src="/theme.js" defer></script>
 </body>
 </html>
