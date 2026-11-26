@@ -1,0 +1,52 @@
+/* The site theme for dawsonwilhelmi.com.
+
+   Every page on the site loads this one file, so the pages look alike and stay alike:
+     <link rel="stylesheet" href="/fonts/fonts.css">
+     <link rel="stylesheet" href="/theme.css">        (before the page's own <style>)
+     <script src="/theme.js" defer></script>           (stars behind the top of the page)
+
+   What lives here: the colors, the fonts, the site header, the skip link and the star backdrop.
+   What stays in each page: its own layout. A page reads colors and fonts ONLY through the names below,
+   for example  --bg: var(--ink, #080c15);  The value after the comma is a fallback for when this file
+   cannot be reached; this file is what the live site shows. To change the look of the whole site, change it here. */
+:root { color-scheme: dark;
+  /* ground, from darkest: page, panel, raised or hovered */
+  --ink: #080c15; --ink-2: #0e1422; --ink-3: #172135;
+  /* lines: borders, and the fainter one for chart gridlines */
+  --rule: #25324a; --rule-soft: #1a2438;
+  /* text: main, secondary, small print (5.2:1 on a panel, the weakest) */
+  --paper: #eef2f8; --pencil: #aab5c7; --faint: #7d89a1;
+  /* the one accent: links, focus, the selected thing. --on-steel is text placed on an accent fill. */
+  --steel: #7cc7f2; --steel-soft: rgba(124, 199, 242, .16); --on-steel: #10151a;
+  /* status: always shown with a word or a letter icon as well, never by color alone */
+  --alert: #f08079; --watch: #e9b23c; --opp: #5cc46a; --stable: #6f7b92;
+  --f-head: "Space Grotesk", "IBM Plex Sans", -apple-system, "Segoe UI", Arial, sans-serif;
+  --f-body: "IBM Plex Sans", -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Arial, sans-serif;
+  --f-num: "IBM Plex Mono", ui-monospace, Menlo, Consolas, monospace; }
+
+/* defaults a page can override (zero specificity) */
+:where(h1, h2) { font-family: var(--f-head); font-weight: 600; letter-spacing: -0.015em; text-wrap: balance; }
+:where(a) { color: var(--steel); text-underline-offset: 3px; text-decoration-thickness: 1px; }
+:where(:focus-visible) { outline: 2px solid var(--steel); outline-offset: 2px; }
+::selection { background: rgba(124, 199, 242, .28); }
+
+/* skip link: hidden until it gets keyboard focus */
+.dw-skip { position: absolute; left: 12px; top: -80px; z-index: 1000; padding: 10px 16px; border-radius: 4px; background: var(--paper); color: var(--ink); font: 600 15px/1.2 var(--f-body); text-decoration: none; }
+.dw-skip:focus { top: 12px; outline: 2px solid var(--steel); outline-offset: 2px; }
+main:focus { outline: none; }
+
+/* site header: the same on every page. The current section's link carries class="on" or aria-current="page". */
+.dw-site { display: flex; justify-content: space-between; align-items: center; gap: 12px 20px; flex-wrap: wrap; margin: 0; padding: 18px 0 14px; border-bottom: 1px solid var(--rule); font: 16px/1.6 var(--f-body); }
+.dw-site .dw-me { font-family: var(--f-head); font-weight: 600; font-size: 19px; color: var(--paper); text-decoration: none; }
+.dw-site nav { display: flex; gap: 22px; font-size: 15px; align-items: center; }
+.dw-site nav a { color: var(--pencil); text-decoration: none; padding: 8px 0; }
+.dw-site nav a:hover { color: var(--paper); }
+.dw-site nav a.on, .dw-site nav a[aria-current="page"] { color: var(--paper); box-shadow: inset 0 -2px 0 var(--steel); }
+.dw-site a:focus-visible { outline: 2px solid var(--steel); outline-offset: 3px; border-radius: 2px; }
+
+/* star backdrop: theme.js adds this canvas as the first thing in <body> when the page has no <canvas id="sky"> of its own.
+   It sits behind the content and fades out down the page. For it to show, <html> must have no background of its own
+   and nothing that spans the page may paint a solid background over it (panels and cards are fine). */
+canvas.dw-sky { position: absolute; left: 0; top: 0; width: 100%; height: 760px; z-index: -1; pointer-events: none;
+  -webkit-mask-image: linear-gradient(#000 45%, transparent); mask-image: linear-gradient(#000 45%, transparent); }
+@media print { canvas.dw-sky { display: none; } }
