@@ -9,7 +9,7 @@ function record(label, path, m, test, h, P) {
   const others = ranked.filter(x => x.id !== "naive"), adj = E.holm(others.map(x => E.dmTest(x.loss, nv.loss).p));
   const rest = ranked.slice(1), adjB = E.holm(rest.map(x => E.dmTest(x.loss, ranked[0].loss).p));
   const proc = x => x && { metrics: x.metrics, maeByH: x.maeByH, loss: x.loss, future: x.future, dmNaive: nul(E.dmTest(x.loss, nv.loss).p) };
-  out.push({ label, file: path, m, test, h, scale: r.scale, lo: P.lo, ranked: ranked.map(x => x.id), members: r.members,
+  out.push({ label, file: path, m, test, h, scale: r.scale, lo: P.lo, ranked: ranked.map(x => x.id), members: r.members, same: r.same, poolPlace: E.placeAmong(ranked, (r.pool || r.hindsight).metrics, r.rankBy), dmPoolBest: nul(E.dmTest((r.pool || r.hindsight).loss, ranked[0].loss).p),
     holmNaive: Object.fromEntries(others.map((x, i) => [x.id, nul(adj[i])])), holmBest: Object.fromEntries(rest.map((x, i) => [x.id, nul(adjB[i])])),
     pool: proc(r.pool), pick: proc(r.pick), picks: r.picks, hindsight: proc(r.hindsight), ranges: rangesOf(P, test, h),
     results: r.results.map(x => ({ id: x.id, metrics: x.metrics, maeByH: x.maeByH, loss: x.loss, dm: x.id === "naive" ? null : nul(E.dmTest(x.loss, nv.loss).p), future: x.future, params: x.params })) });
