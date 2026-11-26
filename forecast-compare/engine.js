@@ -650,9 +650,11 @@
       r.future = P.fut[d.id].f; r.params = P.fut[d.id].params || null;
       return r;
     });
-    var ranked = rank(out, P.sq ? "RMSE" : "MASE"), top = ranked.slice(0, 3).map(function (r) { return r.id; });
+    var ranked = rank(out, P.sq ? "RMSE" : "MASE");
+    var errTot = {}; out.forEach(function (r) { errTot[r.id] = r.records.reduce(function (a, q) { return a + Math.abs(q.e); }, 0); });
+    var td = topDistinct(P, h, ranked.map(function (r) { return r.id; }), first, last, function (id) { return errTot[id]; }), top = td.ids;
     function poolAt(T, members) { return avg(members.map(function (id) { return P.fc[id][T]; })); }
-    var res = { scale: scale, scaleBase: S.base, first: first, last: last, origins: last - first + 1, h: h, test: test, results: out, members: top,
+    var res = { scale: scale, scaleBase: S.base, first: first, last: last, origins: last - first + 1, h: h, test: test, results: out, members: top, same: td.same,
       needN: minTrain(m) + 2 * test, rankBy: P.sq ? "RMSE" : "MASE", pool: null, pick: null, picks: null };
     // the pool with today's members over the whole window: used only when the history is too
     // short to test the choice, and labelled as optimistic there
@@ -666,6 +668,27 @@
     res.pick.future = P.fut[top[0]].f;
     res.picks = picks;
     return res;
+  }
+  /* topDistinct(): the first three methods of `order` whose forecasts differ. Over origins t0..t1
+   * (every step 1..h, filled targets skipped), a candidate is skipped when the summed absolute
+   * difference between its forecasts and those of a method already chosen is at most DUP_TOL of
+   * that chosen method's summed absolute error: for example simple exponential smoothing with
+   * alpha at its bound, which is the naive method (Hyndman et al., 2008). Keeping both would only
+   * double one method's weight in an equal-weight average. Returns { ids, same: {skipped id: kept id} }. */
+  var DUP_TOL = 0.01, DEDUP = { on: true };
+  function topDistinct(P, h, order, t0, t1, errOf) {
+    var y = P.y, sk = P.skip || {}, ids = [], same = {};
+    function diff(a, b) {
+      var d = 0;
+      for (var t = t0; t <= t1; t++) { var fa = P.fc[a][t], fb = P.fc[b][t]; for (var k = 1; k <= h; k++) { if (!sk[t + k - 1]) d += Math.abs(fa[k - 1] - fb[k - 1]); } }
+      return d;
+    }
+    for (var i = 0; i < order.length && ids.length < 3; i++) {
+      var c = order[i], dup = null;
+      if (DEDUP.on) for (var j = 0; j < ids.length && !dup; j++) if (diff(c, ids[j]) <= DUP_TOL * errOf(ids[j])) dup = ids[j];
+      if (dup) same[c] = dup; else ids.push(c);
+    }
+    return { ids: ids, same: same };
   }
   /* picksFor(): the top three methods at each origin T in [from, to], ranked exactly as the table
    * ranks them but on the errors already known at T: complete origins T-test .. T-h, lowest total
@@ -685,9 +708,10 @@
     for (T = from; T <= to; T++) {
       var A = {}, Q = {};
       ids.forEach(function (id) { var a = 0, b = 0; for (var t = T - test; t <= T - h; t++) { a += sa[id][t]; b += sq[id][t]; } A[id] = a; Q[id] = b; });
-      picks[T] = ids.map(function (id, i) { return { id: id, i: i }; }).sort(function (u, v) {
+      var order = ids.map(function (id, i) { return { id: id, i: i }; }).sort(function (u, v) {
         return (P.sq ? cmpNum(Q[u.id], Q[v.id]) || cmpNum(A[u.id], A[v.id]) : cmpNum(A[u.id], A[v.id]) || cmpNum(Q[u.id], Q[v.id])) || u.i - v.i;
-      }).slice(0, 3).map(function (u) { return u.id; });
+      }).map(function (u) { return u.id; });
+      picks[T] = topDistinct(P, h, order, T - test, T - h, function (id) { return A[id]; }).ids;
     }
     return picks;
   }
@@ -800,6 +824,12 @@
     }).map(function (o) { return o.r; });
   }
 
-  var api = { demandPattern: demandPattern, isIntermittent: isIntermittent, ADI_CUT: ADI_CUT, CV2_CUT: CV2_CUT, ranges: ranges, confBounds: confBounds, MINCAL: MINCAL, CAL: CAL, quantile: quantile, skeleton: skeleton, futures: futures, fitRange: fitRange, merge: merge, loFor: loFor, picksFor: picksFor, dmTest: dmTest, holm: holm, tTwoSided: tTwoSided, ensure: ensure, METHODS: METHODS, activeMethods: activeMethods, backtest: backtest, prepare: prepare, score: score, WINDOWS: WINDOWS, MAXH: MAXH, metrics: metrics, rank: rank, minTrain: minTrain, GRID: GRID, PHI: PHI };
+  // Where an extra row (the top-3 pool) falls in a ranking made by rank(): 1 + the number of
+  // methods that rank strictly ahead of it on the same keys; on a full tie the pool goes after.
+  function placeAmong(ranked, metrics, by) {
+    var k1 = by === "RMSE" ? "RMSE" : "MASE", k2 = k1 === "RMSE" ? "MASE" : "RMSE";
+    return 1 + ranked.filter(function (r) { return (cmpNum(r.metrics[k1], metrics[k1]) || cmpNum(r.metrics[k2], metrics[k2])) <= 0; }).length;
+  }
+  var api = { placeAmong: placeAmong, DEDUP: DEDUP, DUP_TOL: DUP_TOL, topDistinct: topDistinct, demandPattern: demandPattern, isIntermittent: isIntermittent, ADI_CUT: ADI_CUT, CV2_CUT: CV2_CUT, ranges: ranges, confBounds: confBounds, MINCAL: MINCAL, CAL: CAL, quantile: quantile, skeleton: skeleton, futures: futures, fitRange: fitRange, merge: merge, loFor: loFor, picksFor: picksFor, dmTest: dmTest, holm: holm, tTwoSided: tTwoSided, ensure: ensure, METHODS: METHODS, activeMethods: activeMethods, backtest: backtest, prepare: prepare, score: score, WINDOWS: WINDOWS, MAXH: MAXH, metrics: metrics, rank: rank, minTrain: minTrain, GRID: GRID, PHI: PHI };
   if (typeof module !== "undefined" && module.exports) module.exports = api; else root.FCEngine = api;
 })(this);

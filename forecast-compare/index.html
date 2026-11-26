@@ -97,6 +97,9 @@ td.best { font-weight: 700; }
 tr.win td { background: var(--accent-soft); }
 tr.win td.l .ref { color: var(--text-2); }   /* small print on the tinted row: --faint is under 4.5:1 there */
 tr.dim td { color: var(--text-3); }
+tr.poolrow td { border-top: 1px dashed var(--border); border-bottom: 1px dashed var(--border); }
+tr.poolrow td.l b { color: var(--accent, inherit); }
+.pill.same { background: transparent; border: 1px solid var(--border); color: var(--text-2); font-weight: 500; }
 .pill { display: inline-block; font-size: 12px; font-weight: 600; color: var(--text); background: var(--accent-soft); border-radius: 5px; padding: 1px 6px; margin-left: 4px; white-space: nowrap; }
 .grid2 { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
 .doc p, .doc li { color: var(--text-2); font-size: 15px; }
@@ -206,7 +209,7 @@ main:focus { outline: none; }
       <p><b>Rolling origin.</b> At each origin in the backtest window, every method is fitted only on data before that point and forecasts the next <i>h</i> periods, which are then compared with what actually happened (Tashman, 2000; Hyndman &amp; Athanasopoulos, 2021, §5.10). Only origins whose whole <i>h</i>-step path can be checked are scored, so every step ahead counts the same number of times. The window must therefore be at least twice the horizon.</p>
       <p><b>Fitting.</b> Every smoothing method fits its weights and its starting values together by minimising one-step squared error with a Nelder–Mead search. For simple, Holt and damped smoothing the weights may run from 0.0001 to 0.9999 and damping from 0.80 to 0.98, the bounds of the R forecast package (Hyndman &amp; Khandakar, 2008), and the fits match the statsmodels library's. A Holt-Winters fit with restarts matched statsmodels more closely but forecast 1 to 2% worse on the 80 Market Watch series, so the simpler search was kept. The airline model (seasonal ARIMA) is fitted by conditional least squares. Ridge regression works on percentage changes when a series is always positive, and the boosted trees choose how many trees to use on a holdout. Every number was re-computed by an independent Python implementation and matches; accuracy is in line with the statsmodels library's maximum-likelihood fits.</p>
       <p><b>Testing the choice.</b> The top score in any ranking is partly luck, so the method that tops it usually does worse afterwards (Cawley &amp; Talbot, 2010). On the 80 Market Watch monthly series at 6 months ahead, picking the #1 method from earlier data and scoring it on what came next gave 24% more error than the #1's own score in the table. So the page also tests its own advice: at each past origin it ranks the methods on the errors known then, takes the top one and the top three, and scores what they forecast next.</p>
-      <p><b>Recommendation.</b> The page recommends the equal-weight average of the three best-ranked methods, because pooling a few top methods is more reliable than betting on one (Kourentzes, Barrow &amp; Petropoulos, 2019) and equal weights are hard to beat (Smith &amp; Wallis, 2009). Tested that way on the 80 Market Watch series with a 24-month window, the pool beat the re-picked single best method at 6 months ahead (50 of 80 series, Wilcoxon p = 0.001) and at 12 months ahead (p = 0.015), and matched it at 1 month. The page switches to the single best method only if that beat the pool by a margin unlikely to be luck, and to naive if the chosen approach did not beat naive. Neither rule changed average accuracy in a test a year back, but naive is the simpler plan when no model earns its place.</p>
+      <p><b>Recommendation.</b> The page recommends the equal-weight average of the three best-ranked methods that forecast differently, because pooling a few top methods is more reliable than betting on one (Kourentzes, Barrow &amp; Petropoulos, 2019) and equal weights are hard to beat (Smith &amp; Wallis, 2009). Tested that way on the 80 Market Watch series with a 24-month window, the pool beat the re-picked single best method at 6 months ahead (50 of 80 series, Wilcoxon p = 0.001) and at 12 months ahead (p = 0.015), and matched it at 1 month. Two methods can give the same forecasts: simple exponential smoothing with its weight at the top of its range is the naive method (Hyndman, Koehler, Ord &amp; Snyder, 2008), and drift with almost no slope is naive too. When a method's forecasts over the ranking window differ from a pool member's by less than 1% of that member's total error, it is marked "same forecasts as" that method and the next one in the ranking takes its place, so no forecast is counted twice; screening out near-copies before combining follows Lichtendahl &amp; Winkler (2020). In a test set before it was built, on the 80 Market Watch series this changed the pool at about one past origin in five and cut its average miss slightly (0.03%, 0.2% and 0.4% at 1, 6 and 12 months), with ranges holding as often as before; on the nine test series it made no real difference. The page switches to the single best method only if that beat the pool by a margin unlikely to be luck, and to naive if the chosen approach did not beat naive. Neither rule changed average accuracy in a test a year back, but naive is the simpler plan when no model earns its place.</p>
       <p><b>Forecast ranges.</b> A range comes from the recommended approach's own misses at each step ahead: the last 48 it made in the backtest, with the pool re-picked at each past origin exactly as it is today. These are empirical prediction intervals (Williams &amp; Goodman, 1971; Lee &amp; Scholtes, 2014). The bounds are the split-conformal order statistics of those misses (Lei, G'Sell, Rinaldo, Tibshirani &amp; Wasserman, 2018), which sit a little outside the plain percentiles so that a range built from a few dozen misses is not too narrow. Nine ways of building the ranges were tested on the 80 Market Watch series over the last five years, each range scored only on what happened after it was built. Ranges from the last 24 misses held only 62 to 73% of the time at a nominal 80%, and ranges from every past miss 67 to 68%: ranges that are too narrow are a long-known problem (Chatfield, 1993), and old misses understate recent volatility (Barber, Candès, Ramdas &amp; Tibshirani, 2023). The last 48 with conformal bounds came closest, holding 77 to 81% of the time at 80% and 87 to 95% at 95%. No rule is right on every series, so the page also shows how often the ranges held on yours.</p>
       <p><b>Significance.</b> The Diebold-Mariano test (1995) uses an equal-weighted cosine variance with fixed-b critical values, which keeps its false-alarm rate near 5% with the short backtests used here (Lazarus, Lewis, Stock &amp; Watson, 2018; Coroneo &amp; Iacone, 2020). The version used before, with the Harvey, Leybourne &amp; Newbold (1997) correction, called a method significantly better up to 15% of the time when nothing differed. A table runs many tests at once, so its p-values are Holm-adjusted (Holm, 1979). "Tied" means a method was not shown to be worse than the #1.</p>
       <p><b>No method is favoured.</b> Every method, including the two fixed combinations, is a candidate. The backtest on your series decides the ranking and which three go into the pool.</p>
@@ -261,6 +264,8 @@ main:focus { outline: none; }
       <li>Kolassa, S. (2020). Why the "best" point forecast depends on the error or accuracy measure. <i>International Journal of Forecasting, 36</i>(1), 208–211. <a href="https://eprints.lancs.ac.uk/id/eprint/213526">eprints.lancs.ac.uk/id/eprint/213526</a></li>
       <li>Harvey, D., Leybourne, S., &amp; Newbold, P. (1997). Testing the equality of prediction mean squared errors. <i>International Journal of Forecasting, 13</i>(2), 281–291. <a href="https://doi.org/10.1016/S0169-2070(96)00719-4">doi:10.1016/S0169-2070(96)00719-4</a></li>
       <li>Fildes, R., Goodwin, P., Lawrence, M., &amp; Nikolopoulos, K. (2009). Effective forecasting and judgmental adjustments: An empirical evaluation and strategies for improvement in supply-chain planning. <i>International Journal of Forecasting, 25</i>(1), 3–23. <a href="https://ideas.repec.org/a/eee/intfor/v25y2009i1p3-23.html">ideas.repec.org record</a></li>
+      <li>Hyndman, R. J., Koehler, A. B., Ord, J. K., &amp; Snyder, R. D. (2008). <i>Forecasting with Exponential Smoothing: The State Space Approach</i>. Springer. <a href="https://doi.org/10.1007/978-3-540-71918-2">doi:10.1007/978-3-540-71918-2</a></li>
+      <li>Lichtendahl, K. C., Jr., &amp; Winkler, R. L. (2020). Why do some combinations perform better than others? <i>International Journal of Forecasting, 36</i>(1), 142–149. <a href="https://doi.org/10.1016/j.ijforecast.2019.03.027">doi:10.1016/j.ijforecast.2019.03.027</a></li>
       <li>Makridakis, S., Spiliotis, E., &amp; Assimakopoulos, V. (2018). Statistical and machine learning forecasting methods: Concerns and ways forward. <i>PLOS ONE, 13</i>(3), e0194889. <a href="https://doi.org/10.1371/journal.pone.0194889">doi:10.1371/journal.pone.0194889</a></li>
       <li>Makridakis, S., Spiliotis, E., &amp; Assimakopoulos, V. (2022). M5 accuracy competition: Results, findings, and conclusions. <i>International Journal of Forecasting, 38</i>(4), 1346–1364. <a href="https://doi.org/10.1016/j.ijforecast.2021.11.013">doi:10.1016/j.ijforecast.2021.11.013</a></li>
       <li>Williams, W. H., &amp; Goodman, M. L. (1971). A simple method for the construction of empirical confidence limits for economic forecasts. <i>Journal of the American Statistical Association, 66</i>(336), 752–754. <a href="https://scilit.com/publications/b4637cd6fa9f222073f61bbf49414a48">scilit.com record</a></li>
@@ -959,9 +964,11 @@ main:focus { outline: none; }
       r.future = P.fut[d.id].f; r.params = P.fut[d.id].params || null;
       return r;
     });
-    var ranked = rank(out, P.sq ? "RMSE" : "MASE"), top = ranked.slice(0, 3).map(function (r) { return r.id; });
+    var ranked = rank(out, P.sq ? "RMSE" : "MASE");
+    var errTot = {}; out.forEach(function (r) { errTot[r.id] = r.records.reduce(function (a, q) { return a + Math.abs(q.e); }, 0); });
+    var td = topDistinct(P, h, ranked.map(function (r) { return r.id; }), first, last, function (id) { return errTot[id]; }), top = td.ids;
     function poolAt(T, members) { return avg(members.map(function (id) { return P.fc[id][T]; })); }
-    var res = { scale: scale, scaleBase: S.base, first: first, last: last, origins: last - first + 1, h: h, test: test, results: out, members: top,
+    var res = { scale: scale, scaleBase: S.base, first: first, last: last, origins: last - first + 1, h: h, test: test, results: out, members: top, same: td.same,
       needN: minTrain(m) + 2 * test, rankBy: P.sq ? "RMSE" : "MASE", pool: null, pick: null, picks: null };
     // the pool with today's members over the whole window: used only when the history is too
     // short to test the choice, and labelled as optimistic there
@@ -975,6 +982,27 @@ main:focus { outline: none; }
     res.pick.future = P.fut[top[0]].f;
     res.picks = picks;
     return res;
+  }
+  /* topDistinct(): the first three methods of `order` whose forecasts differ. Over origins t0..t1
+   * (every step 1..h, filled targets skipped), a candidate is skipped when the summed absolute
+   * difference between its forecasts and those of a method already chosen is at most DUP_TOL of
+   * that chosen method's summed absolute error: for example simple exponential smoothing with
+   * alpha at its bound, which is the naive method (Hyndman et al., 2008). Keeping both would only
+   * double one method's weight in an equal-weight average. Returns { ids, same: {skipped id: kept id} }. */
+  var DUP_TOL = 0.01, DEDUP = { on: true };
+  function topDistinct(P, h, order, t0, t1, errOf) {
+    var y = P.y, sk = P.skip || {}, ids = [], same = {};
+    function diff(a, b) {
+      var d = 0;
+      for (var t = t0; t <= t1; t++) { var fa = P.fc[a][t], fb = P.fc[b][t]; for (var k = 1; k <= h; k++) { if (!sk[t + k - 1]) d += Math.abs(fa[k - 1] - fb[k - 1]); } }
+      return d;
+    }
+    for (var i = 0; i < order.length && ids.length < 3; i++) {
+      var c = order[i], dup = null;
+      if (DEDUP.on) for (var j = 0; j < ids.length && !dup; j++) if (diff(c, ids[j]) <= DUP_TOL * errOf(ids[j])) dup = ids[j];
+      if (dup) same[c] = dup; else ids.push(c);
+    }
+    return { ids: ids, same: same };
   }
   /* picksFor(): the top three methods at each origin T in [from, to], ranked exactly as the table
    * ranks them but on the errors already known at T: complete origins T-test .. T-h, lowest total
@@ -994,9 +1022,10 @@ main:focus { outline: none; }
     for (T = from; T <= to; T++) {
       var A = {}, Q = {};
       ids.forEach(function (id) { var a = 0, b = 0; for (var t = T - test; t <= T - h; t++) { a += sa[id][t]; b += sq[id][t]; } A[id] = a; Q[id] = b; });
-      picks[T] = ids.map(function (id, i) { return { id: id, i: i }; }).sort(function (u, v) {
+      var order = ids.map(function (id, i) { return { id: id, i: i }; }).sort(function (u, v) {
         return (P.sq ? cmpNum(Q[u.id], Q[v.id]) || cmpNum(A[u.id], A[v.id]) : cmpNum(A[u.id], A[v.id]) || cmpNum(Q[u.id], Q[v.id])) || u.i - v.i;
-      }).slice(0, 3).map(function (u) { return u.id; });
+      }).map(function (u) { return u.id; });
+      picks[T] = topDistinct(P, h, order, T - test, T - h, function (id) { return A[id]; }).ids;
     }
     return picks;
   }
@@ -1109,7 +1138,13 @@ main:focus { outline: none; }
     }).map(function (o) { return o.r; });
   }
 
-  var api = { demandPattern: demandPattern, isIntermittent: isIntermittent, ADI_CUT: ADI_CUT, CV2_CUT: CV2_CUT, ranges: ranges, confBounds: confBounds, MINCAL: MINCAL, CAL: CAL, quantile: quantile, skeleton: skeleton, futures: futures, fitRange: fitRange, merge: merge, loFor: loFor, picksFor: picksFor, dmTest: dmTest, holm: holm, tTwoSided: tTwoSided, ensure: ensure, METHODS: METHODS, activeMethods: activeMethods, backtest: backtest, prepare: prepare, score: score, WINDOWS: WINDOWS, MAXH: MAXH, metrics: metrics, rank: rank, minTrain: minTrain, GRID: GRID, PHI: PHI };
+  // Where an extra row (the top-3 pool) falls in a ranking made by rank(): 1 + the number of
+  // methods that rank strictly ahead of it on the same keys; on a full tie the pool goes after.
+  function placeAmong(ranked, metrics, by) {
+    var k1 = by === "RMSE" ? "RMSE" : "MASE", k2 = k1 === "RMSE" ? "MASE" : "RMSE";
+    return 1 + ranked.filter(function (r) { return (cmpNum(r.metrics[k1], metrics[k1]) || cmpNum(r.metrics[k2], metrics[k2])) <= 0; }).length;
+  }
+  var api = { placeAmong: placeAmong, DEDUP: DEDUP, DUP_TOL: DUP_TOL, topDistinct: topDistinct, demandPattern: demandPattern, isIntermittent: isIntermittent, ADI_CUT: ADI_CUT, CV2_CUT: CV2_CUT, ranges: ranges, confBounds: confBounds, MINCAL: MINCAL, CAL: CAL, quantile: quantile, skeleton: skeleton, futures: futures, fitRange: fitRange, merge: merge, loFor: loFor, picksFor: picksFor, dmTest: dmTest, holm: holm, tTwoSided: tTwoSided, ensure: ensure, METHODS: METHODS, activeMethods: activeMethods, backtest: backtest, prepare: prepare, score: score, WINDOWS: WINDOWS, MAXH: MAXH, metrics: metrics, rank: rank, minTrain: minTrain, GRID: GRID, PHI: PHI };
   if (typeof module !== "undefined" && module.exports) module.exports = api; else root.FCEngine = api;
 })(this);
 </script>
@@ -2367,8 +2402,28 @@ self.onmessage = function (ev) {
     o.naive = "–";
     return o;
   }
+  // The top-3 pool as a row of the table. Where the history allows, it is the pool re-picked at each
+  // past origin from the errors known then (the tested number), so unlike the method rows its score
+  // is not flattered by being chosen on the same misses (Cawley & Talbot, 2010). Otherwise it is
+  // today's three over the whole window, which is flattered like the #1, and says so.
+  function poolRow(ranked) {
+    var res = last.res, tested = !!res.pool, pr = tested ? res.pool : res.hindsight, nv = last.byId.naive, best = ranked[0];
+    var names = res.members.map(function (id) { return last.byId[id].name; });
+    var row = { id: "pool", isPool: true, name: "Top-3 pool" + (last.dec.kind === "pool" ? " (recommended)" : ""), metrics: pr.metrics, loss: pr.loss, params: null,
+      note: tested ? "Average of the three best methods that forecast differently, re-picked at each past origin from the misses known then, so this score is not flattered by the choice the way the method rows are."
+        : "Average of today's top three over the whole window. The history is too short to re-pick them at each origin, so this score is flattered like the #1's.",
+      ref: "Kourentzes, Barrow & Petropoulos (2019).", members: names };
+    row.place = E.placeAmong(ranked, pr.metrics, res.rankBy);
+    var pn = tested ? E.holm([E.dmTest(res.pool.loss, nv.loss).p, E.dmTest(res.pick.loss, nv.loss).p])[0] : NaN, tn = E.dmTest(pr.loss, nv.loss);
+    row.pvText = !tested ? "n/a" : !isFinite(pn) ? "n/a" : pn < 0.05 ? (tn.mean < 0 ? "<b>" + (pn < 0.001 ? "<0.001" : fmt(pn, 3)) + " better</b>" : (pn < 0.001 ? "<0.001" : fmt(pn, 3)) + " worse") : fmt(pn, 3);
+    var tb = E.dmTest(pr.loss, best.loss);
+    row.vbText = !isFinite(tb.p) ? "n/a" : !(tb.p < 0.05) ? "tied" : (tb.mean < 0 ? "better, " : "worse, ") + (tb.p < 0.001 ? "p<0.001" : "p " + fmt(tb.p, 3));
+    return row;
+  }
   function table(ranked) {
-    var rows = ranked.map(function (r, i) { return { r: r, rank: i + 1 }; });
+    var pr = last.res.results.length ? poolRow(ranked) : null, list = ranked.slice();
+    if (pr) list.splice(pr.place - 1, 0, pr);
+    var rows = list.map(function (r, i) { return { r: r, rank: i + 1 }; });
     if (state.sort !== "rank") rows.sort(function (a, b) {
       var x = a.r.metrics[state.sort], y = b.r.metrics[state.sort];
       if (state.sort === "ME") { x = Math.abs(x); y = Math.abs(y); }
@@ -2378,10 +2433,10 @@ self.onmessage = function (ev) {
     var bestOf = {}, pv = pvCells(ranked), vb = last.vb || vsBest(ranked), pool = last.res.members, more = state.more, nvM = last.byId.naive.metrics[KEY];
     var cols = more ? COLS : KEY === "RMSE" ? [{ k: "RMSE", t: "Typical miss (RMSE)", tip: "Root mean squared error over the backtest window, in the series' own units. Used instead of the average miss for demand with many zero periods." }]
       : [{ k: "MAE", t: "Average miss", tip: "Mean absolute error over the backtest window, in the series' own units (MAE)." }];
-    $("tblh").textContent = more ? (KEY === "RMSE" ? "Ranked by RMSE (demand with many zero periods)." : "Ranked by MASE (same order as MAE).") + " These are the scores the ranking was made on, so the #1 is flattered. p-values: Diebold-Mariano test, fixed-b variance, Holm-adjusted across the table. ★ = best in column. Click a column to sort; hover a header for its definition."
-      : "Ranked by " + missName() + " over the backtest window, scored on the same misses the ranking was made on, so the #1 looks a little better than it will do next. Click a column to sort.";
+    $("tblh").textContent = more ? (KEY === "RMSE" ? "Ranked by RMSE (demand with many zero periods)." : "Ranked by MASE (same order as MAE).") + " These are the scores the ranking was made on, so the #1 is flattered; the Top-3 pool row is not, because its members were re-picked at each past origin. p-values: Diebold-Mariano test, fixed-b variance, Holm-adjusted across the methods (the pool's p vs naive is adjusted with the single-pick test, as under “Testing the choice”; its vs #1 is a single test). ★ = best in column. Click a column to sort; hover a header for its definition."
+      : "Ranked by " + missName() + " over the backtest window, scored on the same misses the ranking was made on, so the #1 looks a little better than it will do next. The Top-3 pool row is scored the fair way: its three were re-picked at each past origin from the misses known then. Click a column to sort.";
     cols.forEach(function (c) {
-      var v = ranked.map(function (r) { var m = r.metrics[c.k]; return m === null ? Infinity : c.k === "ME" ? Math.abs(m) : m; });
+      var v = list.map(function (r) { var m = r.metrics[c.k]; return m === null ? Infinity : c.k === "ME" ? Math.abs(m) : m; });
       bestOf[c.k] = Math.min.apply(null, v);
     });
     var ref = last.ref;
@@ -2394,17 +2449,17 @@ self.onmessage = function (ev) {
     var h = '<table><thead><tr>' + sortTh("rank", "l", "", "#") + '<th class="l">Method</th>' +
       cols.map(function (c) { return sortTh(c.k, "", c.tip, c.t); }).join("") +
       (more ? '<th title="Diebold-Mariano test against naive (fixed-b variance), Holm-adjusted across the table. Below 0.05 = significantly different.">p vs naive</th>' +
-        '<th title="Diebold-Mariano test against the #1 method, Holm-adjusted. Tied = not shown to be worse; with few origins the test only separates large, steady differences.">vs #1</th><th class="l">Fitted parameters</th>'
+        '<th title="Diebold-Mariano test against the best-ranked method, Holm-adjusted across the methods (a single test for the pool row). Tied = not shown to differ; with few origins the test only separates large, steady differences.">vs best method</th><th class="l">Fitted parameters</th>'
         : '<th title="Average miss compared with naive (the latest value) on the same dates">vs naive</th>') + "</tr></thead><tbody>";
     rows.forEach(function (o) {
       var r = o.r, m = r.metrics, p1 = vb[r.id];
-      var v1 = o.rank === 1 ? "–" : !(p1 < 0.05) ? "tied" : "worse, " + (p1 < 0.001 ? "p<0.001" : "p " + fmt(p1, 3));
-      h += '<tr' + (o.rank === 1 ? ' class="win"' : "") + '><td class="l">' + o.rank + '</td><td class="l"><b>' + esc(r.name) + "</b>" + (pool.indexOf(r.id) >= 0 ? ' <span class="pill">in top 3</span>' : "") + '<div class="ref">' + esc(r.note) + (more ? " " + esc(r.ref) : "") + "</div></td>" +
+      var v1 = r.isPool ? r.vbText : r === ranked[0] ? "–" : !(p1 < 0.05) ? "tied" : "worse, " + (p1 < 0.001 ? "p<0.001" : "p " + fmt(p1, 3));
+      h += '<tr' + (r.isPool ? ' class="poolrow"' : r === ranked[0] ? ' class="win"' : "") + '><td class="l">' + o.rank + '</td><td class="l"><b>' + esc(r.name) + "</b>" + (pool.indexOf(r.id) >= 0 ? ' <span class="pill">in top 3</span>' : last.res.same && last.res.same[r.id] ? ' <span class="pill same" title="Its forecasts in the backtest are within 1% of ' + esc(last.byId[last.res.same[r.id]].name) + '\'s, so the pool counts them once">same forecasts as ' + esc(last.byId[last.res.same[r.id]].name) + "</span>" : "") + '<div class="ref">' + esc(r.note) + (more ? " " + esc(r.ref) : "") + "</div></td>" +
         cols.map(function (c) {
           var v = m[c.k], isBest = v !== null && (c.k === "ME" ? Math.abs(v) : v) === bestOf[c.k];
           var d = c.k === "MASE" ? 3 : (c.k === "MAPE" || c.k === "sMAPE") ? 2 : c.k === "MSE" ? digits(v) : digits(ref);
           return '<td data-m="' + c.k + '"' + (isBest && more ? ' class="best" title="Best in column"' : "") + ">" + (isBest && more ? "★ " : "") + fmt(v, d) + "</td>";
-        }).join("") + (more ? "<td>" + pv[r.id] + "</td><td>" + v1 + '</td><td class="l pm">' + esc(paramText(r.params)) + "</td>" : "<td>" + (r.id === "naive" ? "–" : relText(relPct(m[KEY], nvM))) + "</td>") + "</tr>";
+        }).join("") + (more ? "<td>" + (r.isPool ? r.pvText : pv[r.id]) + "</td><td>" + v1 + '</td><td class="l pm">' + esc(r.isPool ? "Today: " + r.members.join(" + ") : paramText(r.params)) + "</td>" : "<td>" + (r.id === "naive" ? "–" : relText(relPct(m[KEY], nvM))) + "</td>") + "</tr>";
     });
     $("tbl").innerHTML = h + "</tbody></table>";
     Array.prototype.forEach.call($("tbl").querySelectorAll("th[data-k]"), function (th) {

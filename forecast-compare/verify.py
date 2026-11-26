@@ -462,6 +462,27 @@ def train_scale(y, m, first):
     return lvl if lvl > 0 else 1.0
 
 
+DUP_TOL = 0.01
+
+
+def top_distinct(fc, order, h, t0, t1, err_of):
+    """First three of `order` whose forecasts differ: a candidate is skipped when the summed absolute
+    difference from a method already chosen (origins t0..t1, steps 1..h) is at most DUP_TOL of that
+    method's summed absolute error. Returns (ids, {skipped: kept})."""
+    ids, same = [], {}
+    def diff(a, b):
+        d = 0.0
+        for t in range(t0, t1 + 1):
+            for k in range(h): d += abs(fc[a][t][k] - fc[b][t][k])
+        return d
+    for c in order:
+        if len(ids) == 3: break
+        dup = next((j for j in ids if diff(c, j) <= DUP_TOL * err_of(j)), None)
+        if dup is None: ids.append(c)
+        else: same[c] = dup
+    return ids, same
+
+
 def evaluate(y, fc, m, test, h, lo):
     """Complete origins only: origins n-test .. n-h, each scored on all h steps."""
     n = len(y); first = n - test; last = n - h
@@ -476,9 +497,10 @@ def evaluate(y, fc, m, test, h, lo):
     out = {mid: summary(lambda T, mid=mid: fc[mid][T]) for mid in ids}
     k1, k2 = ("RMSE", "MASE") if sq_mode else ("MASE", "RMSE")
     ranked = sorted(ids, key=lambda k: (out[k]["metrics"][k1], out[k]["metrics"][k2], JS_ORDER.index(k)))
-    top = ranked[:3]
+    err_tot = {i: psum(abs(y[T + k - 1] - fc[i][T][k - 1]) for T in range(first, last + 1) for k in range(1, h + 1)) for i in ids}
+    top, same = top_distinct(fc, ranked, h, first, last, lambda i: err_tot[i])
     pool_at = lambda T, mem: [psum(fc[i][T][k] for i in mem) / len(mem) for k in range(len(fc[mem[0]][T]))]
-    res = {"scale": scale, "out": out, "ranked": ranked, "members": top, "pool": None, "pick": None, "picks": None,
+    res = {"scale": scale, "out": out, "ranked": ranked, "members": top, "same": same, "pool": None, "pick": None, "picks": None,
            "hindsight": summary(lambda T: pool_at(T, top))}
     res["hindsight"]["future"] = [psum(fc[i]["future"][0][k] for i in top) / 3 for k in range(12)]
     if first - test < lo: return res
@@ -490,7 +512,8 @@ def evaluate(y, fc, m, test, h, lo):
     for T in range(first, last + 1):
         win = range(T - test, T - h + 1)
         A = {i: psum(sa[i][t] for t in win) for i in ids}; Q = {i: psum(sq[i][t] for t in win) for i in ids}
-        picks[T] = sorted(ids, key=lambda i: ((Q[i], A[i]) if sq_mode else (A[i], Q[i])) + (JS_ORDER.index(i),))[:3]
+        order = sorted(ids, key=lambda i: ((Q[i], A[i]) if sq_mode else (A[i], Q[i])) + (JS_ORDER.index(i),))
+        picks[T] = top_distinct(fc, order, h, T - test, T - h, lambda i: A[i])[0]
     res["picks"] = picks
     res["pool"] = summary(lambda T: pool_at(T, picks[T])); res["pool"]["future"] = res["hindsight"]["future"]
     res["pick"] = summary(lambda T: fc[picks[T][0]][T]); res["pick"]["future"] = fc[top[0]]["future"][0]
@@ -522,7 +545,8 @@ def ranges(y, fc, test, h, lo, kind, levels, cal=48, minc=10):
         for T in range(start, n):
             win = range(T - test, T - h + 1)
             A = {i: psum(sa[i, t] for t in win) for i in ids}; Q = {i: psum(sq[i, t] for t in win) for i in ids}
-            top = sorted(ids, key=lambda i: ((Q[i], A[i]) if is_intermittent(y) else (A[i], Q[i])) + (JS_ORDER.index(i),))[:3]
+            order = sorted(ids, key=lambda i: ((Q[i], A[i]) if is_intermittent(y) else (A[i], Q[i])) + (JS_ORDER.index(i),))
+            top = top_distinct(fc, order, h, T - test, T - h, lambda i: A[i])[0]
             path[T] = fc[top[0]][T] if kind == "pick" else [psum(fc[i][T][k] for i in top) / 3 for k in range(12)]
     errs = {k: [(T, y[T + k - 1] - path[T][k - 1]) for T in range(start, n - k + 1)] for k in range(1, h + 1)}
 
@@ -563,6 +587,13 @@ def main():
         bad = lambda what, a, b: print("MISMATCH", case["label"], what, a, b)
         if ev["ranked"] != case["ranked"]: bad("ranking", ev["ranked"], case["ranked"]); worst = math.inf
         if ev["members"] != case["members"]: bad("pool members", ev["members"], case["members"]); worst = math.inf
+        if ev["same"] != case.get("same", {}): bad("same-forecast pairs", ev["same"], case.get("same")); worst = math.inf
+        # the top-3 pool as a row of the ranked table: its place and its Diebold-Mariano p against the #1
+        pr = ev["pool"] or ev["hindsight"]; k1, k2 = ("RMSE", "MASE") if is_intermittent(y) else ("MASE", "RMSE")
+        key = lambda mt: (mt[k1] if mt[k1] is not None else math.inf, mt[k2] if mt[k2] is not None else math.inf)
+        place = 1 + sum(1 for i in ev["ranked"] if key(ev["out"][i]["metrics"]) <= key(pr["metrics"]))
+        if place != case["poolPlace"]: bad("pool row place", place, case["poolPlace"]); worst = math.inf
+        pairs.append(("pool_vs_best.dm", dm_test(pr["loss"], ev["out"][ev["ranked"][0]]["loss"]), case["dmPoolBest"]))
         nv = py["naive"]["loss"]
         for r in case["results"]:
             p = py[r["id"]]

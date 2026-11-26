@@ -574,8 +574,28 @@
     o.naive = "–";
     return o;
   }
+  // The top-3 pool as a row of the table. Where the history allows, it is the pool re-picked at each
+  // past origin from the errors known then (the tested number), so unlike the method rows its score
+  // is not flattered by being chosen on the same misses (Cawley & Talbot, 2010). Otherwise it is
+  // today's three over the whole window, which is flattered like the #1, and says so.
+  function poolRow(ranked) {
+    var res = last.res, tested = !!res.pool, pr = tested ? res.pool : res.hindsight, nv = last.byId.naive, best = ranked[0];
+    var names = res.members.map(function (id) { return last.byId[id].name; });
+    var row = { id: "pool", isPool: true, name: "Top-3 pool" + (last.dec.kind === "pool" ? " (recommended)" : ""), metrics: pr.metrics, loss: pr.loss, params: null,
+      note: tested ? "Average of the three best methods that forecast differently, re-picked at each past origin from the misses known then, so this score is not flattered by the choice the way the method rows are."
+        : "Average of today's top three over the whole window. The history is too short to re-pick them at each origin, so this score is flattered like the #1's.",
+      ref: "Kourentzes, Barrow & Petropoulos (2019).", members: names };
+    row.place = E.placeAmong(ranked, pr.metrics, res.rankBy);
+    var pn = tested ? E.holm([E.dmTest(res.pool.loss, nv.loss).p, E.dmTest(res.pick.loss, nv.loss).p])[0] : NaN, tn = E.dmTest(pr.loss, nv.loss);
+    row.pvText = !tested ? "n/a" : !isFinite(pn) ? "n/a" : pn < 0.05 ? (tn.mean < 0 ? "<b>" + (pn < 0.001 ? "<0.001" : fmt(pn, 3)) + " better</b>" : (pn < 0.001 ? "<0.001" : fmt(pn, 3)) + " worse") : fmt(pn, 3);
+    var tb = E.dmTest(pr.loss, best.loss);
+    row.vbText = !isFinite(tb.p) ? "n/a" : !(tb.p < 0.05) ? "tied" : (tb.mean < 0 ? "better, " : "worse, ") + (tb.p < 0.001 ? "p<0.001" : "p " + fmt(tb.p, 3));
+    return row;
+  }
   function table(ranked) {
-    var rows = ranked.map(function (r, i) { return { r: r, rank: i + 1 }; });
+    var pr = last.res.results.length ? poolRow(ranked) : null, list = ranked.slice();
+    if (pr) list.splice(pr.place - 1, 0, pr);
+    var rows = list.map(function (r, i) { return { r: r, rank: i + 1 }; });
     if (state.sort !== "rank") rows.sort(function (a, b) {
       var x = a.r.metrics[state.sort], y = b.r.metrics[state.sort];
       if (state.sort === "ME") { x = Math.abs(x); y = Math.abs(y); }
@@ -585,10 +605,10 @@
     var bestOf = {}, pv = pvCells(ranked), vb = last.vb || vsBest(ranked), pool = last.res.members, more = state.more, nvM = last.byId.naive.metrics[KEY];
     var cols = more ? COLS : KEY === "RMSE" ? [{ k: "RMSE", t: "Typical miss (RMSE)", tip: "Root mean squared error over the backtest window, in the series' own units. Used instead of the average miss for demand with many zero periods." }]
       : [{ k: "MAE", t: "Average miss", tip: "Mean absolute error over the backtest window, in the series' own units (MAE)." }];
-    $("tblh").textContent = more ? (KEY === "RMSE" ? "Ranked by RMSE (demand with many zero periods)." : "Ranked by MASE (same order as MAE).") + " These are the scores the ranking was made on, so the #1 is flattered. p-values: Diebold-Mariano test, fixed-b variance, Holm-adjusted across the table. ★ = best in column. Click a column to sort; hover a header for its definition."
-      : "Ranked by " + missName() + " over the backtest window, scored on the same misses the ranking was made on, so the #1 looks a little better than it will do next. Click a column to sort.";
+    $("tblh").textContent = more ? (KEY === "RMSE" ? "Ranked by RMSE (demand with many zero periods)." : "Ranked by MASE (same order as MAE).") + " These are the scores the ranking was made on, so the #1 is flattered; the Top-3 pool row is not, because its members were re-picked at each past origin. p-values: Diebold-Mariano test, fixed-b variance, Holm-adjusted across the methods (the pool's p vs naive is adjusted with the single-pick test, as under “Testing the choice”; its vs #1 is a single test). ★ = best in column. Click a column to sort; hover a header for its definition."
+      : "Ranked by " + missName() + " over the backtest window, scored on the same misses the ranking was made on, so the #1 looks a little better than it will do next. The Top-3 pool row is scored the fair way: its three were re-picked at each past origin from the misses known then. Click a column to sort.";
     cols.forEach(function (c) {
-      var v = ranked.map(function (r) { var m = r.metrics[c.k]; return m === null ? Infinity : c.k === "ME" ? Math.abs(m) : m; });
+      var v = list.map(function (r) { var m = r.metrics[c.k]; return m === null ? Infinity : c.k === "ME" ? Math.abs(m) : m; });
       bestOf[c.k] = Math.min.apply(null, v);
     });
     var ref = last.ref;
@@ -601,17 +621,17 @@
     var h = '<table><thead><tr>' + sortTh("rank", "l", "", "#") + '<th class="l">Method</th>' +
       cols.map(function (c) { return sortTh(c.k, "", c.tip, c.t); }).join("") +
       (more ? '<th title="Diebold-Mariano test against naive (fixed-b variance), Holm-adjusted across the table. Below 0.05 = significantly different.">p vs naive</th>' +
-        '<th title="Diebold-Mariano test against the #1 method, Holm-adjusted. Tied = not shown to be worse; with few origins the test only separates large, steady differences.">vs #1</th><th class="l">Fitted parameters</th>'
+        '<th title="Diebold-Mariano test against the best-ranked method, Holm-adjusted across the methods (a single test for the pool row). Tied = not shown to differ; with few origins the test only separates large, steady differences.">vs best method</th><th class="l">Fitted parameters</th>'
         : '<th title="Average miss compared with naive (the latest value) on the same dates">vs naive</th>') + "</tr></thead><tbody>";
     rows.forEach(function (o) {
       var r = o.r, m = r.metrics, p1 = vb[r.id];
-      var v1 = o.rank === 1 ? "–" : !(p1 < 0.05) ? "tied" : "worse, " + (p1 < 0.001 ? "p<0.001" : "p " + fmt(p1, 3));
-      h += '<tr' + (o.rank === 1 ? ' class="win"' : "") + '><td class="l">' + o.rank + '</td><td class="l"><b>' + esc(r.name) + "</b>" + (pool.indexOf(r.id) >= 0 ? ' <span class="pill">in top 3</span>' : "") + '<div class="ref">' + esc(r.note) + (more ? " " + esc(r.ref) : "") + "</div></td>" +
+      var v1 = r.isPool ? r.vbText : r === ranked[0] ? "–" : !(p1 < 0.05) ? "tied" : "worse, " + (p1 < 0.001 ? "p<0.001" : "p " + fmt(p1, 3));
+      h += '<tr' + (r.isPool ? ' class="poolrow"' : r === ranked[0] ? ' class="win"' : "") + '><td class="l">' + o.rank + '</td><td class="l"><b>' + esc(r.name) + "</b>" + (pool.indexOf(r.id) >= 0 ? ' <span class="pill">in top 3</span>' : last.res.same && last.res.same[r.id] ? ' <span class="pill same" title="Its forecasts in the backtest are within 1% of ' + esc(last.byId[last.res.same[r.id]].name) + '\'s, so the pool counts them once">same forecasts as ' + esc(last.byId[last.res.same[r.id]].name) + "</span>" : "") + '<div class="ref">' + esc(r.note) + (more ? " " + esc(r.ref) : "") + "</div></td>" +
         cols.map(function (c) {
           var v = m[c.k], isBest = v !== null && (c.k === "ME" ? Math.abs(v) : v) === bestOf[c.k];
           var d = c.k === "MASE" ? 3 : (c.k === "MAPE" || c.k === "sMAPE") ? 2 : c.k === "MSE" ? digits(v) : digits(ref);
           return '<td data-m="' + c.k + '"' + (isBest && more ? ' class="best" title="Best in column"' : "") + ">" + (isBest && more ? "★ " : "") + fmt(v, d) + "</td>";
-        }).join("") + (more ? "<td>" + pv[r.id] + "</td><td>" + v1 + '</td><td class="l pm">' + esc(paramText(r.params)) + "</td>" : "<td>" + (r.id === "naive" ? "–" : relText(relPct(m[KEY], nvM))) + "</td>") + "</tr>";
+        }).join("") + (more ? "<td>" + (r.isPool ? r.pvText : pv[r.id]) + "</td><td>" + v1 + '</td><td class="l pm">' + esc(r.isPool ? "Today: " + r.members.join(" + ") : paramText(r.params)) + "</td>" : "<td>" + (r.id === "naive" ? "–" : relText(relPct(m[KEY], nvM))) + "</td>") + "</tr>";
     });
     $("tbl").innerHTML = h + "</tbody></table>";
     Array.prototype.forEach.call($("tbl").querySelectorAll("th[data-k]"), function (th) {
