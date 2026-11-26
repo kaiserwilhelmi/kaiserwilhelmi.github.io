@@ -14,8 +14,11 @@ from pathlib import Path
 
 ROOT = Path(__file__).resolve().parent.parent
 SKIP_DIRS = ("forecast-compare/research", "forecast-compare/test/", "dist/", "node_modules/", "tools/")
-# loot-ledger/template.html is not a page: build.py adds the header, the theme and the skip link to it.
-SKIP_FILES = {"loot-ledger/template.html"}
+# loot-ledger/template.html is not a page: build.py adds the site bar and the skip link to it.
+# loot-ledger/index.html is the one page that is not on the theme: Dawson asked (Nov 26 2026) for an early-2000s game look
+# on that page only. It still has to carry the site bar and the skip link, which LOOT checks below.
+SKIP_FILES = {"loot-ledger/template.html", "loot-ledger/index.html"}
+LOOT = "loot-ledger/index.html"
 RETIRED = ["#161a1f", "#1b2026", "#303741", "#262c34", "#ebe8e1", "#aeb3b9", "#8f969f", "#9cc0dc", "156,192,220",
            "Source Serif"]
 
@@ -48,6 +51,10 @@ def main():
         for msg in problems(p.read_text(encoding="utf-8")):
             print(f"{p.relative_to(ROOT)}: {msg}")
             bad += 1
+    loot = (ROOT / LOOT).read_text(encoding="utf-8")
+    for msg in [m for m in problems(loot) if "dw-site" in m or "skip link" in m]:
+        print(f"{LOOT}: {msg}")
+        bad += 1
     print(f"{len(pages)} pages checked, {bad} problem{'s' if bad != 1 else ''}")
     return 1 if bad else 0
 

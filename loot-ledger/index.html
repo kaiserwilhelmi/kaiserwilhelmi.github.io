@@ -17,31 +17,32 @@
 <meta property="og:image:height" content="630">
 <meta name="twitter:card" content="summary_large_image">
 <meta name="claude:viewport-fit-sides" content="cover">
-<link rel="stylesheet" href="/fonts/fonts.css">
-<link rel="stylesheet" href="/theme.css">
+<link rel="stylesheet" href="/fonts/loot-ledger.css">
 <style>
-/* Layout: one column ledger. Sticky tab bar, a "today" strip, then the active book (Sell, Prices, Trophies, Wishlist, Settings). Dark only, like a depot at night. */
+/* Layout: one column ledger. Sticky tab bar, a "today" strip, then the active book (Lookup, Sell, Hunts, Quests, Prices, Trophies, Wishlist, Setup).
+   This page does not use the site's night-sky theme (/theme.css). Dawson asked for an early-2000s game look here, on this page only.
+   The first block below is the layout; the look is the block that starts at "The look". */
 :root{
   color-scheme:dark;
-  /* On the site, colors and fonts come from /theme.css, the site theme. The value after each comma is the fallback,
-     which is what the single-file copy shows: depot stone, parchment and gold. */
-  --bg:var(--ink, #121419);
-  --panel:var(--ink-2, #1b1e25);
-  --panel2:var(--ink-3, #232733);
-  --line:var(--rule, #2f3442);
-  --fg:var(--paper, #e8e4da);
-  --muted:var(--pencil, #9b978c);
-  --accent:var(--steel, #e0b04a);      /* links, focus, current tab, primary button. Gold in the single-file copy. */
-  --on-accent:var(--on-steel, #1a1405);
-  --gold:#e0b04a;        /* gold coins and gold amounts only */
-  --gold-dim:#6b5424;
-  --good:var(--opp, #5fbf77);
-  --warn:#e39b4a;
-  --bad:var(--alert, #e0685e);
-  --t0:#8a8f99; --t1:#6fcf8a; --t2:#5aa6f0; --t3:#b48cf2; --t4:#f2c14e; /* value tiers */
-  --display:var(--f-head, "Alegreya SC", Georgia, "Times New Roman", serif);
-  --body:var(--f-body, "Alegreya Sans", system-ui, -apple-system, "Segoe UI", sans-serif);
-  --r:10px;
+  --bg:#0e0d0b;          /* wall behind everything */
+  --panel:#26231f;       /* stone frame */
+  --panel2:#35312b;      /* raised stone inside a frame */
+  --line:#4d483f;
+  --hi:#7d776b; --lo:#12100e;   /* light and dark edges of a frame */
+  --fg:#ece6d6;
+  --muted:#a8a08e;
+  --accent:#f0c040;      /* links, focus, title */
+  --on-accent:#1c1304;
+  --gold:#f0c040;        /* gold coins and gold amounts */
+  --gold-dim:#7a5c1c;
+  --good:#5fd35f;
+  --warn:#f0a040;
+  --bad:#f4705e;
+  --t0:#9da2ac; --t1:#6fcf8a; --t2:#5aa6f0; --t3:#b48cf2; --t4:#f2c14e; /* value tiers */
+  --display:"Pixelify Sans", Verdana, Tahoma, sans-serif;
+  --body:Verdana, Tahoma, "DejaVu Sans", "Bitstream Vera Sans", Geneva, sans-serif;
+  --r:0;
+  --tile:none; --slab:none;   /* stone textures, painted by the script under the styles */
 }
 *{box-sizing:border-box}
 [hidden]{display:none!important}
@@ -160,23 +161,413 @@ details summary{cursor:pointer;color:var(--muted)}
 @media (max-width:560px){h1{font-size:1.45rem}.tile .v{font-size:1.25rem}td,th{padding:7px 6px}}
 @media (prefers-reduced-motion:reduce){*{transition:none!important}}
 main:focus { outline: none; }
-.dw-site { margin: 0; }
+
+/* ---------- The look: an early-2000s game window ----------
+   Stone wall behind, grey stone frames with a light edge on top and left and a dark edge on bottom and right,
+   black input wells, a parchment strip for today's news, pixel lettering for titles and buttons.
+   All of it is drawn here in CSS and by the small scripts below; no game artwork is used. */
+html{background:var(--bg) var(--tile);background-size:128px 128px;image-rendering:pixelated;min-height:100%}
+body{background:none;font-size:15px}
+body::after{content:"";position:fixed;inset:0;z-index:-1;pointer-events:none;
+  background:radial-gradient(ellipse 90% 45% at 50% 108%,rgba(226,88,18,.22),transparent 70%),radial-gradient(ellipse at 50% 40%,transparent 45%,rgba(0,0,0,.6) 100%)}
+::selection{background:var(--gold);color:#120c02}
+*{scrollbar-color:#7d776b #171513}
+h1,h2,h3{font-weight:700;letter-spacing:.02em}
+h1{font-size:2rem;color:var(--gold);text-shadow:2px 2px 0 #000,-1px -1px 0 #000,1px -1px 0 #000,-1px 1px 0 #000,0 3px 0 #5a2a08}
+h1 .coin{border-radius:0;clip-path:polygon(25% 0,75% 0,100% 25%,100% 75%,75% 100%,25% 100%,0 75%,0 25%);background:linear-gradient(135deg,#fff0a8 0 30%,var(--gold) 30% 65%,#9a6a14 65%);box-shadow:none}
+h2,h3{text-shadow:1px 1px 0 #000}
+h2{font-size:1.4rem}
+h3{font-size:1.15rem}
+code{font-family:ui-monospace,Menlo,Consolas,monospace;color:#f3d98c;background:#0c0b0a;padding:0 4px;border:1px solid var(--line)}
+header.top,.panel,.tile,.card,.toast,.dw-site{background:var(--panel) var(--slab);border:2px solid;border-color:var(--hi) var(--lo) var(--lo) var(--hi);border-radius:0;
+  box-shadow:0 0 0 1px #000,inset 1px 1px 0 rgba(255,255,255,.07),inset -1px -1px 0 rgba(0,0,0,.4)}
+header.top{-webkit-backdrop-filter:none;backdrop-filter:none;padding:10px 12px 8px;margin-top:8px}
+.brand .who{font-size:.85rem}
+nav.tabs{gap:4px;padding:1px}
+nav.tabs a{padding:6px 12px;font-size:1.08rem;color:var(--fg);background:#4a453d var(--slab);border:2px solid;border-color:#8f887a #1a1714 #1a1714 #8f887a;text-shadow:1px 1px 0 #000}
+nav.tabs a:hover{background-color:#575148}
+nav.tabs a[aria-current="page"]{color:var(--gold);background-color:#191715;border-color:#0a0908 #6a645a #6a645a #0a0908}
+.today{margin:12px 0;padding:8px 12px;color:#4d3b1a;background:#d9c28e var(--slab);border:2px solid;border-color:#f3e3b6 #6e5a30 #6e5a30 #f3e3b6;box-shadow:0 0 0 1px #000}
+.today b{color:#1d1306;font-weight:700}
+.today:empty{display:none}
+.tile.hl{border-color:#e6c060 #6b5424 #6b5424 #e6c060}
+.tile .v{font-family:var(--display);font-size:1.7rem;font-weight:400;text-shadow:1px 1px 0 #000}
+.tile .k{font-size:.72rem}
+input,select,textarea{border-radius:0;border:2px solid;border-color:#0a0908 #5c574e #5c574e #0a0908;background:#0c0b0a}
+input::placeholder,textarea::placeholder{color:#8d8676;opacity:1}
+input[type="checkbox"]{accent-color:var(--gold)}
+button{border-radius:0;font-family:var(--display);font-size:1.05rem;background:#4a453d var(--slab);border:2px solid;border-color:#8f887a #1a1714 #1a1714 #8f887a;text-shadow:1px 1px 0 #000;padding:7px 14px}
+button:hover{background-color:#575148}
+button:active{border-color:#1a1714 #8f887a #8f887a #1a1714;padding:8px 13px 6px 15px}
+button.primary{background-color:#7c2413;border-color:#d0603f #2c0a04 #2c0a04 #d0603f;color:#ffd96e;font-weight:400}
+button.primary:hover{background-color:#8f2c18}
+button.primary:active{border-color:#2c0a04 #d0603f #d0603f #2c0a04}
+button.ghost,button.ghost:active{background:none;border-color:transparent;padding:6px 8px}
+button.link,button.link:active{background:none;border:none;padding:0;font-family:inherit;font-size:inherit;text-shadow:none}
+button.link.quest{font-size:.78rem}
+.hit,.hit:active{background:none;border:1px solid transparent;border-radius:0;padding:6px 8px;font-family:inherit;font-size:inherit;text-shadow:none}
+.hit:hover,.hit:focus-visible{background:var(--panel2);border-color:var(--line)}
+.seg{border-radius:0;border:2px solid;border-color:#0a0908 #5c574e #5c574e #0a0908;background:#0c0b0a}
+.seg button,.seg button:active{border:none;padding:6px 10px;font-size:.95rem;background:none}
+.seg button[aria-pressed="true"]{background:var(--panel2)}
+th{background:#191715;color:#cfc6ae;font-family:var(--display);font-size:.92rem;font-weight:400;letter-spacing:.03em;text-transform:none;border-bottom:2px solid #000}
+.sprite{border-radius:0;background:#141210;border:2px solid;border-color:#0a0908 #5c574e #5c574e #0a0908}
+.pill{border-radius:0;font-family:var(--display);font-size:.86rem;font-weight:400;background:rgba(0,0,0,.35);padding:1px 7px}
+.pill.ex{font-size:.8rem}
+.tag,.chip{border-radius:0}
+.chip{border:1px solid var(--line)}
+.notice{border-radius:0;background:var(--panel2);border-left-width:4px;box-shadow:0 0 0 1px #000}
+.route .stop{border-radius:0;border:1px solid var(--line);background:var(--panel2)}
+.toast{border-color:#e6c060 #6b5424 #6b5424 #e6c060;font-family:var(--display);font-size:1.05rem}
+.minimap{border-radius:0;border:2px solid;border-color:#0a0908 #5c574e #5c574e #0a0908}
+.foot{text-align:center;text-shadow:1px 1px 0 #000}
+.foot button.link{color:var(--accent)}
+/* ---------- Easier to play with ---------- */
+/* a jump to an item, NPC, price or quest stops below the sticky bar, not under it */
+#lDetail,#pDetail,.qcard{scroll-margin-top:140px}
+/* an NPC that only buys (Rashid lists 187 items): use the full width, in columns */
+#lDetail .grid2>div:only-child tbody{display:grid;grid-template-columns:repeat(auto-fill,minmax(250px,1fr));column-gap:28px}
+#lDetail .grid2>div:only-child tr{display:flex;justify-content:space-between;gap:10px;border-bottom:1px solid var(--line)}
+#lDetail .grid2>div:only-child td{border:none}
+tbody tr:hover{background:rgba(255,255,255,.035)}
+input[type="checkbox"]{width:18px;height:18px;flex:0 0 18px}
+@media (pointer:coarse){
+  button.link,td a,.where a,.card a{display:inline-block;padding-block:7px}
+  .foot button.link{padding-block:10px}
+  .dw-site a{padding-block:6px}
+  details summary{padding-block:8px}
+}
+@media (max-width:560px){
+  /* all seven tabs in view, no sideways scrolling */
+  nav.tabs{display:grid;grid-template-columns:repeat(4,1fr);overflow:visible}
+  nav.tabs a{text-align:center;padding:6px 2px;font-size:1rem}
+  header.top{padding:6px 8px}
+  header.top h1{font-size:1.35rem}
+  nav.tabs{margin-top:6px}
+  nav.tabs a{padding:4px 2px}
+  #lDetail,#pDetail,.qcard{scroll-margin-top:170px}
+  /* sell list: one block per item, so price and buyer show without sideways scrolling */
+  #sellOut table,#sellOut tbody{display:block}
+  #sellOut thead{position:absolute;left:-9999px}
+  #sellOut tbody tr{display:grid;grid-template-columns:1fr auto auto;gap:4px 12px;align-items:center;padding:10px 0;border-bottom:2px solid #000}
+  #sellOut tbody tr:last-child{border-bottom:none}
+  #sellOut tbody td{border:none;padding:0;text-align:left}
+  #sellOut tbody td::before{color:var(--muted);font-weight:400;font-size:.8rem}
+  #sellOut tbody td:nth-child(1){grid-column:1/3;grid-row:1}
+  #sellOut tbody td:nth-child(5){grid-column:3;grid-row:1;text-align:right;font-size:1.1rem;font-weight:700}
+  #sellOut tbody td:nth-child(3){grid-column:1;grid-row:2}
+  #sellOut tbody td:nth-child(2){grid-column:2;grid-row:2}
+  #sellOut tbody td:nth-child(2)::before{content:"Qty "}
+  #sellOut tbody td:nth-child(4){grid-column:3;grid-row:2;text-align:right}
+  #sellOut tbody td:nth-child(4)::before{content:"each "}
+  #sellOut tbody td:nth-child(6){grid-column:1/-1;grid-row:3}
+  #sellOut tbody td:nth-child(6)::before{content:"Sell to: "}
+  #sellOut tbody td:nth-child(7){grid-column:1/-1;grid-row:4}
+  #sellOut tbody td:nth-child(7)::before{content:"Market: "}
+  #sellOut tbody td:nth-child(8){grid-column:1/3;grid-row:5}
+  #sellOut tbody td:nth-child(8)::before{content:"Wiki est. "}
+  #sellOut tbody td:nth-child(9){grid-column:3;grid-row:5;text-align:right}
+  #sellOut tbody td:nth-child(9)::before{content:"gp/oz "}
+  #sellOut .item{min-width:0}
+}
+.hbar{height:10px;background:#0c0b0a;border:1px solid var(--line);min-width:60px}
+.hbar i{display:block;height:100%;background:linear-gradient(#f7d566,#b9861c)}
+/* extras: list filter, recent lookups, route check-off */
+.xfilter{margin:8px 0 6px}
+.recent{display:flex;flex-wrap:wrap;gap:6px;align-items:center;margin-top:10px}
+.recent:empty{display:none}
+button.chip,button.chip:active{font-family:inherit;font-size:.82rem;text-shadow:none;padding:4px 9px;background:var(--panel2);border:1px solid var(--line);color:var(--fg)}
+button.chip:hover{border-color:var(--gold-dim);color:var(--gold)}
+.xroute{margin:0 0 10px}
+.xsold{margin-top:8px;font-size:.85rem;color:var(--muted)}
+.route .stop.sold{opacity:.55}
+.route .stop.sold .hd b{text-decoration:line-through}
+.search-hint{margin:8px 0 0}
+@media (pointer:coarse){button.chip{padding:8px 11px}.search-hint kbd{display:none}}
+/* the way back to the rest of the site (hosted page only) */
+.dw-site{display:flex;justify-content:space-between;align-items:center;gap:12px;flex-wrap:wrap;margin-top:8px;padding:6px 12px;font-family:var(--display);font-size:1.02rem}
+.dw-site a{color:var(--fg);text-decoration:none;text-shadow:1px 1px 0 #000}
+.dw-site a:hover,.dw-site a:focus-visible{color:var(--gold);text-decoration:underline}
+.dw-site .dw-me::before{content:"\2039\00a0"}
+.dw-site nav{display:flex;gap:16px}
+.dw-skip{position:absolute;left:-9999px;top:0;z-index:200;background:var(--gold);color:#120c02;padding:8px 12px;font-family:var(--display)}
+.dw-skip:focus{left:8px;top:8px}
+/* ---------- The dragon at the door ---------- */
+#intro{position:fixed;inset:0;z-index:100;background:#040203;cursor:pointer}
+#intro canvas{display:block;width:100%;height:100%;image-rendering:pixelated}
+#intro .skip{position:absolute;left:50%;transform:translateX(-50%);bottom:calc(16px + env(safe-area-inset-bottom,0px));white-space:nowrap;background:none;border:none;padding:6px 10px;
+  font-family:var(--display);font-size:1.05rem;color:#e9dfc4;text-shadow:1px 1px 0 #000,-1px -1px 0 #000,1px -1px 0 #000,-1px 1px 0 #000}
+#intro.out{opacity:0;pointer-events:none;transition:opacity .5s steps(6)}
+html.intro-on{overflow:hidden}
+html.intro-on .wrap,html.intro-on .dw-skip{visibility:hidden}
+@media (max-width:560px){h1{font-size:1.6rem}.tile .v{font-size:1.4rem}nav.tabs a{padding:6px 10px}}
 </style>
 </head>
 <body>
 
+<script>
+// Stone wall and stone grain, painted once into two small tiles and handed to the CSS (--tile, --slab).
+(function(){
+  try{
+    var seed = 7; function r(){ seed = (seed * 16807) % 2147483647; return seed / 2147483647; }
+    var c = document.createElement('canvas'), g = c.getContext('2d'), x, y, i;
+    c.width = c.height = 64;
+    g.fillStyle = '#0b0a09'; g.fillRect(0, 0, 64, 64);
+    for(y = 0; y < 4; y++) for(x = -1; x < 2; x++){
+      var bx = x * 32 + (y % 2) * 16, by = y * 16, v = 30 + Math.floor(r() * 14);
+      g.fillStyle = 'rgb(' + (v + 3) + ',' + v + ',' + (v - 4) + ')'; g.fillRect(bx + 1, by + 1, 31, 15);
+      g.fillStyle = 'rgba(255,255,255,.07)'; g.fillRect(bx + 1, by + 1, 31, 1); g.fillRect(bx + 1, by + 1, 1, 15);
+      g.fillStyle = 'rgba(0,0,0,.3)'; g.fillRect(bx + 1, by + 15, 31, 1); g.fillRect(bx + 31, by + 1, 1, 15);
+    }
+    for(i = 0; i < 520; i++){ g.fillStyle = r() < .5 ? 'rgba(0,0,0,.22)' : 'rgba(255,255,255,.05)'; g.fillRect(Math.floor(r() * 64), Math.floor(r() * 64), 1, 1); }
+    var wall = c.toDataURL();
+    c.width = c.height = 32; g.clearRect(0, 0, 32, 32);
+    for(i = 0; i < 300; i++){ g.fillStyle = r() < .55 ? 'rgba(0,0,0,.16)' : 'rgba(255,255,255,.05)'; g.fillRect(Math.floor(r() * 32), Math.floor(r() * 32), 1, 1 + (r() < .2)); }
+    var st = document.documentElement.style;
+    st.setProperty('--tile', 'url(' + wall + ')'); st.setProperty('--slab', 'url(' + c.toDataURL() + ')');
+  }catch(e){}
+})();
+</script>
+<div id="intro" hidden><canvas aria-hidden="true"></canvas><button class="skip" type="button">Click or press any key to skip</button></div>
+<script>
+// Dragon intro. Original art, drawn in code on a small canvas, cut to the 216 "web-safe" colors with a dither, then scaled up with hard pixels.
+function lootIntro(cv, opts){
+  opts = opts || {};
+  var g = cv.getContext('2d', {willReadFrequently:true}), W, H, px, DUR = 3.7;
+  var BAYER = [0,8,2,10,12,4,14,6,3,11,1,9,15,7,13,5];
+  function size(){
+    var w = cv.clientWidth || innerWidth, h = cv.clientHeight || innerHeight;
+    px = Math.max(2, Math.round(Math.min(w, h) / 170));
+    W = cv.width = Math.max(40, Math.ceil(w / px)); H = cv.height = Math.max(40, Math.ceil(h / px));
+  }
+  function cl(x){ return x < 0 ? 0 : x > 1 ? 1 : x; }
+  function seg(t, a, b){ return cl((t - a) / (b - a)); }
+  function ease(x){ return x * x * (3 - 2 * x); }
+  function back(x){ var c = 1.9; return 1 + (c + 1) * Math.pow(x - 1, 3) + c * Math.pow(x - 1, 2); }
+  function rnd(i){ var x = Math.sin(i * 127.1 + 311.7) * 43758.5453; return x - Math.floor(x); }
+  // closed smooth shape through points [x,y,...]; mirror=true draws the left half too
+  function blob(p, fill, mirror){
+    for(var m = 0; m < (mirror ? 2 : 1); m++){
+      g.save(); if(m) g.scale(-1, 1);
+      var n = p.length / 2; g.beginPath();
+      g.moveTo((p[n*2-2] + p[0]) / 2, (p[n*2-1] + p[1]) / 2);
+      for(var i = 0; i < n; i++){ var j = (i + 1) % n; g.quadraticCurveTo(p[i*2], p[i*2+1], (p[i*2] + p[j*2]) / 2, (p[i*2+1] + p[j*2+1]) / 2); }
+      g.fillStyle = fill; g.fill(); g.restore();
+    }
+  }
+  function poly(p, fill, mirror){
+    for(var m = 0; m < (mirror ? 2 : 1); m++){
+      g.save(); if(m) g.scale(-1, 1);
+      g.beginPath(); g.moveTo(p[0], p[1]); for(var i = 2; i < p.length; i += 2) g.lineTo(p[i], p[i+1]);
+      g.closePath(); g.fillStyle = fill; g.fill(); g.restore();
+    }
+  }
+  function ell(x, y, rx, ry, rot, fill){ g.beginPath(); g.ellipse(x, y, rx, ry, rot || 0, 0, 6.2832); g.fillStyle = fill; g.fill(); }
+  function tooth(x, y, w, len, lean, c1, c2){ poly([x - w, y, x + w, y, x + lean, y + len], c1); poly([x, y, x + w, y, x + lean, y + len], c2); }
+
+  var HEAD = [0,-1.34, .34,-1.36, .72,-1.2, .98,-.82, 1.04,-.4, .9,-.08, .62,.04, .42,.16, 0,.2, -.42,.16, -.62,.04, -.9,-.08, -1.04,-.4, -.98,-.82, -.72,-1.2, -.34,-1.36];
+  var JAW = [0,.86, .4,.82, .76,.6, .96,.24, .92,-.2, .7,-.3, -.7,-.3, -.92,-.2, -.96,.24, -.76,.6, -.4,.82];
+
+  function dragon(t, open, light, fire){
+    var up = -0.42 * open, dn = 0.98 * open;            // upper head lifts, lower jaw drops
+    var mid = (0.2 + up + 0.32 + dn) / 2;               // throat centre, where the camera goes
+    // neck and shoulders, behind everything
+    blob([0,-.6, 1.25,-.3, 1.7,1.2, 1.5,3.2, -1.5,3.2, -1.7,1.2, -1.25,-.3], '#143a18');
+    blob([0,.5, .7,.8, .95,2.0, .8,3.2, -.8,3.2, -.95,2.0, -.7,.8], '#8a6a1c');
+    for(var k = 0; k < 6; k++) blob([0,.95 + k*.42, .8 - k*.01,1.12 + k*.42, 0,1.3 + k*.42, -.8 + k*.01,1.12 + k*.42], k % 2 ? '#b08a26' : '#c9a030');
+    // wings, far back
+    poly([1.2,-.2, 3.4,-2.2, 3.1,-.6, 3.6,.3, 2.6,.2, 2.4,1.2, 1.5,.6], '#0a1c0e', true);
+    poly([1.2,-.2, 3.4,-2.2, 1.9,-.5], '#12301a', true);
+    g.save(); g.translate(0, up);
+    // horns
+    blob([.52,-1.1, .8,-1.7, 1.42,-2.22, 1.5,-2.12, 1.08,-1.6, .92,-1.02], '#b9a26c', true);
+    blob([.6,-1.12, .84,-1.66, 1.4,-2.16, 1.0,-1.62, .8,-1.08], '#efe2b4', true);
+    // side frills
+    poly([.9,-.95, 1.62,-1.22, 1.3,-.78, 1.74,-.62, 1.3,-.42, 1.56,-.08, .92,-.1], '#7a1c14', true);
+    poly([.9,-.95, 1.62,-1.22, 1.3,-.78, 1.74,-.62, 1.3,-.42], '#a32a1a', true);
+    poly([.9,-.9, 1.62,-1.22, 1.0,-.8], '#1c4f1e', true); poly([.95,-.6, 1.74,-.62, 1.0,-.5], '#1c4f1e', true); poly([.95,-.3, 1.56,-.08, .9,-.14], '#1c4f1e', true);
+    g.restore();
+    // inside of the mouth
+    if(open > 0.02){
+      var top = 0.0 + up, bot = 0.5 + dn, hh = (bot - top) / 2, cy = (top + bot) / 2;
+      ell(0, cy, .9, hh + .1, 0, '#3a0508');
+      ell(0, cy, .8, hh, 0, '#7a1014');
+      ell(0, mid, .62, hh * .78, 0, '#5c0a0e');
+      ell(0, mid, .45, hh * .56, 0, '#3a0508');
+      ell(0, mid, .28, hh * .36, 0, '#1c0204');
+      for(k = 0; k < 5; k++){ g.beginPath(); g.ellipse(0, top + .02, .7 - k*.1, .12 + k * hh * .12, 0, 0.25, 2.9); g.strokeStyle = '#a32228'; g.lineWidth = .03; g.stroke(); }
+      if(fire > 0){
+        var r = .16 + fire * .5, gr = g.createRadialGradient(0, mid, 0, 0, mid, r * 1.6);
+        gr.addColorStop(0, 'rgba(255,255,220,' + cl(fire * 1.4) + ')'); gr.addColorStop(.35, 'rgba(255,190,40,' + cl(fire * 1.2) + ')');
+        gr.addColorStop(.7, 'rgba(240,80,10,' + cl(fire) * .8 + ')'); gr.addColorStop(1, 'rgba(160,20,0,0)');
+        g.globalCompositeOperation = 'lighter'; ell(0, mid, r * 1.6, r * 1.6, 0, gr); g.globalCompositeOperation = 'source-over';
+      }
+      // tongue
+      var ty = bot - .12;
+      blob([0,ty - .5 * open, .2,ty - .3 * open, .3,ty, .12,ty + .2, .16,ty + .42, .04,ty + .26, -.04,ty + .26, -.16,ty + .42, -.12,ty + .2, -.3,ty, -.2,ty - .3 * open], '#c8323a');
+      blob([0,ty - .42 * open, .08,ty - .2 * open, .05,ty + .1, -.05,ty + .1, -.08,ty - .2 * open], '#e86a6a');
+    }
+    // lower jaw
+    g.save(); g.translate(0, dn);
+    for(k = 0; k < 6; k++){ var tx = .12 + k * .115, big = k === 3; tooth(tx, .44 - tx * tx * .5, .05, big ? -.4 : -.16 - rnd(k) * .06, .01, '#b9a26c', '#f4ecc8'); tooth(-tx, .44 - tx * tx * .5, .05, big ? -.4 : -.16 - rnd(k) * .06, -.01, '#b9a26c', '#f4ecc8'); }
+    blob([0,.9, .42,.86, .8,.62, .98,.24, .9,-.12, .74,.06, .62,.32, .34,.46, 0,.5, -.34,.46, -.62,.32, -.74,.06, -.9,-.12, -.98,.24, -.8,.62, -.42,.86], '#1c4f1e');
+    blob([0,.84, .4,.8, .74,.58, .9,.24, .84,-.02, .72,.14, .6,.38, .34,.52, 0,.56, -.34,.52, -.6,.38, -.72,.14, -.84,-.02, -.9,.24, -.74,.58, -.4,.8], '#2f7a2a');
+    blob([0,.84, .34,.8, .5,.68, 0,.64, -.5,.68, -.34,.8], '#c9a030');
+    g.restore();
+    // cheeks stretch between the two jaws
+    poly([.88,-.3 + up, 1.03,-.42 + up, .98,.2 + dn, .86,-.08 + dn], '#1c4f1e', true);
+    // upper head
+    g.save(); g.translate(0, up);
+    for(k = 0; k < 6; k++){ tx = .1 + k * .12; big = k === 3; tooth(tx, .1 - tx * .1, .055, big ? .5 : .17 + rnd(k + 9) * .08, .012, '#b9a26c', '#f4ecc8'); tooth(-tx, .1 - tx * .1, .055, big ? .5 : .17 + rnd(k + 9) * .08, -.012, '#b9a26c', '#f4ecc8'); }
+    blob(HEAD, '#1c4f1e');
+    blob([0,-1.3, .32,-1.32, .68,-1.16, .93,-.8, .98,-.42, .84,-.14, .58,-.04, .4,.08, 0,.12, -.4,.08, -.58,-.04, -.84,-.14, -.98,-.42, -.93,-.8, -.68,-1.16, -.32,-1.32], '#2f7a2a');
+    // scales: rows of small arcs, clipped to the head
+    g.save(); g.beginPath(); g.ellipse(0, -.62, .95, .72, 0, 0, 6.2832); g.clip();
+    g.strokeStyle = '#1c4f1e'; g.lineWidth = .028;
+    for(var r2 = 0; r2 < 9; r2++) for(var c = -7; c <= 7; c++){ g.beginPath(); g.arc(c * .15 + (r2 % 2) * .075, -1.3 + r2 * .14, .075, .2, 2.94); g.stroke(); }
+    g.restore();
+    // snout, pushed toward the viewer
+    blob([0,-.78, .3,-.7, .5,-.36, .46,-.02, .3,.1, 0,.14, -.3,.1, -.46,-.02, -.5,-.36, -.3,-.7], '#3f9432');
+    blob([0,-.7, .2,-.62, .3,-.36, .2,-.16, 0,-.12, -.2,-.16, -.3,-.36, -.2,-.62], '#58a83a');
+    ell(.2, -.1, .1, .055, -.5, '#0c200e'); ell(-.2, -.1, .1, .055, .5, '#0c200e');
+    ell(.22, -.12, .05, .025, -.5, '#000'); ell(-.22, -.12, .05, .025, .5, '#000');
+    // crest spikes
+    for(k = 0; k < 4; k++) poly([-.07,-1.2 + k * .16, .07,-1.2 + k * .16, 0,-1.5 + k * .17], k % 2 ? '#b9a26c' : '#efe2b4');
+    // brows
+    poly([.14,-.74, .5,-1.04, .92,-.98, .98,-.84, .56,-.84, .2,-.62], '#143a18', true);
+    poly([.2,-.78, .5,-1.0, .9,-.96, .54,-.9], '#3f9432', true);
+    g.restore();
+  }
+  function eyes(t, open, lid){
+    var up = -0.42 * open, gl = .75 + .25 * Math.sin(t * 9);
+    g.save(); g.translate(0, up);
+    for(var m = -1; m <= 1; m += 2){
+      g.save(); g.scale(m, 1);
+      var gr = g.createRadialGradient(.52, -.72, 0, .52, -.72, .5);
+      gr.addColorStop(0, 'rgba(255,120,20,' + .5 * gl * lid + ')'); gr.addColorStop(1, 'rgba(255,60,0,0)');
+      g.globalCompositeOperation = 'lighter'; ell(.52, -.72, .5, .5, 0, gr); g.globalCompositeOperation = 'source-over';
+      g.save(); g.translate(.52, -.72); g.rotate(-.32); g.scale(1, lid);
+      ell(0, 0, .25, .13, 0, '#3a0d04'); ell(0, 0, .22, .105, 0, '#ffb81c'); ell(0, 0, .15, .09, 0, '#ffe45c');
+      ell(0, 0, .035, .1, 0, '#120400');
+      g.restore(); g.restore();
+    }
+    g.restore();
+  }
+  function cave(t, z, glow){
+    var gr = g.createRadialGradient(W / 2, H * .62, 0, W / 2, H * .62, Math.max(W, H) * .8);
+    gr.addColorStop(0, 'rgb(' + Math.round(70 * glow) + ',' + Math.round(22 * glow) + ',8)'); gr.addColorStop(.5, 'rgb(' + Math.round(28 * glow) + ',8,6)'); gr.addColorStop(1, '#040203');
+    g.fillStyle = gr; g.fillRect(0, 0, W, H);
+    // rock teeth of the cave, top and bottom; they slide outward as the camera moves in
+    var u = Math.min(W, H);
+    for(var i = 0; i < 14; i++){
+      var x = (rnd(i) - .5) * 2.4, len = .12 + rnd(i + 40) * .3, wd = .05 + rnd(i + 80) * .08, topSide = i % 2;
+      var sx = W / 2 + x * u * z, by = topSide ? H / 2 - u * (.52 + rnd(i + 5) * .1) * z : H / 2 + u * (.52 + rnd(i + 5) * .1) * z, dir = topSide ? 1 : -1;
+      g.beginPath(); g.moveTo(sx - wd * u * z, by - dir * u); g.lineTo(sx - wd * u * z, by); g.lineTo(sx, by + dir * len * u * z); g.lineTo(sx + wd * u * z, by); g.lineTo(sx + wd * u * z, by - dir * u); g.closePath();
+      g.fillStyle = i % 3 ? '#0d0907' : '#1a110c'; g.fill();
+    }
+  }
+  function embers(t, glow){
+    for(var i = 0; i < 46; i++){
+      var sp = .12 + rnd(i) * .25, y = 1.1 - ((t * sp + rnd(i + 7)) % 1.2), x = rnd(i + 13) + Math.sin(t * 2 + i) * .02;
+      var a = glow * (0.4 + .6 * rnd(i + 3));
+      g.fillStyle = 'rgba(255,' + (120 + Math.round(rnd(i + 21) * 110)) + ',30,' + a + ')';
+      g.fillRect(Math.round(x * W), Math.round(y * H), 1, 1 + (i % 3 === 0));
+    }
+  }
+  function dither(){
+    var im = g.getImageData(0, 0, W, H), d = im.data, i = 0;
+    for(var y = 0; y < H; y++) for(var x = 0; x < W; x++, i += 4){
+      var b = (BAYER[(y & 3) * 4 + (x & 3)] + .5) / 16 - .5;
+      d[i] = Math.max(0, Math.min(5, Math.round(d[i] / 51 + b))) * 51;
+      d[i+1] = Math.max(0, Math.min(5, Math.round(d[i+1] / 51 + b))) * 51;
+      d[i+2] = Math.max(0, Math.min(5, Math.round(d[i+2] / 51 + b))) * 51;
+    }
+    g.putImageData(im, 0, 0);
+  }
+  function frame(t){
+    var u = Math.min(W * .46, H * .3);
+    var eyeLid = ease(seg(t, .15, .55));
+    var lunge = back(seg(t, .75, 1.65)), light = ease(seg(t, .7, 1.5));
+    var open = t < 1.75 ? 0 : back(seg(t, 1.75, 2.35));
+    var dive = seg(t, 2.45, 3.3), dz = dive * dive * dive;
+    var fire = ease(seg(t, 2.2, 3.1));
+    var s = u * (.2 + .8 * lunge) * (1 + .08 * ease(seg(t, 1.75, 2.4))) * (1 + dz * 16);
+    var shake = (t > 1.75 && t < 2.7) ? (1 - seg(t, 1.75, 2.7)) * 2.2 : 0;
+    var mid = (0.2 - .42 * open + .32 + .98 * open) / 2;
+    var bob = Math.sin(t * 3.1) * .02;
+    // camera: starts on the eyes, ends on the throat
+    var focus = -.5 + (open * .32) + (mid + .5 - open * .32) * ease(seg(t, 1.9, 2.75));
+    var cx = W / 2 + Math.round(Math.sin(t * 61) * shake), cy = H * .5 + Math.round(Math.cos(t * 53) * shake);
+    g.setTransform(1, 0, 0, 1, 0, 0); g.globalAlpha = 1;
+    cave(t, 1 + lunge * .25 + dz * 10, .25 + .75 * light);
+    g.setTransform(s, 0, 0, s, cx, cy - (focus + bob) * s);
+    dragon(t, open, light, fire);
+    if(light < 1){ g.setTransform(1, 0, 0, 1, 0, 0); g.fillStyle = 'rgba(4,2,3,' + (1 - light) * .97 + ')'; g.fillRect(0, 0, W, H); g.setTransform(s, 0, 0, s, cx, cy - (focus + bob) * s); }
+    eyes(t, open, eyeLid);
+    g.setTransform(1, 0, 0, 1, 0, 0);
+    embers(t, .3 + .7 * light);
+    var fl = seg(t, 2.95, 3.35);
+    if(fl > 0){
+      var gr = g.createRadialGradient(W / 2, H / 2, 0, W / 2, H / 2, Math.max(W, H) * (.2 + fl));
+      gr.addColorStop(0, 'rgba(255,250,210,' + fl + ')'); gr.addColorStop(.5, 'rgba(255,170,30,' + fl + ')'); gr.addColorStop(1, 'rgba(200,50,0,' + fl * fl + ')');
+      g.fillStyle = gr; g.fillRect(0, 0, W, H);
+    }
+    dither();
+  }
+  size();
+  var t0 = null, raf = 0, over = false;
+  function tick(now){
+    if(over) return;
+    if(t0 === null) t0 = now;
+    var t = (now - t0) / 1000;
+    frame(Math.min(t, DUR));
+    if(t >= 3.3){ finish(); return; }
+    raf = requestAnimationFrame(tick);
+  }
+  function finish(){ if(over) return; over = true; cancelAnimationFrame(raf); removeEventListener('resize', size); if(opts.done) opts.done(); }
+  addEventListener('resize', size);
+  if(opts.manual) return { frame: function(t){ size(); frame(t); } };
+  raf = requestAnimationFrame(tick);
+  return { skip: finish };
+}
+// Plays the dragon once per browser session. Any click, tap or key skips it. It does not play when the device asks for less motion.
+(function(){
+  var KEY = 'lootLedger.intro', el = document.getElementById('intro'), root = document.documentElement, run = null, timer = 0;
+  function seen(){ try{ return sessionStorage.getItem(KEY) === '1'; }catch(e){ return false; } }
+  function end(){
+    if(!run) return; run = null;
+    removeEventListener('keydown', onKey, true);
+    root.classList.remove('intro-on'); el.classList.add('out');
+    timer = setTimeout(function(){ el.hidden = true; el.classList.remove('out'); }, 520);
+    var m = document.getElementById('main'); if(m) try{ m.focus({preventScroll:true}); }catch(e){}
+  }
+  function onKey(e){ if(e.key === 'Tab' || e.ctrlKey || e.metaKey || e.altKey) return; e.preventDefault(); if(run) run.skip(); }
+  function play(){
+    if(run) return;
+    clearTimeout(timer); el.classList.remove('out'); el.hidden = false; root.classList.add('intro-on');
+    try{ sessionStorage.setItem(KEY, '1'); }catch(e){}
+    addEventListener('keydown', onKey, true);
+    run = lootIntro(el.querySelector('canvas'), {done: end});
+  }
+  el.addEventListener('click', function(){ if(run) run.skip(); });
+  window.lootIntroPlay = play;
+  var calm = window.matchMedia && matchMedia('(prefers-reduced-motion: reduce)').matches;
+  if(!seen() && !calm) play();
+  document.addEventListener('DOMContentLoaded', function(){ var b = document.getElementById('introAgain'); if(b) b.onclick = function(){ scrollTo(0, 0); play(); }; });
+})();
+</script>
 
 <a class="dw-skip" href="#main">Skip to content</a>
 <div class="wrap">
 <header class="dw-site">
   <a class="dw-me" href="/">Dawson Wilhelmi</a>
-  <nav aria-label="Site"><a href="/" class="on">Projects</a><a href="/about/">About</a></nav>
+  <nav aria-label="Site"><a href="/">Projects</a><a href="/about/">About</a></nav>
 </header>
 <main id="main" tabindex="-1">
 <header class="top">
   <div class="brand"><h1><span class="coin" aria-hidden="true"></span>Loot Ledger</h1><span class="who" id="who"></span></div>
   <nav class="tabs" aria-label="Sections">
-    <a href="#lookup">Lookup</a><a href="#sell">Sell</a><a href="#quests">Quests</a><a href="#prices">Prices</a><a href="#trophies">Trophies</a><a href="#wishlist">Wishlist</a><a href="#setup">Setup</a>
+    <a href="#lookup">Lookup</a><a href="#sell">Sell</a><a href="#hunts">Hunts</a><a href="#quests">Quests</a><a href="#prices">Prices</a><a href="#trophies">Trophies</a><a href="#wishlist">Wishlist</a><a href="#setup">Setup</a>
   </nav>
 </header>
 <div class="today" id="today"></div>
@@ -223,6 +614,12 @@ main:focus { outline: none; }
     </div>
   </div>
   <div id="sellOut"></div>
+</section>
+
+<!-- HUNTS -->
+<section class="book" id="v-hunts" hidden>
+  <div class="tiles" id="hTiles"></div>
+  <div id="hBody"></div>
 </section>
 
 <!-- PRICES -->
@@ -305,7 +702,7 @@ main:focus { outline: none; }
 </section>
 
 <datalist id="itemList"></datalist>
-<p class="foot">Fan-made. Data from TibiaWiki (CC BY-SA 3.0). Tibia © CipSoft GmbH.</p>
+<p class="foot">Fan-made. Data from TibiaWiki (CC BY-SA 3.0). Tibia © CipSoft GmbH. The dragon and the stone are drawn in code for this page.<br><button class="link" id="introAgain" type="button">Meet the dragon again</button></p>
 </main>
 </div>
 <div class="toast" id="toast" hidden role="status"></div>
@@ -341,7 +738,7 @@ function bestFreeNpc(o){ if(!o||!o.b) return null; for(const [ni,p] of o.b){ if(
 
 // ---------- store ----------
 const SKEY='lootLedger.v1';
-const blank = ()=>({settings:{char:'',world:'',fee:2,level:''},prices:[],trophies:[],wishes:[],quests:{},lastLoot:''});
+const blank = ()=>({settings:{char:'',world:'',fee:2,level:''},prices:[],trophies:[],wishes:[],quests:{},hunts:[],lastLoot:''});
 let S = blank(), firstRun=false;
 try{ const raw=localStorage.getItem(SKEY); if(raw){ S=Object.assign(blank(),JSON.parse(raw)); } else firstRun=true; }catch(e){ firstRun=true; }
 function save(){ try{ localStorage.setItem(SKEY, JSON.stringify(S)); }catch(e){ toast('Could not save in this browser. Use Setup → Backup.'); } }
@@ -452,6 +849,7 @@ function renderSell(){
   ${route.length?`<div class="panel"><h3>NPC route</h3><p class="muted small" style="margin:4px 0 10px">Items to sell to NPCs, grouped by who pays the most.</p><div class="route">${route.map(s=>`<div class="stop"><div class="hd"><b>${esc(s.n.npc)}</b><span class="num val tier${tier(s.sum)}">${gp(s.sum)}</span></div><div>${whereHtml(NPC.findIndex(r=>r[0]===s.n.npc))}${QUEST_NPC[s.n.npc]?` ${qTag(s.n.npc,1)}`:''}</div><div class="small" style="margin-top:4px">${s.items.map(x=>`${x.qty}× ${esc(x.o.n)}`).join(', ')}</div></div>`).join('')}</div></div>`:''}
   ${r.unknown.length?`<p class="muted small">Not recognised: ${r.unknown.map(([n,q])=>`${q}× ${esc(n)}`).join(', ')}.</p>`:''}`;
   box.querySelectorAll('[data-log]').forEach(b=>b.onclick=()=>{ location.hash='prices'; $('pItem').value=b.dataset.log; $('pBuy').focus(); });
+  drawHuntSave(box,{txt,isEx,plan:bestSum+r.cash,npc:npcSum+r.cash,cash:r.cash});
 }
 
 // ---------- prices ----------
@@ -648,6 +1046,71 @@ function renderQuests(){
   });
 }
 
+// ---------- hunts ----------
+// What the Hunt Analyser text says about the session itself. Every field is null when the text does not carry it.
+function huntMeta(text){
+  const num=m=>m?+m[1].replace(/[^\d]/g,''):null;
+  const t=text.replace(/\r\n?/g,'\n');
+  const s=t.match(/^\s*session:\s*(\d+):(\d{2})\s*h/im), d=t.match(/session data:\s*from\s*(\d{4}-\d{2}-\d{2})/i);
+  const kills=[]; const lines=t.split('\n'); const ki=lines.findIndex(l=>/^\s*killed monsters\s*:/i.test(l));
+  if(ki>=0){ for(let i=ki+1;i<lines.length;i++){ const m=lines[i].match(/^\s+(\d+)x\s+(.+)$/i); if(m) kills.push([m[2].trim(),+m[1]]); else if(lines[i].trim()) break; } }
+  return {mins:s?(+s[1])*60+(+s[2]):null, date:d?d[1]:null, xp:num(t.match(/^\s*xp gain:\s*([\d,.]+)/im)), supplies:num(t.match(/^\s*supplies:\s*([\d,.]+)/im)), kills};
+}
+const huntKey=t=>{ let h=0; for(let i=0;i<t.length;i++) h=(h*31+t.charCodeAt(i))|0; return t.length+':'+h; };
+const profitOf=h=>h.plan-(h.supplies||0);
+const perHour=(v,mins)=>mins>0?Math.round(v*60/mins):null;
+// Totals over a list of hunts. Per-hour figures divide total profit by total time, counting only hunts that have a time.
+function huntStats(list){
+  const timed=list.filter(h=>h.mins>0); const mins=timed.reduce((s,h)=>s+h.mins,0);
+  const best=list.reduce((b,h)=>!b||profitOf(h)>profitOf(b)?h:b,null);
+  return {n:list.length, profit:list.reduce((s,h)=>s+profitOf(h),0), mins, perHour:perHour(timed.reduce((s,h)=>s+profitOf(h),0),mins), xpHour:perHour(timed.reduce((s,h)=>s+(h.xp||0),0),mins), best};
+}
+const signed=(v,t)=>v<0?`<span class="val" style="color:var(--bad)">${gp(v)}</span>`:(t?`<span class="val tier${tier(v)}">${gp(v)}</span>`:gp(v));
+const hm=mins=>mins>0?(Math.floor(mins/60)+'h '+String(mins%60).padStart(2,'0')+'m'):'–';
+function drawHuntSave(box,v){
+  const tiles=box.querySelector('.tiles'); if(!tiles) return;
+  const m=huntMeta(v.txt), k=huntKey(v.txt), was=(S.hunts||[]).find(h=>h.key===k);
+  const places=[...new Set((S.hunts||[]).map(h=>h.place).filter(Boolean))];
+  const p=document.createElement('div'); p.className='panel hsave'; p.style.marginTop='10px';
+  p.innerHTML=was
+   ? `<div class="row" style="justify-content:space-between;align-items:center"><span><b>Saved to your hunt log</b> <span class="muted small">${esc(was.date)}${was.place?' · '+esc(was.place):''} · profit ${gp(profitOf(was))}</span></span><a href="#hunts">Open Hunts</a></div>`
+   : `<h3>Save this hunt</h3>
+    <form id="hForm" class="row" style="margin-top:8px">
+      <label class="grow">Where did you hunt?<input id="hPlace" list="hPlaces" autocomplete="off" placeholder="optional, e.g. Darashia dragons"></label>
+      <label class="w-s">Minutes<input id="hMins" inputmode="numeric" value="${m.mins??''}" placeholder="optional"></label>
+      <label class="w-s">Supplies used<input id="hSup" inputmode="decimal" value="${m.supplies??''}" placeholder="0"></label>
+      <button class="primary" type="submit">Save this hunt</button>
+    </form><datalist id="hPlaces">${places.map(x=>`<option value="${esc(x)}">`).join('')}</datalist>
+    <p class="muted small" style="margin:8px 0 0">${m.mins!=null?'Time and supplies are read from the Hunt Analyser text.':'This text has no session time. Type the minutes to get gold per hour.'} The hunt is saved at ${gp(v.plan)}, the value of following this plan today.</p>`;
+  tiles.after(p);
+  const f=p.querySelector('#hForm'); if(!f) return;
+  f.onsubmit=e=>{ e.preventDefault();
+    const mins=Math.round(+String($('hMins').value).replace(/[^\d.]/g,''))||0, sup=parseGp($('hSup').value)||0;
+    (S.hunts||(S.hunts=[])).push({id:uid(),key:k,date:m.date||today(),place:$('hPlace').value.trim(),mins,supplies:sup,plan:v.plan,npc:v.npc,cash:v.cash,xp:m.xp||0,kills:m.kills.slice().sort((a,b)=>b[1]-a[1]).slice(0,5),ex:v.isEx||undefined});
+    save(); toast('Hunt saved'); renderSell(); };
+}
+function renderHunts(){
+  const L=(S.hunts||[]).slice().sort((a,b)=>b.date.localeCompare(a.date)); const st=huntStats(L);
+  $('hTiles').innerHTML=`
+    <div class="tile"><div class="k">Hunts saved</div><div class="v num">${st.n}</div></div>
+    <div class="tile hl"><div class="k">Hoard so far</div><div class="v num">${gp(st.profit)}</div></div>
+    <div class="tile"><div class="k">Profit per hour</div><div class="v num">${st.perHour!=null?gp(st.perHour):'–'}</div></div>
+    <div class="tile"><div class="k">Best hunt</div><div class="v num">${st.best?gp(profitOf(st.best)):'–'}</div>${st.best&&st.best.place?`<div class="small muted">${esc(st.best.place)}</div>`:''}</div>`;
+  if(!L.length){ $('hBody').innerHTML=`<div class="empty">No hunts saved yet. Price your loot in the <a href="#sell">Sell</a> tab, then press Save this hunt.</div>`; return; }
+  const by=new Map(); L.forEach(h=>{ const k=h.place||'No place given'; if(!by.has(k)) by.set(k,[]); by.get(k).push(h); });
+  const places=[...by].map(([place,list])=>({place,st:huntStats(list)})).sort((a,b)=>(b.st.perHour??-1)-(a.st.perHour??-1)||b.st.profit-a.st.profit);
+  const top=Math.max(1,...places.map(p=>p.st.perHour||0));
+  $('hBody').innerHTML=`
+  <div class="panel"><h2>Where the gold is</h2><p class="muted small" style="margin:4px 0 10px">Your hunting places, best profit per hour first.</p>
+   <div class="scroll"><table><thead><tr><th>Place</th><th class="r">Hunts</th><th class="r">Time</th><th class="r">Profit</th><th class="r">Profit / hour</th><th class="r">XP / hour</th><th></th></tr></thead>
+   <tbody>${places.map(p=>`<tr><td>${esc(p.place)}</td><td class="r num">${p.st.n}</td><td class="r num">${hm(p.st.mins)}</td><td class="r num">${signed(p.st.profit)}</td><td class="r num">${p.st.perHour!=null?signed(p.st.perHour,1):'–'}</td><td class="r num">${p.st.xpHour?gp(p.st.xpHour):'–'}</td><td style="width:22%"><div class="hbar"><i style="width:${Math.max(0,Math.round(100*(p.st.perHour||0)/top))}%"></i></div></td></tr>`).join('')}</tbody></table></div></div>
+  <div class="panel"><h2>Every hunt</h2>
+   <div class="scroll" style="margin-top:8px"><table><thead><tr><th>Date</th><th>Place</th><th class="r">Time</th><th class="r">Loot</th><th class="r">Supplies</th><th class="r">Profit</th><th class="r">Profit / hour</th><th>Most killed</th><th></th></tr></thead>
+   <tbody>${L.map(h=>`<tr><td class="num">${esc(h.date)}${h.ex?' <span class="pill ex">example</span>':''}</td><td>${esc(h.place||'–')}</td><td class="r num">${hm(h.mins)}</td><td class="r num">${gp(h.plan)}</td><td class="r num">${gp(h.supplies||0)}</td><td class="r num">${signed(profitOf(h),1)}</td><td class="r num">${perHour(profitOf(h),h.mins)!=null?signed(perHour(profitOf(h),h.mins)):'–'}</td><td class="where">${(h.kills||[]).slice(0,2).map(([n,c])=>`${c}× ${esc(n)}`).join(', ')||'–'}</td><td class="r"><button class="ghost" data-hdel="${h.id}">Delete</button></td></tr>`).join('')}</tbody></table></div>
+   <p class="muted small" style="margin:10px 0 0">Loot is the value of the plan on the day you saved the hunt. Profit is loot minus supplies. Profit per hour is total profit divided by total time, over hunts that have a time.</p></div>`;
+  $('hBody').querySelectorAll('[data-hdel]').forEach(b=>b.onclick=()=>{ S.hunts=S.hunts.filter(h=>h.id!==b.dataset.hdel); save(); renderHunts(); toast('Hunt deleted'); });
+}
+
 // ---------- today strip ----------
 async function renderToday(){
   const parts=[`<span>Rashid is in <b>${esc(rashidToday())}</b> today</span>`];
@@ -731,7 +1194,7 @@ $('sForm').onsubmit=e=>{ e.preventDefault(); S.settings.char=$('sChar').value.tr
 $('bkMake').onclick=()=>{ $('bk').value=JSON.stringify(S); };
 $('bkCopy').onclick=()=>{ $('bk').value=JSON.stringify(S); navigator.clipboard.writeText($('bk').value).then(()=>toast('Backup copied'),()=>{ $('bk').select(); toast('Select all and copy the text'); }); };
 $('bkLoad').onclick=()=>{ try{ const j=JSON.parse($('bk').value); if(!j||!Array.isArray(j.prices)) throw 0; S=Object.assign(blank(),j); save(); syncForms(); route(); toast('Backup restored'); }catch(e){ toast('That text is not a Loot Ledger backup'); } };
-$('exClear').onclick=()=>{ S.prices=S.prices.filter(x=>!x.ex); S.trophies=S.trophies.filter(x=>!x.ex); S.wishes=S.wishes.filter(x=>!x.ex); if(S.lastLoot===EXAMPLE_LOOT){S.lastLoot='';$('lootIn').value='';} save(); route(); toast('Example entries removed'); };
+$('exClear').onclick=()=>{ S.prices=S.prices.filter(x=>!x.ex); S.trophies=S.trophies.filter(x=>!x.ex); S.wishes=S.wishes.filter(x=>!x.ex); S.hunts=(S.hunts||[]).filter(x=>!x.ex); if(S.lastLoot===EXAMPLE_LOOT){S.lastLoot='';$('lootIn').value='';} save(); route(); toast('Example entries removed'); };
 
 let lt; $('lq').addEventListener('input',()=>{ clearTimeout(lt); lt=setTimeout(renderHits,120); });
 $('lq').addEventListener('keydown',e=>{ if(e.key==='Enter'){ const b=$('lHits').querySelector('.hit'); if(b) b.click(); } });
@@ -743,16 +1206,123 @@ function openQuest(name){ $('qq').value=name; $('qShow').value='all'; $('qFit').
   if(location.hash!=='#quests') location.hash='quests'; else renderQuests();
   setTimeout(()=>{ const c=[...document.querySelectorAll('.qcard')].find(x=>x.dataset.q===name); if(c){ c.scrollIntoView({behavior:'smooth',block:'start'}); c.style.borderColor='var(--accent)'; } },60); }
 document.addEventListener('click',e=>{ const b=e.target.closest('[data-quest]'); if(b){ e.preventDefault(); openQuest(b.dataset.quest); } });
-const VIEWS=['lookup','sell','quests','prices','trophies','wishlist','setup'];
+const VIEWS=['lookup','sell','hunts','quests','prices','trophies','wishlist','setup'];
 function route(){ const v=VIEWS.includes(location.hash.slice(1))?location.hash.slice(1):'lookup';
   VIEWS.forEach(x=>$('v-'+x).hidden=x!==v); document.querySelectorAll('nav.tabs a').forEach(a=>a.toggleAttribute('aria-current',a.getAttribute('href')==='#'+v)); document.querySelectorAll('nav.tabs a[aria-current]').forEach(a=>a.setAttribute('aria-current','page'));
-  syncForms(); ({lookup:()=>{ if(!$('lq').value) $('lq').focus({preventScroll:true}); },quests:renderQuests,sell:renderSell,prices:renderPrices,trophies:renderTrophies,wishlist:renderWishes,setup:()=>{}})[v](); }
+  syncForms(); ({lookup:()=>{ if(!$('lq').value) $('lq').focus({preventScroll:true}); },quests:renderQuests,sell:renderSell,hunts:renderHunts,prices:renderPrices,trophies:renderTrophies,wishlist:renderWishes,setup:()=>{}})[v](); }
 window.addEventListener('hashchange',route);
 route(); renderToday(); renderWho();
-window.LootLedger={search,showItem,showNpc,renderQuests,parseLoot,parseGp,gp,advise,findItem,rashidToday,valueOf};
+window.LootLedger={huntMeta,huntStats,showItem,showNpc,renderQuests,parseLoot,parseGp,gp,advise,findItem,rashidToday,valueOf};
+})();
+</script>
+<script>
+// Extras for playing: a filter on long NPC lists, ticking off stops on the sell route, the time to server save,
+// recent lookups, and "/" to jump to the search. They only read what the page above has drawn and keep their own
+// small store; none of them touches a price or a total.
+(function(){
+  "use strict";
+  var KEY = 'lootLedger.extras.v1', X = {recent: [], sold: {}, soldFor: ''};
+  try{ var j = JSON.parse(localStorage.getItem(KEY) || 'null'); if(j && typeof j === 'object'){ X.recent = Array.isArray(j.recent) ? j.recent.slice(0, 8) : []; X.sold = j.sold || {}; X.soldFor = j.soldFor || ''; } }catch(e){}
+  function keep(){ try{ localStorage.setItem(KEY, JSON.stringify(X)); }catch(e){} }
+  function el(tag, cls, text){ var e = document.createElement(tag); if(cls) e.className = cls; if(text != null) e.textContent = text; return e; }
+  function $(id){ return document.getElementById(id); }
+  function watch(node, fn){ if(!node) return; new MutationObserver(fn).observe(node, {childList: true}); fn(); }
+
+  // ----- time to server save (10:00 in Berlin), when Rashid moves and the boosted creature changes -----
+  function untilSave(){
+    var p = {}; new Intl.DateTimeFormat('en-GB', {timeZone: 'Europe/Berlin', hour: '2-digit', minute: '2-digit', hourCycle: 'h23'}).formatToParts(new Date()).forEach(function(x){ p[x.type] = x.value; });
+    var m = (10 * 60 - (+p.hour * 60 + +p.minute) + 1440) % 1440; if(m === 0) m = 1440;
+    return m;
+  }
+  function saveText(){ var m = untilSave(), h = Math.floor(m / 60); return (h ? h + 'h ' : '') + (m % 60) + 'm'; }
+  function drawSave(){
+    var t = $('today'); if(!t || !t.querySelector('span')) return;
+    var s = $('saveIn');
+    if(!s){ s = el('span'); s.id = 'saveIn'; s.append('Server save in ', el('b')); t.appendChild(s); }
+    try{ s.querySelector('b').textContent = saveText(); }catch(e){ s.remove(); }
+  }
+  watch($('today'), function(){ if(!$('saveIn')) drawSave(); });
+  setInterval(drawSave, 30000);
+
+  // ----- recent lookups, under the search box -----
+  var lq = $('lq'), hits = $('lHits'), recentBox = el('div', 'recent'); recentBox.id = 'lRecent';
+  if(hits) hits.after(recentBox);
+  function drawRecent(){
+    recentBox.textContent = '';
+    if(!X.recent.length) return;
+    recentBox.append(el('span', 'muted small', 'Recent'));
+    X.recent.forEach(function(name){
+      var b = el('button', 'chip', name); b.type = 'button';
+      b.onclick = function(){
+        lq.value = name; lq.dispatchEvent(new Event('input', {bubbles: true}));
+        setTimeout(function(){
+          var all = hits.querySelectorAll('.hit'), want = name.toLowerCase(), pick = null;
+          all.forEach(function(h){ var s = h.querySelector('span:not(.sprite)'); if(!pick && s && s.textContent.trim().toLowerCase() === want) pick = h; });
+          (pick || all[0] || {click: function(){}}).click();
+        }, 200);
+      };
+      recentBox.append(b);
+    });
+  }
+  drawRecent();
+
+  // ----- filter on a long NPC list -----
+  watch($('lDetail'), function(){
+    var d = $('lDetail'), h = d.querySelector('.panel h2');
+    if(h){
+      var name = h.textContent.trim();
+      if(name && X.recent[0] !== name){ X.recent = [name].concat(X.recent.filter(function(n){ return n !== name; })).slice(0, 8); keep(); drawRecent(); }
+    }
+    d.querySelectorAll('.grid2 > div').forEach(function(col){
+      var rows = col.querySelectorAll('tbody tr');
+      if(rows.length < 13 || col.querySelector('.xfilter')) return;
+      var box = el('input', 'xfilter'); box.type = 'search'; box.placeholder = 'Filter these ' + rows.length + ' items'; box.autocomplete = 'off';
+      box.setAttribute('aria-label', 'Filter this list');
+      var none = el('p', 'muted small', 'Nothing in this list matches.'); none.hidden = true;
+      box.oninput = function(){
+        var q = box.value.trim().toLowerCase(), shown = 0;
+        rows.forEach(function(r){ var ok = !q || r.textContent.toLowerCase().indexOf(q) >= 0; r.hidden = !ok; if(ok) shown++; });
+        none.hidden = shown > 0;
+      };
+      col.querySelector('h3').after(box); col.append(none);
+    });
+  });
+
+  // ----- tick off stops on the sell route -----
+  function lootKey(){ var s = ($('lootIn') || {}).value || '', h = 0; for(var i = 0; i < s.length; i++) h = (h * 31 + s.charCodeAt(i)) | 0; return s.length + ':' + h; }
+  watch($('sellOut'), function(){
+    var out = $('sellOut'), stops = out.querySelectorAll('.route .stop');
+    if(!stops.length || out.querySelector('.xroute')) return;
+    var k = lootKey(); if(X.soldFor !== k){ X.soldFor = k; X.sold = {}; keep(); }
+    var bar = el('p', 'xroute small'), count = el('b'), reset = el('button', 'link', 'Start the route over'); reset.type = 'button';
+    bar.append(count, ' ', reset);
+    out.querySelector('.route').before(bar);
+    function tally(){
+      var n = 0; stops.forEach(function(s){ var on = !!X.sold[s.dataset.npc]; s.classList.toggle('sold', on); s.querySelector('.xsold input').checked = on; if(on) n++; });
+      count.textContent = n === stops.length ? 'All ' + n + ' stops done.' : n + ' of ' + stops.length + ' stops done.';
+      reset.hidden = n === 0;
+    }
+    stops.forEach(function(s){
+      s.dataset.npc = s.querySelector('.hd b').textContent;
+      var lab = el('label', 'check xsold'), cb = el('input'); cb.type = 'checkbox';
+      lab.append(cb, 'Sold here');
+      cb.onchange = function(){ if(cb.checked) X.sold[s.dataset.npc] = 1; else delete X.sold[s.dataset.npc]; keep(); tally(); };
+      s.append(lab);
+    });
+    reset.onclick = function(){ X.sold = {}; keep(); tally(); };
+    tally();
+  });
+
+  // ----- "/" jumps to the search from anywhere -----
+  addEventListener('keydown', function(e){
+    if(e.key !== '/' || e.ctrlKey || e.metaKey || e.altKey) return;
+    var t = e.target, tag = t && t.tagName; if(tag === 'INPUT' || tag === 'TEXTAREA' || tag === 'SELECT' || (t && t.isContentEditable)) return;
+    var intro = $('intro'); if(intro && !intro.hidden) return;
+    e.preventDefault(); if(location.hash !== '#lookup') location.hash = 'lookup';
+    setTimeout(function(){ lq.focus(); lq.select(); }, 0);
+  });
 })();
 </script>
 
-<script src="/theme.js" defer></script>
 </body>
 </html>
