@@ -4,7 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>M5 Forecasting · Dawson Wilhelmi</title>
-<meta name="description" content="A sales forecasting model for the M5 competition dataset, scored 0.55981 on Kaggle's private period. Better than rank 50 of 5,507 teams.">
+<meta name="description" content="A sales forecasting model for the M5 competition dataset, scored 0.55981 on Kaggle's private period, 27th of 5,582 teams on the final leaderboard.">
 <link rel="icon" href="/favicon.svg" type="image/svg+xml">
 <link rel="stylesheet" href="/fonts/fonts.css">
 <link rel="stylesheet" href="/theme.css">
@@ -68,11 +68,11 @@ tr.mine td { color: var(--paper, #eef2f8); background: linear-gradient(90deg, rg
   <main id="main" tabindex="-1">
     <section class="intro">
       <h1>Forecasting 30,490 Walmart products at once</h1>
-      <p>The M5 competition asked for 28 days of daily unit sales for every item in 10 Walmart stores. 5,507 teams entered in 2020. I worked through the same problem in 2026 under two rules: only the competition data, and only methods published before the competition ended. Then I submitted my forecasts to Kaggle to get the official score.</p>
-      <p>Kaggle scored the model 0.55981 on the hidden test period. That beats the team that finished 50th, so it would sit in the top 1% of the final standings. Late entries get no official rank.</p>
+      <p>The M5 competition asked for 28 days of daily unit sales for every item in 10 Walmart stores. 5,582 teams made its final leaderboard in 2020. I worked through the same problem in 2026 under two rules: only the competition data, and only methods published before the competition ended. Then I submitted my forecasts to Kaggle to get the official score.</p>
+      <p>Kaggle scored the model 0.55981 on the hidden test period. On the frozen final leaderboard that lands between 26th and 27th of 5,582 teams. Late entries get no official rank, so I say it would have placed 27th.</p>
       <div class="figures">
         <div class="fig"><div class="v">0.55981</div><div class="k">Official Kaggle score (WRMSSE, lower is better)</div></div>
-        <div class="fig"><div class="v">Top 1%</div><div class="k">Better than rank 50 of 5,507 teams</div></div>
+        <div class="fig"><div class="v">27th of 5,582</div><div class="k">Where the score lands on the final leaderboard</div></div>
         <div class="fig"><div class="v">4.5%</div><div class="k">Average miss on total daily sales, 28 days out</div></div>
       </div>
     </section>
@@ -94,14 +94,16 @@ tr.mine td { color: var(--paper, #eef2f8); background: linear-gradient(90deg, rg
 
     <section aria-labelledby="h-board">
       <h2 id="h-board">Where it lands</h2>
-      <p>Kaggle keeps scoring late entries on the same hidden period it used for the 2020 final standings, so these numbers are directly comparable. The top five come from the official results paper.</p>
+      <p>Kaggle keeps scoring late entries on the same hidden period it used for the 2020 final standings, so these numbers are directly comparable. The rows come from the final private leaderboard, downloaded 26 November 2026.</p>
       <table>
         <thead><tr><th>Final standing</th><th>Team</th><th class="r">Score</th></tr></thead>
         <tbody>
-          <tr><td>1st</td><td>YJ_STU</td><td class="r num">0.520</td></tr>
-          <tr><td>5th</td><td>Alan Lahoud</td><td class="r num">0.536</td></tr>
-          <tr class="mine"><td>·</td><td>This model, scored late in 2026</td><td class="r num">0.560</td></tr>
-          <tr><td>50th</td><td></td><td class="r num">0.576</td></tr>
+          <tr><td>1st</td><td>YJ_STU</td><td class="r num">0.52043</td></tr>
+          <tr><td>5th</td><td>Alan Lahoud</td><td class="r num">0.53604</td></tr>
+          <tr><td>26th</td><td>Genryu</td><td class="r num">0.55899</td></tr>
+          <tr class="mine"><td>27th</td><td>This model, scored late in 2026</td><td class="r num">0.55981</td></tr>
+          <tr><td>27th in 2020</td><td>Moscow Five</td><td class="r num">0.56047</td></tr>
+          <tr><td>50th</td><td>Random_prediction</td><td class="r num">0.57599</td></tr>
           <tr><td>Benchmark</td><td>Official exponential smoothing benchmark</td><td class="r num">0.671</td></tr>
         </tbody>
       </table>
@@ -122,7 +124,7 @@ tr.mine td { color: var(--paper, #eef2f8); background: linear-gradient(90deg, rg
 
     <section aria-labelledby="h-data">
       <h2 id="h-data">Data</h2>
-      <p>Walmart daily sales for 3,049 products in 10 stores across California, Texas and Wisconsin, 2011 to 2016, with prices, calendar events and SNAP days. Published for the M5 competition by the University of Nicosia's MOFC and hosted on <a href="https://www.kaggle.com/competitions/m5-forecasting-accuracy">Kaggle</a>. Top-five scores from Makridakis, Spiliotis &amp; Assimakopoulos (2022), International Journal of Forecasting.</p>
+      <p>Walmart daily sales for 3,049 products in 10 stores across California, Texas and Wisconsin, 2011 to 2016, with prices, calendar events and SNAP days. Published for the M5 competition by the University of Nicosia's MOFC and hosted on <a href="https://www.kaggle.com/competitions/m5-forecasting-accuracy">Kaggle</a>. Leaderboard scores from the competition's final private leaderboard; results analysed in Makridakis, Spiliotis &amp; Assimakopoulos (2022), International Journal of Forecasting.</p>
     </section>
   </main>
 
