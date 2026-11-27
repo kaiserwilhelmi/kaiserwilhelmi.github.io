@@ -1,0 +1,167 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>M5 Forecasting · Dawson Wilhelmi</title>
+<meta name="description" content="A sales forecasting model for the M5 competition dataset, scored 0.55981 on Kaggle's private period. Better than rank 50 of 5,507 teams.">
+<link rel="icon" href="/favicon.svg" type="image/svg+xml">
+<link rel="stylesheet" href="/fonts/fonts.css">
+<link rel="stylesheet" href="/theme.css">
+<style>
+/* Page on the site theme. Colors, fonts, the header, the skip link and the stars come from /theme.css and /theme.js.
+   Read them only through the theme names, with a fallback after the comma. */
+* { box-sizing: border-box; min-width: 0; }
+body { margin: 0; background: var(--ink, #080c15); color: var(--paper, #eef2f8); font: 16px/1.6 var(--f-body, "IBM Plex Sans", -apple-system, "Segoe UI", Arial, sans-serif); overflow-x: clip; }
+.wrap { max-width: 1080px; margin: 0 auto; padding: 0 max(16px, 4vw); }
+h1, h2, h3 { font-family: var(--f-head, "Space Grotesk", "IBM Plex Sans", -apple-system, "Segoe UI", Arial, sans-serif); font-weight: 600; letter-spacing: -0.015em; margin: 0; }
+.dw-site { margin-bottom: 0; }
+footer { margin-top: 56px; padding: 24px 0 48px; border-top: 1px solid var(--rule, #25324a); color: var(--faint, #7d89a1); font-size: 14px; display: flex; justify-content: space-between; flex-wrap: wrap; gap: 8px; }
+.num { font-family: var(--f-mono, "IBM Plex Mono", ui-monospace, Menlo, Consolas, monospace); font-variant-numeric: tabular-nums; }
+
+.intro { padding: 56px 0 8px; max-width: 46em; }
+.intro h1 { font-size: clamp(30px, 4.4vw, 44px); line-height: 1.12; margin-bottom: 14px; }
+.intro p { color: var(--pencil, #aab5c7); font-size: 18px; margin: 0 0 12px; }
+.intro a { color: var(--steel, #7cc7f2); }
+
+.figures { display: flex; flex-wrap: wrap; gap: 12px; margin: 20px 0 0; }
+.fig { background: var(--ink-2, #0e1422); border: 1px solid var(--rule, #25324a); border-radius: 10px; padding: 14px 18px; min-width: 150px; flex: 1 1 150px; }
+.fig .v { font-family: var(--f-mono, "IBM Plex Mono", ui-monospace, Menlo, Consolas, monospace); font-size: 26px; color: var(--paper, #eef2f8); }
+.fig .k { color: var(--faint, #7d89a1); font-size: 13.5px; margin-top: 2px; }
+
+section { margin-top: 48px; }
+section > h2 { font-size: clamp(22px, 2.8vw, 28px); margin-bottom: 10px; }
+section > p, section li { color: var(--pencil, #aab5c7); max-width: 46em; }
+section > p { margin: 0 0 12px; }
+section a { color: var(--steel, #7cc7f2); }
+
+.chartwrap { overflow-x: auto; -webkit-overflow-scrolling: touch; }
+#chart svg { min-width: 680px; }
+.chartbox { background: var(--ink-2, #0e1422); border: 1px solid var(--rule, #25324a); border-radius: 10px; padding: 16px 16px 10px; margin-top: 16px; }
+.chartbox h3 { font-size: 16px; }
+.chartbox .cap { color: var(--faint, #7d89a1); font-size: 13.5px; margin: 4px 0 8px; }
+#chart svg { display: block; width: 100%; height: auto; }
+.keys { display: flex; flex-wrap: wrap; gap: 14px; color: var(--pencil, #aab5c7); font-size: 13.5px; padding: 6px 0 4px; }
+.keys i { display: inline-block; width: 18px; height: 0; border-top: 3px solid; vertical-align: middle; margin-right: 6px; border-radius: 2px; }
+
+table { border-collapse: collapse; width: 100%; max-width: 640px; margin-top: 14px; font-size: 15px; }
+th, td { text-align: left; padding: 8px 12px 8px 0; border-bottom: 1px solid var(--rule, #25324a); color: var(--pencil, #aab5c7); }
+th { color: var(--faint, #7d89a1); font-weight: 500; font-size: 13.5px; }
+td.r, th.r { text-align: right; padding-right: 0; }
+tr.mine td { color: var(--paper, #eef2f8); background: linear-gradient(90deg, rgba(124,199,242,.08), transparent); }
+.steps { margin: 0; padding-left: 1.2em; }
+.steps li { margin-bottom: 10px; }
+.steps b { color: var(--paper, #eef2f8); font-weight: 600; }
+</style>
+</head>
+<body>
+<a class="dw-skip" href="#main">Skip to content</a>
+<div class="wrap">
+  <header class="dw-site">
+    <a class="dw-me" href="/">Dawson Wilhelmi</a>
+    <nav aria-label="Site"><a href="/">Projects</a><a href="/about/">About</a></nav>
+  </header>
+
+  <main id="main" tabindex="-1">
+    <section class="intro">
+      <h1>Forecasting 30,490 Walmart products at once</h1>
+      <p>The M5 competition asked for 28 days of daily unit sales for every item in 10 Walmart stores. 5,507 teams entered in 2020. I worked through the same problem in 2026 under two rules: only the competition data, and only methods published before the competition ended. Then I submitted my forecasts to Kaggle to get the official score.</p>
+      <p>Kaggle scored the model 0.55981 on the hidden test period. That beats the team that finished 50th, so it would sit in the top 1% of the final standings. Late entries get no official rank.</p>
+      <div class="figures">
+        <div class="fig"><div class="v">0.55981</div><div class="k">Official Kaggle score (WRMSSE, lower is better)</div></div>
+        <div class="fig"><div class="v">Top 1%</div><div class="k">Better than rank 50 of 5,507 teams</div></div>
+        <div class="fig"><div class="v">4.5%</div><div class="k">Average miss on total daily sales, 28 days out</div></div>
+      </div>
+    </section>
+
+    <section aria-labelledby="h-chart">
+      <h2 id="h-chart">The forecast against what really sold</h2>
+      <p>This is the test the model was graded on. It saw sales through 24 April 2016 and had to forecast the next 28 days. The score also counts 30,489 more series like this, down to single items, plus every total in between.</p>
+      <div class="chartbox">
+        <h3>Total daily unit sales, all 10 stores</h3>
+        <p class="cap">Eight weeks of history, then the 28 forecast days. Sales step up at month starts, when SNAP food benefits arrive.</p>
+        <div class="chartwrap"><div id="chart"></div></div>
+        <div class="keys">
+          <span><i style="border-color:var(--paper, #eef2f8)"></i>Actual sales</span>
+          <span><i style="border-color:var(--steel, #7cc7f2)"></i>My forecast</span>
+          <span><i style="border-color:var(--faint, #7d89a1); border-top-style:dashed"></i>Same weekday last year, the competition benchmark</span>
+        </div>
+      </div>
+    </section>
+
+    <section aria-labelledby="h-board">
+      <h2 id="h-board">Where it lands</h2>
+      <p>Kaggle keeps scoring late entries on the same hidden period it used for the 2020 final standings, so these numbers are directly comparable. The top five come from the official results paper.</p>
+      <table>
+        <thead><tr><th>Final standing</th><th>Team</th><th class="r">Score</th></tr></thead>
+        <tbody>
+          <tr><td>1st</td><td>YJ_STU</td><td class="r num">0.520</td></tr>
+          <tr><td>5th</td><td>Alan Lahoud</td><td class="r num">0.536</td></tr>
+          <tr class="mine"><td>·</td><td>This model, scored late in 2026</td><td class="r num">0.560</td></tr>
+          <tr><td>50th</td><td></td><td class="r num">0.576</td></tr>
+          <tr><td>Benchmark</td><td>Official exponential smoothing benchmark</td><td class="r num">0.671</td></tr>
+        </tbody>
+      </table>
+      <p class="cap" style="color:var(--faint, #7d89a1); font-size:13.5px; max-width:640px">The benchmark score is computed from the improvement percentages reported in the results paper, which did not print it directly.</p>
+    </section>
+
+    <section aria-labelledby="h-how">
+      <h2 id="h-how">How I built it</h2>
+      <ol class="steps">
+        <li><b>Set the test before touching models.</b> Four 28-day practice windows from the past, and a rule fixed in advance: a change stays only if it helps on average and wins at least 3 of the 4 windows. The real test period was scored once, at the end.</li>
+        <li><b>Beat the simple methods first.</b> Croston-style intermittent demand methods times each item's own weekday pattern scored 0.69. Every model after that had to earn its keep against 0.69, not against the easy 0.89 benchmark.</li>
+        <li><b>Gradient-boosted trees, one model per store and forecast week.</b> LightGBM with a Poisson loss, fed recent sales, calendar and events, SNAP days, prices and out-of-stock streaks. Forecasting each week ahead with its own model beat both one big model and day-by-day chaining.</li>
+        <li><b>Make the levels agree.</b> Item forecasts added up disagree with forecasts of store and department totals, so a second model forecasts the totals and the two are reconciled. That one step improved the score more than any feature.</li>
+        <li><b>Verify everything twice.</b> The scorer, the features and the final numbers each have an independent second implementation. My own holdout score matched Kaggle's public score to four decimal places: 0.5897 against 0.58972.</li>
+      </ol>
+      <p>The full write-up, with the validation design, every experiment and the references, is in the <a href="/m5-forecast/report.pdf">project report (PDF)</a>.</p>
+    </section>
+
+    <section aria-labelledby="h-data">
+      <h2 id="h-data">Data</h2>
+      <p>Walmart daily sales for 3,049 products in 10 stores across California, Texas and Wisconsin, 2011 to 2016, with prices, calendar events and SNAP days. Published for the M5 competition by the University of Nicosia's MOFC and hosted on <a href="https://www.kaggle.com/competitions/m5-forecasting-accuracy">Kaggle</a>. Top-five scores from Makridakis, Spiliotis &amp; Assimakopoulos (2022), International Journal of Forecasting.</p>
+    </section>
+  </main>
+
+  <footer>
+    <span>© 2026 Dawson Wilhelmi</span>
+    <span>Hosted on GitHub Pages</span>
+  </footer>
+</div>
+<script>
+(function () {
+  fetch('/m5-forecast/data.json').then(function (r) { return r.json(); }).then(function (d) {
+    var W = 920, H = 360, L = 58, R = 12, T = 18, B = 40;
+    var n = d.actual.length, f0 = n - d.forecast.length;
+    var hi = Math.max.apply(null, d.actual.concat(d.forecast, d.snaive));
+    var lo = Math.min.apply(null, d.actual.concat(d.forecast, d.snaive));
+    hi = Math.ceil(hi / 10000) * 10000; lo = Math.floor(lo / 10000) * 10000;
+    var x = function (i) { return L + i / (n - 1) * (W - L - R); };
+    var y = function (v) { return T + (hi - v) / (hi - lo) * (H - T - B); };
+    var line = function (vals, start) {
+      return vals.map(function (v, i) { return (i ? 'L' : 'M') + x(start + i).toFixed(1) + ' ' + y(v).toFixed(1); }).join('');
+    };
+    var s = '<svg viewBox="0 0 ' + W + ' ' + H + '" role="img" aria-label="Total daily sales: actual, my forecast and the benchmark over twelve weeks">';
+    var g;
+    for (g = lo; g <= hi; g += 10000) {
+      s += '<line x1="' + L + '" x2="' + (W - R) + '" y1="' + y(g) + '" y2="' + y(g) + '" stroke="var(--rule, #25324a)" stroke-width="1"/>';
+      s += '<text x="' + (L - 8) + '" y="' + (y(g) + 4) + '" text-anchor="end" font-size="12" fill="var(--faint, #7d89a1)" font-family="var(--f-mono)">' + (g / 1000) + 'k</text>';
+    }
+    s += '<rect x="' + x(f0) + '" y="' + T + '" width="' + (x(n - 1) - x(f0)) + '" height="' + (H - T - B) + '" fill="rgba(124,199,242,.05)"/>';
+    s += '<text x="' + (x(f0) + 8) + '" y="' + (T + 16) + '" font-size="12.5" fill="var(--faint, #7d89a1)">28 days the model never saw</text>';
+    var k;
+    for (k = 0; k < n; k += 14) {
+      var dt = new Date(d.dates[k] + 'T12:00:00');
+      s += '<text x="' + x(k) + '" y="' + (H - 14) + '" text-anchor="middle" font-size="12" fill="var(--faint, #7d89a1)">' + dt.toLocaleDateString('en-US', { month: 'short', day: 'numeric' }) + '</text>';
+    }
+    s += '<path d="' + line(d.snaive, f0) + '" fill="none" stroke="var(--faint, #7d89a1)" stroke-width="1.6" stroke-dasharray="5 4" opacity=".9"/>';
+    s += '<path d="' + line(d.actual, 0) + '" fill="none" stroke="var(--paper, #eef2f8)" stroke-width="1.8"/>';
+    s += '<path d="' + line(d.forecast, f0) + '" fill="none" stroke="var(--steel, #7cc7f2)" stroke-width="2.4"/>';
+    s += '</svg>';
+    document.getElementById('chart').innerHTML = s;
+  });
+})();
+</script>
+<script src="/theme.js" defer></script>
+</body>
+</html>
