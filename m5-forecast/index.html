@@ -35,7 +35,10 @@ section > p, section li { color: var(--pencil, #aab5c7); max-width: 46em; }
 section > p { margin: 0 0 12px; }
 section a { color: var(--steel, #7cc7f2); }
 
-.chartwrap { overflow-x: auto; -webkit-overflow-scrolling: touch; }
+.chartwrap { overflow-x: auto; -webkit-overflow-scrolling: touch; position: relative; }
+.tip { position: absolute; z-index: 5; pointer-events: none; background: #050810; border: 1px solid var(--rule, #25324a); border-radius: 6px; padding: 8px 10px; font-size: 13px; line-height: 1.45; color: var(--pencil, #aab5c7); box-shadow: 0 6px 20px rgba(0,0,0,.35); white-space: nowrap; }
+.tip b { color: var(--paper, #eef2f8); font-weight: 600; display: block; }
+.tip .num { font-family: var(--f-mono, 'IBM Plex Mono', ui-monospace, Menlo, Consolas, monospace); color: var(--paper, #eef2f8); }
 #chart svg { min-width: 680px; }
 .chartbox { background: var(--ink-2, #0e1422); border: 1px solid var(--rule, #25324a); border-radius: 10px; padding: 16px 16px 10px; margin-top: 16px; }
 .chartbox h3 { font-size: 16px; }
@@ -157,8 +160,36 @@ tr.mine td { color: var(--paper, #eef2f8); background: linear-gradient(90deg, rg
     s += '<path d="' + line(d.snaive, f0) + '" fill="none" stroke="var(--faint, #7d89a1)" stroke-width="1.6" stroke-dasharray="5 4" opacity=".9"/>';
     s += '<path d="' + line(d.actual, 0) + '" fill="none" stroke="var(--paper, #eef2f8)" stroke-width="1.8"/>';
     s += '<path d="' + line(d.forecast, f0) + '" fill="none" stroke="var(--steel, #7cc7f2)" stroke-width="2.4"/>';
+    s += '<g class="ch" style="display:none"><line y1="' + T + '" y2="' + (H - B) + '" stroke="var(--faint, #7d89a1)"/><circle r="4.5" fill="var(--paper, #eef2f8)" stroke="var(--ink-2, #0e1422)" stroke-width="2"/><circle r="4.5" fill="var(--steel, #7cc7f2)" stroke="var(--ink-2, #0e1422)" stroke-width="2"/></g>';
+    s += '<rect x="' + L + '" y="' + T + '" width="' + (W - L - R) + '" height="' + (H - T - B) + '" fill="transparent"/>';
     s += '</svg>';
-    document.getElementById('chart').innerHTML = s;
+    var el = document.getElementById('chart');
+    el.innerHTML = s;
+    var wrap = el.parentElement, svg = el.firstChild;
+    var tip = document.createElement('div'); tip.className = 'tip'; tip.hidden = true; wrap.appendChild(tip);
+    var ch = svg.querySelector('.ch'), dots = ch.querySelectorAll('circle');
+    var fm = function (v) { return Math.round(v).toLocaleString('en-US'); };
+    var move = function (e) {
+      var r = svg.getBoundingClientRect(), px = (e.clientX - r.left) * W / r.width;
+      var i = Math.max(0, Math.min(n - 1, Math.round((px - L) / (W - L - R) * (n - 1))));
+      var inF = i >= f0;
+      ch.style.display = '';
+      ch.firstChild.setAttribute('x1', x(i)); ch.firstChild.setAttribute('x2', x(i));
+      dots[0].setAttribute('cx', x(i)); dots[0].setAttribute('cy', y(d.actual[i]));
+      if (inF) { dots[1].style.display = ''; dots[1].setAttribute('cx', x(i)); dots[1].setAttribute('cy', y(d.forecast[i - f0])); }
+      else dots[1].style.display = 'none';
+      var dt = new Date(d.dates[i] + 'T12:00:00');
+      var html = '<b>' + dt.toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric', year: 'numeric' }) + (inF ? ' · test day ' + (i - f0 + 1) + ' of 28' : '') + '</b>';
+      html += 'Sold <span class="num">' + fm(d.actual[i]) + '</span>';
+      if (inF) html += '<br>My forecast <span class="num">' + fm(d.forecast[i - f0]) + '</span><br>Benchmark <span class="num">' + fm(d.snaive[i - f0]) + '</span>';
+      tip.hidden = false; tip.innerHTML = html;
+      var wr = wrap.getBoundingClientRect();
+      var sx = r.left - wr.left + wrap.scrollLeft + x(i) * r.width / W;
+      var left = x(i) * r.width / W > r.width / 2 ? sx - tip.offsetWidth - 12 : sx + 12;
+      tip.style.left = Math.max(0, left) + 'px'; tip.style.top = '10px';
+    };
+    svg.addEventListener('pointermove', move); svg.addEventListener('pointerdown', move);
+    svg.addEventListener('pointerleave', function () { ch.style.display = 'none'; tip.hidden = true; });
   });
 })();
 </script>
