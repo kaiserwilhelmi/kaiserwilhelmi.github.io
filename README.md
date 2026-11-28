@@ -17,6 +17,7 @@ Every page on the site uses one shared look, set in two files at the root of thi
 - Each page loads `/fonts/fonts.css`, then `/theme.css` before its own styles, and `/theme.js` at the end.
 - Each page uses the shared header markup (`<header class="dw-site">`) and skip link (`class="dw-skip"`).
 - A page takes every color and font from a theme token with a fallback, for example `--bg: var(--ink, #080c15);`.
+- `theme.js` also plays a small effect on some pages as they open (the meteor and cost map on Projects, the coordinates on About, the satellite on the 404 page, the Market Watch cards and sparklines, the M5 rank). Each one picks its page by address or by an element only that page has, is skipped for visitors who ask for reduced motion, and leaves every word and number as the page wrote it. Their styles sit at the end of `theme.css`.
 - To change the look of the whole site, edit `theme.css` only. `404.html` is the smallest page on the theme; start a new page from it.
 - `tools/check_theme.py` checks every page against these rules and runs on each pull request (`.github/workflows/theme-check.yml`).
 
