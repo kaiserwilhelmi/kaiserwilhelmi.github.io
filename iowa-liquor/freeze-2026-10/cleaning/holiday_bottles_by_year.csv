@@ -1,0 +1,132 @@
+year,holiday,day,bottles,ratio_to_month_median_day,carries_orders
+2012,New Year's Day,2012-01-02,0.0,0.0,False
+2012,Martin Luther King Jr. Day,2012-01-16,78116.0,1.006,True
+2012,Memorial Day,2012-05-28,0.0,0.0,False
+2012,Independence Day,2012-07-04,0.0,0.0,False
+2012,Labor Day,2012-09-03,0.0,0.0,False
+2012,Veterans Day,2012-11-12,92356.25,1.077,True
+2012,Thanksgiving,2012-11-22,0.0,0.0,False
+2012,Day after Thanksgiving,2012-11-23,0.0,0.0,False
+2012,Christmas,2012-12-25,0.0,0.0,False
+2013,New Year's Day,2013-01-01,0.0,0.0,False
+2013,Martin Luther King Jr. Day,2013-01-21,81043.0,0.989,True
+2013,Memorial Day,2013-05-27,0.0,0.0,False
+2013,Independence Day,2013-07-04,93471.0,0.985,True
+2013,Labor Day,2013-09-02,0.0,0.0,False
+2013,Veterans Day,2013-11-11,100362.0,1.214,True
+2013,Thanksgiving,2013-11-28,0.0,0.0,False
+2013,Day after Thanksgiving,2013-11-29,0.0,0.0,False
+2013,Christmas,2013-12-25,0.0,0.0,False
+2014,New Year's Day,2014-01-01,0.0,0.0,False
+2014,Martin Luther King Jr. Day,2014-01-20,101723.0,1.21,True
+2014,Memorial Day,2014-05-26,0.0,0.0,False
+2014,Independence Day,2014-07-04,0.0,0.0,False
+2014,Labor Day,2014-09-01,0.0,0.0,False
+2014,Veterans Day,2014-11-11,0.0,0.0,False
+2014,Thanksgiving,2014-11-27,0.0,0.0,False
+2014,Day after Thanksgiving,2014-11-28,0.0,0.0,False
+2014,Christmas,2014-12-25,0.0,0.0,False
+2015,New Year's Day,2015-01-01,0.0,0.0,False
+2015,Martin Luther King Jr. Day,2015-01-19,0.0,0.0,False
+2015,Memorial Day,2015-05-25,0.0,0.0,False
+2015,Independence Day,2015-07-03,0.0,0.0,False
+2015,Labor Day,2015-09-07,0.0,0.0,False
+2015,Veterans Day,2015-11-11,105778.28333333334,1.091,True
+2015,Thanksgiving,2015-11-26,0.0,0.0,False
+2015,Day after Thanksgiving,2015-11-27,0.0,0.0,False
+2015,Christmas,2015-12-25,0.0,0.0,False
+2016,New Year's Day,2016-01-01,0.0,0.0,False
+2016,Martin Luther King Jr. Day,2016-01-18,0.0,0.0,False
+2016,Memorial Day,2016-05-30,0.0,0.0,False
+2016,Independence Day,2016-07-04,0.0,0.0,False
+2016,Labor Day,2016-09-05,0.0,0.0,False
+2016,Veterans Day,2016-11-11,53354.96666666667,0.525,True
+2016,Thanksgiving,2016-11-24,0.0,0.0,False
+2016,Day after Thanksgiving,2016-11-25,0.0,0.0,False
+2016,Christmas,2016-12-26,119716.93333333335,1.062,True
+2017,New Year's Day,2017-01-02,0.0,0.0,False
+2017,Martin Luther King Jr. Day,2017-01-16,48363.0,0.619,True
+2017,Memorial Day,2017-05-29,6.0,0.0,False
+2017,Independence Day,2017-07-04,93492.00000000001,0.941,True
+2017,Labor Day,2017-09-04,12.0,0.0,False
+2017,Veterans Day,2017-11-10,51887.049999999996,0.485,True
+2017,Thanksgiving,2017-11-23,0.0,0.0,False
+2017,Day after Thanksgiving,2017-11-24,0.0,0.0,False
+2017,Christmas,2017-12-25,0.0,0.0,False
+2018,New Year's Day,2018-01-01,0.0,0.0,False
+2018,Martin Luther King Jr. Day,2018-01-15,97720.4666666667,1.098,True
+2018,Memorial Day,2018-05-28,0.0,0.0,False
+2018,Independence Day,2018-07-04,0.0,0.0,False
+2018,Labor Day,2018-09-03,0.0,0.0,False
+2018,Veterans Day,2018-11-12,126277.44999999998,1.025,True
+2018,Thanksgiving,2018-11-22,0.0,0.0,False
+2018,Day after Thanksgiving,2018-11-23,0.0,0.0,False
+2018,Christmas,2018-12-25,0.0,0.0,False
+2019,New Year's Day,2019-01-01,0.0,0.0,False
+2019,Martin Luther King Jr. Day,2019-01-21,0.0,0.0,False
+2019,Memorial Day,2019-05-27,0.0,0.0,False
+2019,Independence Day,2019-07-04,6658.0,0.063,False
+2019,Labor Day,2019-09-02,0.0,0.0,False
+2019,Veterans Day,2019-11-11,108400.93333333335,1.002,True
+2019,Thanksgiving,2019-11-28,0.0,0.0,False
+2019,Day after Thanksgiving,2019-11-29,99678.93333333332,0.922,True
+2019,Christmas,2019-12-25,0.0,0.0,False
+2020,New Year's Day,2020-01-01,0.0,0.0,False
+2020,Martin Luther King Jr. Day,2020-01-20,94167.18333333332,1.019,True
+2020,Memorial Day,2020-05-25,0.0,0.0,False
+2020,Independence Day,2020-07-03,123650.18333333329,1.075,True
+2020,Labor Day,2020-09-07,0.0,0.0,False
+2020,Veterans Day,2020-11-11,103065.6166666667,0.862,True
+2020,Thanksgiving,2020-11-26,0.0,0.0,False
+2020,Day after Thanksgiving,2020-11-27,145374.30000000002,1.215,True
+2020,Christmas,2020-12-25,0.0,0.0,False
+2021,New Year's Day,2021-01-01,0.0,0.0,False
+2021,Martin Luther King Jr. Day,2021-01-18,120252.03333333331,1.095,True
+2021,Memorial Day,2021-05-31,993.0,0.009,False
+2021,Independence Day,2021-07-05,122519.88333333335,1.162,True
+2021,Labor Day,2021-09-06,1188.8333333333333,0.01,False
+2021,Veterans Day,2021-11-11,105303.69999999995,0.946,True
+2021,Thanksgiving,2021-11-25,74.0,0.001,False
+2021,Day after Thanksgiving,2021-11-26,148371.44999999998,1.333,True
+2021,Christmas,2021-12-24,130687.50000000001,1.031,True
+2021,New Year's Day,2021-12-31,101496.81666666662,0.801,True
+2022,Martin Luther King Jr. Day,2022-01-17,88854.45,0.94,True
+2022,Memorial Day,2022-05-30,340.0,0.003,False
+2022,Independence Day,2022-07-04,1833.0,0.016,False
+2022,Labor Day,2022-09-05,63.0,0.001,False
+2022,Veterans Day,2022-11-11,128098.81666666671,1.098,True
+2022,Thanksgiving,2022-11-24,8536.75,0.073,False
+2022,Day after Thanksgiving,2022-11-25,158195.19999999998,1.356,True
+2022,Christmas,2022-12-26,86980.11666666664,0.671,True
+2023,New Year's Day,2023-01-02,2845.1,0.027,False
+2023,Martin Luther King Jr. Day,2023-01-16,119030.1333333333,1.141,True
+2023,Memorial Day,2023-05-29,1371.0,0.011,False
+2023,Independence Day,2023-07-04,29.0,0.0,False
+2023,Labor Day,2023-09-04,1007.0,0.008,False
+2023,Veterans Day,2023-11-10,48220.0,0.466,True
+2023,Thanksgiving,2023-11-23,8257.0,0.08,False
+2023,Day after Thanksgiving,2023-11-24,115913.0,1.12,True
+2023,Christmas,2023-12-25,0.0,0.0,False
+2024,New Year's Day,2024-01-01,457.0,0.005,False
+2024,Martin Luther King Jr. Day,2024-01-15,110001.0,1.091,True
+2024,Memorial Day,2024-05-27,65523.0,0.566,True
+2024,Independence Day,2024-07-04,75638.0,0.763,True
+2024,Labor Day,2024-09-02,31405.0,0.286,True
+2024,Veterans Day,2024-11-11,126867.0,1.063,True
+2024,Thanksgiving,2024-11-28,0.0,0.0,False
+2024,Day after Thanksgiving,2024-11-29,147065.0,1.233,True
+2024,Christmas,2024-12-25,0.0,0.0,False
+2025,New Year's Day,2025-01-01,857.0,0.009,False
+2025,Martin Luther King Jr. Day,2025-01-20,83766.0,0.892,True
+2025,Memorial Day,2025-05-26,2266.0,0.019,False
+2025,Independence Day,2025-07-04,0.0,0.0,False
+2025,Labor Day,2025-09-01,755.0,0.007,False
+2025,Veterans Day,2025-11-11,119110.5,1.037,True
+2025,Thanksgiving,2025-11-27,278.0,0.002,False
+2025,Day after Thanksgiving,2025-11-28,156390.125,1.361,True
+2025,Christmas,2025-12-25,362.0,0.003,False
+2026,New Year's Day,2026-01-01,96.0,0.001,False
+2026,Martin Luther King Jr. Day,2026-01-19,92272.0,0.953,True
+2026,Memorial Day,2026-05-25,0.0,0.0,False
+2026,Independence Day,2026-07-03,117441.0,1.064,True
+2026,Labor Day,2026-09-07,2060.0,0.018,False

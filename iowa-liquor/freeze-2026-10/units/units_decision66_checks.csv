@@ -1,0 +1,8 @@
+series_id,brand,lpu,sibling,sibling_month,price_per_l_vs_sibling,relabel_month,relabel_bottles_ratio,relabel_price_ratio,price_ok,relabel_ok,proven
+81124,99 Brand,6.0,84143,2026-10,1.0,2019-08,1.0598331346841479,1.0,True,True,True
+84143,99 Brand,6.0,81124,2026-10,1.0,2019-08,1.0996932515337423,1.0,True,True,True
+84152,99 Brand,6.0,81124,2026-10,1.0,2019-08,1.1331893448524117,1.0,True,False,False
+84172,99 Brand,7.2,81124,2026-10,0.8333333333333334,2019-08,1.0272422464375524,1.0,False,True,False
+84197,99 Brand,6.0,81124,2026-10,1.0,2020-02,0.9310718152291592,1.0,True,True,True
+84207,99 Brand,6.0,81124,2026-10,1.0,2019-08,1.1004464285714286,1.0,True,False,False
+984168,99 Brand,5.0,81124,2026-02,1.3333333333333333,2020-08,2.0,1.0,False,False,False

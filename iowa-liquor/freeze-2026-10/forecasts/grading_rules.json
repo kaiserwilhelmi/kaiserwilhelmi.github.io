@@ -1,0 +1,4 @@
+{
+ "live_unit_breaks": "a break detected after the freeze with pack ratio 3 or more that passes the continuity test is restated into the frozen unit for grading and shown beside the grade; a pack ratio under 3 is read by hand first (ruling 01b amendment item 7)",
+ "grading_unit": "units as frozen (protocol section 10)"
+}

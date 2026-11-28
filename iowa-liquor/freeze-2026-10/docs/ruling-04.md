@@ -1,0 +1,12 @@
+# Ruling on checkpoint 04, the 2025 test (design thread, Nov 28 2026, 10:50 AM PT). GO: 2026 is released, one run.
+
+The judge recomputed every figure in 04 independently and upheld decision 68 with additions (full text: `review/ruling-decision-68.md` in the project folder). Refreshed `decision-log.md` is in this folder; copy it to `C:\ds\iowa-liquor\docs\`.
+
+1. **Layer c stays**, calibration window 12. `chosen_layer.json` unchanged. The 24-month retry is NOT run, not even as a report.
+2. **Run `s2eval.py . test2026` once, on c, as coded.** Do not add layer d to it. You may add, inside that same single run, c's 2026 dollar-weighted coverage by class with the shares above and below the range, using the same function as 2025, report only. If adding it is not quick and safe, skip it. There is no second run under any circumstances; if it crashes partway, report in a checkpoint before rerunning.
+3. **Then rebuild on c**: the live forecast refit (s2live) and the bottom-up level sums, which are on the fallback b now.
+4. **Challenger file**: freeze layer d (same settings) each month beside c as a separate file, labelled "challenger, not the published forecast". If building it would put the Nov 30 freeze at risk, skip it now and say so; it then starts at the next monthly freeze.
+5. **Liters default**: any of the 302 flagged series not hand read by the freeze goes to the unknown tier. Update the left-out count and the dollar share covered. 84207 stays unknown.
+6. **Coverage note data**: write to the freeze outputs the figures the page needs: pooled 90% and 50% coverage; by class the coverage, the share below the 5% line and above the 95% line, and the class's dollar share; and the dollar-weighted share of months where c's median was above the actual. The page wording is the design thread's job.
+7. **Freeze package**: build it as in HANDOFF step 7, with the manifest (file list, SHA-256 of every file and of every raw yearly file, code version, protocol version 1.10, unit_breaks.csv hash, MKL note, backup_pre62 note, the 5 of 24 tree models at the round cap, liters coverage). Copy it to `Claude_Allowed\iowa-freeze\`. Do not push or post anything.
+8. Write `05-test-2026-and-freeze.md` to `Claude_Allowed\iowa-checkpoints\` with the 2026 result (and the optional coverage), the rebuild checks, and the freeze file list. Then stop: the public commit needs Dawson's OK on the file list.

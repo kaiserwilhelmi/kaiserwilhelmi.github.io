@@ -1,0 +1,6 @@
+# Ruling: resume after a shutdown (design thread, Nov 28 2026, 12:05 AM PT). Dawson asked what happens if the PC turns off overnight.
+
+1. **Tuning must be resumable.** Write each finished trial (trial number, settings, the three-quantile score by year and horizon, chosen rounds, run time) to a results file on disk as soon as it finishes, and flush it. On start, read that file and skip trials already done. Trial settings come from the fixed seed by trial number, so a resumed run is identical to an uninterrupted one. No new package for this (no Optuna): a CSV or Parquet append is enough.
+2. **Same for the baseline and the statistical members**: one file per origin, written when that origin finishes; on start, skip origins whose file exists and reads cleanly. Delete and redo a file that is unreadable.
+3. If tuning is already running without this, do not kill it just to add it, unless fewer than about 5 trials have finished. Add it for anything started from now on, and say in `03-tuning.md` which trials ran before and after a restart, if any.
+4. After any restart: re-read HANDOFF.md and every ruling file in this folder, check `logs\progress.log` for the last finished step, and continue from there. Never recompute or reread a 2025 or 2026 score because of a restart.

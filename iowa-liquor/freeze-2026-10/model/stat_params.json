@@ -1,0 +1,27 @@
+{
+ "params": {
+  "intermittent": {
+   "adida": 2,
+   "sba": [
+    0.3,
+    0.3
+   ],
+   "tsb": [
+    0.3,
+    0.3
+   ]
+  },
+  "lumpy": {
+   "adida": 3,
+   "sba": [
+    0.3,
+    0.3
+   ],
+   "tsb": [
+    0.3,
+    0.1
+   ]
+  }
+ },
+ "note": "section 6a, 2023-24 targets only; stop rule 1% and both years"
+}

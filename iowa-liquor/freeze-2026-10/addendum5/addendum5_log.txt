@@ -1,0 +1,109 @@
+1) units table evidence:
+item_no  pack_factor recorded_sizes size_change_month pre_change_month  liters_per_bottle_pre_change  usd_per_bottle_t12  price_ratio_vs_comparator
+  38449           12            100               NaN              NaN                           NaN              51.203                     27.541
+  84155            9             50               NaN              NaN                           NaN              81.000                      9.000
+  15621           12         50/600        2019-08-01       2019-07-01                           0.6              19.800                      5.706
+  84172           12         50/600        2019-08-01       2019-07-01                           0.6              81.000                     16.364
+
+2a) items with several sizes: 321; whole-multiple changes >=2x: 293; smooth (bottles 0.5-2x, price 0.67-1.5x): 205, of which already in units table: 2
+item_no                                                     d      month  ml_from  ml_to  bottles_ratio  price_ratio  known
+ 100017             HORNITOS REPOSADO W/ HORNITOS PLATA 200ML 2016-09-01   3900.0 1950.0           1.11         1.07  False
+ 100220              TWISTED SHOTZ TRADITIONAL PARTY PACK 3.0 2025-09-01   2250.0   25.0           0.78         1.00  False
+ 100440 SKYY VODKA 1.75L WITH INFUSION WATERMELON 50ML LUG-ON 2020-05-01    175.0 1750.0           1.64         1.00  False
+ 100531             CRYSTAL HEAD VODKA MINI PATRIOTIC PACKAGE 2019-06-01     50.0  150.0           0.66         1.00  False
+ 100745                                OLD FORESTER TWIN PACK 2019-11-01    750.0 1500.0           1.64         1.00  False
+ 102400                          TWISTED SHOTZ RED PARTY PACK 2025-09-01    375.0   25.0           1.13         1.00  False
+  10803                          CROWN ROYAL REGAL APPLE MINI 2019-08-01    300.0   50.0           0.95         1.00  False
+  11290                                      CROWN ROYAL MINI 2019-08-01    300.0   50.0           0.83         1.00  False
+  11771                                     BLACK VELVET MINI 2019-08-01    600.0   50.0           0.95         1.00  False
+   1258                              GLENMORANGIE TASTER PACK 2016-12-01    400.0  100.0           0.81         1.00  False
+  12861                              RICH & RARE CARAMEL MINI 2020-08-01    600.0   50.0           0.60         1.27  False
+  12865                                RICH & RARE APPLE MINI 2020-08-01    600.0   50.0           1.08         1.00  False
+  14493                        REVEL STOKE ROASTED APPLE MINI 2018-10-01     50.0  500.0           1.01         1.00  False
+  14498                       REVEL STOKE SMOKED VANILLA MINI 2018-10-01     50.0 3000.0           0.94         1.06  False
+  14498                       REVEL STOKE SMOKED VANILLA MINI 2019-08-01   3000.0   50.0           0.94         1.00  False
+  15621                                          JAMESON MINI 2019-08-01    600.0   50.0           1.12         1.00   True
+  19021                                   JIM BEAM BLACK MINI 2019-08-01    500.0   50.0           0.94         1.00  False
+  19061                                         JIM BEAM MINI 2019-08-01    500.0   50.0           0.97         1.00  False
+  22151                                  WILD TURKEY 101 MINI 2019-08-01    500.0   50.0           1.09         1.00  False
+    238                          FORBIDDEN SECRET COFFEE PACK 2016-09-01    750.0  375.0           1.13         0.99  False
+  24451                            KESSLER BLEND WHISKEY MINI 2019-08-01    500.0   50.0           0.88         1.00  False
+  25601                      SEAGRAMS 7 CROWN BL WHISKEY MINI 2019-08-01    500.0   50.0           0.86         1.00  False
+    258                                     RUMCHATA GOCHATAS 2020-02-01   6000.0  100.0           1.05         1.00  False
+  26821                  JACK DANIELS OLD #7 BLACK LABEL MINI 2019-08-01    500.0   50.0           0.85         1.00  False
+  27390                                   JIM BEAM MAPLE MINI 2019-08-01    500.0   50.0           0.86         1.00  False
+
+2b) series at >=4x their brand's dollar-weighted median $/L: 119 ($22,547,484, 0 already in units table)
+series_id                                  description          brand       usd  ratio  in_units_table
+    65013        FIREBALL CINNAMON WHISKEY MINI SLEEVE       Fireball 6218214.8    6.3           False
+    64858     FIREBALL CINNAMON WHISKEY MINI DISPENSER       Fireball 1298916.0   38.0           False
+   100423      FIREBALL CINNAMON WHISKEY 100ML CARRIER       Fireball 1296486.0    4.2           False
+    38194                    TITOS HANDMADE VODKA MINI         Tito's 1160467.2   19.4           False
+   100413       FIREBALL CINNAMON WHISKEY PARTY BUCKET       Fireball 1100061.0   75.9           False
+    76302                   FIREBALL BLAZIN APPLE MINI       Fireball  911101.6    6.2           False
+    26821         JACK DANIELS OLD #7 BLACK LABEL MINI  Jack Daniel's  733608.0   10.8           False
+    89191           JOSE CUERVO ESPECIAL REPOSADO MINI    Jose Cuervo  609519.5   15.4           False
+    43331          CAPTAIN MORGAN ORIGINAL SPICED MINI Captain Morgan  533476.8    8.7           False
+    19061                                JIM BEAM MINI       Jim Beam  464478.0    9.1           False
+    10803                 CROWN ROYAL REGAL APPLE MINI    Crown Royal  452234.9    4.9           False
+    11290                             CROWN ROYAL MINI    Crown Royal  364366.1    4.9           False
+    37991                          SMIRNOFF 80PRF MINI       Smirnoff  348110.6    8.4           False
+    36301                           HAWKEYE VODKA MINI        Hawkeye  342589.5   19.3           False
+    39422              NEW AMSTERDAM PINK WHITNEY MINI  New Amsterdam  329440.4    8.7           False
+    27780                          JIM BEAM APPLE MINI       Jim Beam  298336.5    9.1           False
+    34001             ABSOLUT SWEDISH VODKA 80PRF MINI        Absolut  286177.3   13.2           False
+    11771                            BLACK VELVET MINI   Black Velvet  279397.1   22.6           False
+    36965                     NEW AMSTERDAM 80PRF MINI  New Amsterdam  263306.0    8.7           False
+    87401             JOSE CUERVO ESPECIAL SILVER MINI    Jose Cuervo  246031.5   15.4           False
+    39232 NEW AMSTERDAM PINK WHITNEY MINI CLEAR-SHRINK  New Amsterdam  232456.6    8.7           False
+    38185             TITOS HANDMADE VODKA MINI 4 PACK         Tito's  231477.7    6.5           False
+   103039                FIREBALL TORCH'D VANILLA MINI       Fireball  221271.8    6.3           False
+    86668            JACK DANIELS TENNESSEE HONEY MINI  Jack Daniel's  195891.0   10.8           False
+    48257                       HENNESSY XO GB UPGRADE       Hennessy  189287.4    4.4           False
+    48102                            HENNESSY VS 100ML       Hennessy  179693.6   15.6           False
+    89153                      DON JULIO REPOSADO MINI      Don Julio  174420.0   13.4           False
+   910225            FIREBALL SQUARE PARTY BUCKET MINI       Fireball  165249.0  169.5           False
+    10775                       CROWN ROYAL PEACH MINI    Crown Royal  155580.5    4.9           False
+   101710                    FIREBALL WINDOW BOX MINIS       Fireball  147096.0   75.9           False
+
+3) decision 49, share of trailing-12 dollars on hand-checked series:
+                   usd_t12  hand_checked_share  rule_only_series  passes_95
+brand                                                                      
+Tito's          31490762.0                99.5               2.0       True
+Crown Royal     29403455.0                93.6              32.0      False
+Fireball        25105283.0                94.5              27.0      False
+Captain Morgan  17180519.0                93.3              18.0      False
+Black Velvet    14056442.0                97.7               6.0       True
+Jack Daniel's   13884991.0                88.6              38.0      False
+Jose Cuervo      9281872.0                88.0              29.0      False
+Smirnoff         8350282.0                68.2              45.0      False
+99 Brand         8081841.0                62.7              56.0      False
+Jim Beam         7918002.0                80.5              34.0      False
+Don Julio        7534443.0                81.2              25.0      False
+Jameson          7234077.0                91.0              11.0      False
+Hennessy         5660621.0                81.9              14.0      False
+Patron           5657660.0                75.3              31.0      False
+Hawkeye          5370908.0                95.0               6.0      False
+Absolut          5269185.0                72.5              31.0      False
+Bacardi          4935440.0                72.1              31.0      False
+Maker's Mark     4929269.0                85.8              14.0      False
+Malibu           4275731.0                80.0              19.0      False
+New Amsterdam    4143820.0                44.5              52.0      False
+
+3b) reverse check: same-vendor series naming a top-20 brand but mapped elsewhere: 15 ($153,391)
+series_id                                                 description searched_brand brand     usd
+   987416                         SOOH JOSE CUERVO TRADICIONAL SILVER    Jose Cuervo   NaN 68407.0
+    10839                           BP CROWN ROYAL HAND SELECT BARREL    Crown Royal   NaN 17321.0
+   925895                                 HA JACK DANIELS MALT SHERRY  Jack Daniel's   NaN 10800.0
+    88685                               BP PATRON ANEJO BARREL SELECT         Patron   NaN  8830.0
+   910839                        HA BP CROWN ROYAL HAND SELECT BARREL    Crown Royal   NaN  7918.0
+    88687                            BP PATRON REPOSADO BARREL SELECT         Patron   NaN  7917.0
+   940067                               SOOH NEW AMSTERDAM MANGO MINI  New Amsterdam   NaN  7287.0
+   976367                           SOOH 99 LONG ISLAND ICED TEA MINI       99 Brand   NaN  7200.0
+   925917                            HA JACK DANIELS MCLAREN PRESTIGE  Jack Daniel's   NaN  3510.0
+   928364 HA JACK DANIELS SINGLE BARREL BARREL PROOF TANYARD HILL RYE  Jack Daniel's   NaN  2976.0
+   919487                                  HA MAKERS MARK CELLAR AGED   Maker's Mark   NaN  2888.0
+    89650                                         GRAN PATRON BURDEOS         Patron   NaN  2520.0
+    89640                                          GRAN PATRON PIEDRA         Patron   NaN  2277.0
+   989210                      SOOH JOSE CUERVO RESERVA DE LA FAMILIA    Jose Cuervo   NaN  2138.0
+   926102                                        HA JACK DANIELS 10YR  Jack Daniel's   NaN  1404.0

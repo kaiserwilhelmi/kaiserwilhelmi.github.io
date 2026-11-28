@@ -1,0 +1,31 @@
+2026-11-27T15:36:06 2026 try 1 -> 200 application/zip 447205733
+ zipsig=True
+2026-11-27T15:36:38 2025 try 1 -> 200 application/zip 650714097
+ zipsig=True
+2026-11-27T15:37:13 2024 try 1 -> 200 application/zip 551568920
+ zipsig=True
+2026-11-27T15:37:57 2023 try 1 -> 200 application/zip 560282808
+ zipsig=True
+2026-11-27T15:38:36 2022 try 1 -> 200 application/zip 623220421
+ zipsig=True
+2026-11-27T15:39:18 2021 try 1 -> 200 application/zip 647938165
+ zipsig=True
+2026-11-27T15:40:04 2020 try 1 -> 200 application/zip 652857513
+ zipsig=True
+2026-11-27T15:40:39 2019 try 1 -> 200 application/zip 491437844
+ zipsig=True
+2026-11-27T15:41:09 2018 try 1 -> 200 application/zip 487757735
+ zipsig=True
+2026-11-27T15:41:36 2017 try 1 -> 200 application/zip 472296619
+ zipsig=True
+2026-11-27T15:42:01 2016 try 1 -> 200 application/zip 469924295
+ zipsig=True
+2026-11-27T15:42:34 2015 try 1 -> 200 application/zip 452752537
+ zipsig=True
+2026-11-27T15:42:59 2014 try 1 -> 200 application/zip 434564430
+ zipsig=True
+2026-11-27T15:43:26 2013 try 1 -> 200 application/zip 427521545
+ zipsig=True
+2026-11-27T15:43:50 2012 try 1 -> 200 application/zip 431253959
+ zipsig=True
+2026-11-27T15:43:50 DONE
